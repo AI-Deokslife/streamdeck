@@ -14,11 +14,20 @@ pub enum Action {
         args: String,
     },
     /// 단축키 보내기 (예: "ctrl+shift+esc", "volumeup")
-    Keys { keys: String },
+    Keys {
+        keys: String,
+        /// 이 프로그램 창으로 보낸다 (예: "Hwp.exe"). 비면 상위 폴더의 연결 프로그램 → 현재 활성 창
+        #[serde(default)]
+        app: String,
+    },
     /// 웹 주소 열기
     Url { url: String },
     /// 텍스트 입력 (스니펫)
-    Text { text: String },
+    Text {
+        text: String,
+        #[serde(default)]
+        app: String,
+    },
     /// PowerShell 명령 실행
     Script { command: String },
     /// 기다리기 (멀티 액션의 단계로 사용)
@@ -29,7 +38,40 @@ pub enum Action {
     Folder {
         #[serde(default)]
         buttons: Vec<Button>,
+        /// 연결된 프로그램 (예: ["Hwp.exe"]). 이 프로그램이 앞에 오면 폴더가 자동으로 열린다 (스마트 프로필)
+        #[serde(default)]
+        apps: Vec<String>,
+        /// 폴더를 누를 때 실행할 프로그램 경로. 이미 실행 중이면 그 창을 앞으로 가져온다
+        #[serde(default)]
+        launch: String,
     },
+}
+
+/// id 버튼과, 그 버튼이 속한 가장 가까운 "프로그램 연결 폴더"의 프로그램 이름
+pub fn find_button<'a>(buttons: &'a [Button], id: &str) -> Option<(&'a Button, Option<String>)> {
+    fn walk<'a>(list: &'a [Button], id: &str, inherited: Option<&str>) -> Option<(&'a Button, Option<String>)> {
+        for b in list {
+            if b.id == id {
+                return Some((b, inherited.map(str::to_string)));
+            }
+            if let Action::Folder { buttons, apps, .. } = &b.action {
+                let next = apps.first().map(String::as_str).or(inherited);
+                if let Some(found) = walk(buttons, id, next) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+    walk(buttons, id, None)
+}
+
+/// exe 프로그램에 연결된 폴더 id (가장 먼저 찾은 것)
+pub fn folder_for_app(buttons: &[Button], exe: &str) -> Option<String> {
+    all_buttons(buttons).into_iter().find_map(|b| match &b.action {
+        Action::Folder { apps, .. } if apps.iter().any(|a| a.trim().eq_ignore_ascii_case(exe)) => Some(b.id.clone()),
+        _ => None,
+    })
 }
 
 /// 폴더 안까지 포함한 모든 버튼을 펼쳐서 돌려준다.
@@ -38,7 +80,7 @@ pub fn all_buttons(buttons: &[Button]) -> Vec<&Button> {
     fn walk<'a>(list: &'a [Button], out: &mut Vec<&'a Button>) {
         for b in list {
             out.push(b);
-            if let Action::Folder { buttons } = &b.action {
+            if let Action::Folder { buttons, .. } = &b.action {
                 walk(buttons, out);
             }
         }
@@ -94,11 +136,11 @@ impl Default for Config {
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),
-                btn("b3", "작업 관리자", "📊", "#c05621", "", Action::Keys { keys: "ctrl+shift+esc".into() }),
-                btn("b4", "화면 캡처", "✂️", "#6b46c1", "", Action::Keys { keys: "win+shift+s".into() }),
-                btn("b5", "볼륨 -", "🔉", "#4a5568", "Ctrl+Alt+Minus", Action::Keys { keys: "volumedown".into() }),
-                btn("b6", "볼륨 +", "🔊", "#4a5568", "Ctrl+Alt+Equal", Action::Keys { keys: "volumeup".into() }),
-                btn("b7", "음소거", "🔇", "#9b2c2c", "", Action::Keys { keys: "mute".into() }),
+                btn("b3", "작업 관리자", "📊", "#c05621", "", Action::Keys { keys: "ctrl+shift+esc".into(), app: String::new() }),
+                btn("b4", "화면 캡처", "✂️", "#6b46c1", "", Action::Keys { keys: "win+shift+s".into(), app: String::new() }),
+                btn("b5", "볼륨 -", "🔉", "#4a5568", "Ctrl+Alt+Minus", Action::Keys { keys: "volumedown".into(), app: String::new() }),
+                btn("b6", "볼륨 +", "🔊", "#4a5568", "Ctrl+Alt+Equal", Action::Keys { keys: "volumeup".into(), app: String::new() }),
+                btn("b7", "음소거", "🔇", "#9b2c2c", "", Action::Keys { keys: "mute".into(), app: String::new() }),
                 btn("b8", "구글", "🌐", "#2c7a7b", "", Action::Url { url: "https://www.google.com".into() }),
             ],
         }
@@ -168,6 +210,31 @@ mod tests {
         let buttons: Vec<Button> = serde_json::from_str(json).unwrap();
         let ids: Vec<_> = all_buttons(&buttons).iter().map(|b| b.id.as_str()).collect();
         assert_eq!(ids, ["f1", "a", "f2", "b", "empty"]);
+    }
+
+    #[test]
+    fn app_linked_folder_lookup() {
+        let json = r##"[
+            {"id":"hwp","label":"한글","action":{"type":"folder","apps":["Hwp.exe"],"buttons":[
+                {"id":"save","label":"저장","action":{"type":"keys","keys":"alt+s"}},
+                {"id":"sub","label":"서식","action":{"type":"folder","buttons":[
+                    {"id":"bold","label":"진하게","action":{"type":"keys","keys":"ctrl+b"}},
+                    {"id":"other","label":"메모장에","action":{"type":"keys","keys":"ctrl+v","app":"notepad.exe"}}
+                ]}}
+            ]}},
+            {"id":"top","label":"위","action":{"type":"keys","keys":"ctrl+c"}}
+        ]"##;
+        let buttons: Vec<Button> = serde_json::from_str(json).unwrap();
+        // 대소문자 무시하고 연결 폴더 찾기
+        assert_eq!(folder_for_app(&buttons, "hwp.EXE").as_deref(), Some("hwp"));
+        assert_eq!(folder_for_app(&buttons, "chrome.exe"), None);
+        // 하위 폴더 안 버튼도 상위의 연결 프로그램을 물려받는다
+        assert_eq!(find_button(&buttons, "bold").unwrap().1.as_deref(), Some("Hwp.exe"));
+        assert_eq!(find_button(&buttons, "save").unwrap().1.as_deref(), Some("Hwp.exe"));
+        assert_eq!(find_button(&buttons, "top").unwrap().1, None);
+        // 버튼에 직접 지정한 대상은 Action 안에 그대로 남아 있다
+        let (other, _) = find_button(&buttons, "other").unwrap();
+        assert!(matches!(&other.action, Action::Keys { app, .. } if app == "notepad.exe"));
     }
 
     #[test]

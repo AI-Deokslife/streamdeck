@@ -117,13 +117,20 @@ fn register_hotkeys(app: &AppHandle, cfg: &Config) -> Vec<String> {
     warnings
 }
 
-fn find_action(app: &AppHandle, button_id: &str) -> Option<Action> {
+/// 버튼 동작과, 상위 폴더에서 물려받은 대상 프로그램
+fn find_action(app: &AppHandle, button_id: &str) -> Option<(Action, Option<String>)> {
     let state = app.state::<AppState>();
     let cfg = state.config.lock().unwrap();
-    config::all_buttons(&cfg.buttons)
-        .into_iter()
-        .find(|b| b.id == button_id)
-        .map(|b| b.action.clone())
+    config::find_button(&cfg.buttons, button_id).map(|(b, inherited)| (b.action.clone(), inherited))
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppFocusEvent {
+    /// 앞에 온 프로그램 (예: Hwp.exe)
+    exe: String,
+    /// 그 프로그램에 연결된 폴더 (없으면 null)
+    folder_id: Option<String>,
 }
 
 // ---------------- 프론트엔드에서 호출하는 명령 ----------------
@@ -148,16 +155,38 @@ fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Ve
 
 #[tauri::command]
 async fn run_button(app: AppHandle, id: String) -> Result<(), String> {
-    let action = find_action(&app, &id).ok_or("버튼을 찾을 수 없습니다")?;
-    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false))
+    let (action, inherited) = find_action(&app, &id).ok_or("버튼을 찾을 수 없습니다")?;
+    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, inherited.as_deref()))
         .await
         .map_err(|e| e.to_string())?
 }
 
 /// 편집 중인(아직 저장 안 된) 동작을 바로 실행해 보는 용도
 #[tauri::command]
-async fn test_action(app: AppHandle, action: Action) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false))
+async fn test_action(app: AppHandle, action: Action, inherited_app: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, inherited_app.as_deref()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// 지금 앞에 있는 프로그램과 연결된 폴더 (편집 후/시작 시 다시 맞추기용)
+#[tauri::command]
+fn current_app(state: State<AppState>) -> AppFocusEvent {
+    let exe = winutil::last_app();
+    let folder_id = config::folder_for_app(&state.config.lock().unwrap().buttons, &exe);
+    AppFocusEvent { exe, folder_id }
+}
+
+/// 지금 창이 열려 있는 프로그램 목록 (프로그램 연결할 때 고르기용)
+#[tauri::command]
+fn list_running_apps() -> Vec<winutil::RunningApp> {
+    winutil::running_apps()
+}
+
+/// 프로그램 연결 폴더를 눌렀을 때: 실행 중이면 창을 앞으로, 아니면 실행
+#[tauri::command]
+async fn activate_app(app: AppHandle, exe: String, launch: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::activate_or_launch(&app, &exe, &launch))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -254,16 +283,25 @@ pub fn run() {
                     match id.as_deref() {
                         Some(TOGGLE_ID) => toggle_window(app),
                         Some(button_id) => {
-                            if let Some(action) = find_action(app, button_id) {
-                                if matches!(action, Action::Folder { .. }) {
-                                    // 폴더 단축키: 창을 띄우고 그 폴더를 연다
+                            if let Some((action, inherited)) = find_action(app, button_id) {
+                                if let Action::Folder { apps, launch, .. } = &action {
+                                    // 폴더 단축키: 창을 띄우고 그 폴더를 연다 (+ 연결 프로그램 실행/활성화)
                                     show_window(app);
                                     let _ = app.emit("open-folder", button_id.to_string());
+                                    if !launch.trim().is_empty() {
+                                        let (app, exe, launch) =
+                                            (app.clone(), apps.first().cloned().unwrap_or_default(), launch.clone());
+                                        thread::spawn(move || {
+                                            if let Err(e) = actions::activate_or_launch(&app, &exe, &launch) {
+                                                let _ = app.emit("action-error", e);
+                                            }
+                                        });
+                                    }
                                     return;
                                 }
                                 let app = app.clone();
                                 thread::spawn(move || {
-                                    if let Err(e) = actions::run(&app, &action, true) {
+                                    if let Err(e) = actions::run(&app, &action, true, inherited.as_deref()) {
                                         let _ = app.emit("action-error", e);
                                     }
                                 });
@@ -285,7 +323,16 @@ pub fn run() {
                 }
                 winutil::set_no_activate(true);
             }
-            winutil::start_foreground_tracker();
+            // 활성 프로그램이 바뀌면 화면에 알린다 (연결된 폴더 자동 열기 = 스마트 프로필)
+            let tracker_app = handle.clone();
+            winutil::start_foreground_tracker(move |exe| {
+                let folder_id = {
+                    let state = tracker_app.state::<AppState>();
+                    let cfg = state.config.lock().unwrap();
+                    config::folder_for_app(&cfg.buttons, &exe)
+                };
+                let _ = tracker_app.emit("app-focus", AppFocusEvent { exe, folder_id });
+            });
 
             let notices = register_on_startup(&handle, &mut cfg);
             for n in &notices {
@@ -303,6 +350,9 @@ pub fn run() {
             save_config,
             run_button,
             test_action,
+            list_running_apps,
+            current_app,
+            activate_app,
             hide_window,
             set_edit_mode
         ])

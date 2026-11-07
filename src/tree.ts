@@ -86,3 +86,21 @@ export function folderOptions(root: DeckButton[], excludeId: string): FolderOpti
   walk(root, [], []);
   return out;
 }
+
+/** path 안에서 가장 가까운 "프로그램 연결 폴더"의 프로그램 (키 입력 대상으로 물려받음) */
+export function inheritedApp(root: DeckButton[], path: Path): string | null {
+  let list = root;
+  let app: string | null = null;
+  for (const id of path) {
+    const folder = list.find((b) => b.id === id);
+    if (!folder || folder.action.type !== "folder") break;
+    if (folder.action.apps[0]) app = folder.action.apps[0];
+    list = folder.action.buttons;
+  }
+  return app;
+}
+
+/** a가 b로 시작하는지 (b 폴더 또는 그 하위에 있는지) */
+export function isWithin(a: Path, b: Path): boolean {
+  return b.length <= a.length && b.every((id, i) => a[i] === id);
+}

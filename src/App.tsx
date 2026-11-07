@@ -3,8 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ButtonEditor, SettingsEditor } from "./Editor";
 import { prettyHotkey } from "./HotkeyInput";
-import { Path, buttonsAt, countDeep, folderLabels, folderOptions, pathToFolder, updateAt } from "./tree";
-import { Config, DeckButton, newButton } from "./types";
+import { AppPreset, presetFolder } from "./presets";
+import {
+  Path,
+  buttonsAt,
+  countDeep,
+  folderLabels,
+  folderOptions,
+  inheritedApp,
+  isWithin,
+  pathToFolder,
+  updateAt,
+} from "./tree";
+import { AppFocus, Config, DeckButton, newButton } from "./types";
 import "./App.css";
 
 export default function App() {
@@ -18,6 +29,53 @@ export default function App() {
   const [toast, setToast] = useState<{ text: string; kind: "error" | "info" } | null>(null);
   const dragId = useRef<string | null>(null);
   const toastTimer = useRef<number>(undefined);
+  /** 연결 프로그램 때문에 자동으로 연 폴더 (스마트 프로필) */
+  const [autoApp, setAutoApp] = useState<string | null>(null);
+  const auto = useRef<{ folderPath: Path; returnPath: Path } | null>(null);
+  // 이벤트 핸들러에서 최신 값을 읽기 위한 ref
+  const pathRef = useRef<Path>([]);
+  const configRef = useRef<Config | null>(null);
+  const editingRef = useRef(false);
+  pathRef.current = path;
+  configRef.current = config;
+  editingRef.current = editing;
+
+  /** 앞에 온 프로그램에 맞춰 화면 전환. 편집 중에는 쉰다 (Stream Deck과 같음) */
+  const applyFocus = useCallback((ev: AppFocus) => {
+    const cfg = configRef.current;
+    if (!cfg || editingRef.current) return;
+    const target = ev.folderId ? pathToFolder(cfg.buttons, ev.folderId) : null;
+    const now = pathRef.current;
+
+    if (target) {
+      if (auto.current && isWithin(now, auto.current.folderPath) && auto.current.folderPath.join("/") === target.join("/")) {
+        return; // 이미 그 폴더(또는 하위)에 있음
+      }
+      const returnPath = auto.current ? auto.current.returnPath : now;
+      auto.current = { folderPath: target, returnPath };
+      setAutoApp(ev.exe);
+      if (!isWithin(now, target)) {
+        setPath(target);
+        setSelectedId(null);
+      }
+    } else if (auto.current) {
+      // 연결 없는 프로그램으로 갔으면, 사용자가 그 폴더 안에 머물러 있던 경우에만 원래 화면으로
+      if (isWithin(now, auto.current.folderPath)) setPath(auto.current.returnPath);
+      auto.current = null;
+      setAutoApp(null);
+    }
+  }, []);
+
+  const syncCurrentApp = useCallback(() => {
+    invoke<AppFocus>("current_app").then(applyFocus).catch(() => {});
+  }, [applyFocus]);
+
+  useEffect(() => {
+    const un = listen<AppFocus>("app-focus", (e) => applyFocus(e.payload));
+    return () => {
+      un.then((f) => f());
+    };
+  }, [applyFocus]);
 
   const showToast = useCallback((text: string, kind: "error" | "info" = "error", ms = 4000) => {
     setToast({ text, kind });
@@ -33,7 +91,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    invoke<Config>("get_config").then(setConfig).catch((e) => showToast(String(e)));
+    invoke<Config>("get_config")
+      .then((cfg) => {
+        configRef.current = cfg;
+        setConfig(cfg);
+        syncCurrentApp();
+      })
+      .catch((e) => showToast(String(e)));
     // 단축키 등록 실패/자동 변경 같은 시작 알림은 오래 보여준다 (클릭하면 닫힘)
     invoke<string[]>("take_startup_notices").then((notices) => {
       if (notices.length) showToast(notices.join("\n"), "error", 12000);
@@ -42,7 +106,7 @@ export default function App() {
     return () => {
       unErr.then((f) => f());
     };
-  }, [showToast]);
+  }, [showToast, syncCurrentApp]);
 
   // 트레이 메뉴의 "버튼 편집"
   useEffect(() => {
@@ -99,7 +163,19 @@ export default function App() {
       return;
     }
     if (b.action.type === "folder") {
+      const { apps, launch } = b.action;
+      if (apps.length) {
+        // 직접 연 폴더도 "연결 프로그램에서 벗어나면 원래 화면으로" 규칙을 따르게
+        auto.current = { folderPath: [...path, b.id], returnPath: path };
+        setAutoApp(apps[0]);
+      }
       openFolder(b.id);
+      // 연결 프로그램을 앞으로 가져오고, 실행 중이 아니면 실행
+      if (launch || apps.length) {
+        invoke("activate_app", { exe: apps[0] ?? "", launch }).catch((e) => {
+          if (launch) showToast(String(e));
+        });
+      }
       return;
     }
     setPressedId(b.id);
@@ -116,6 +192,7 @@ export default function App() {
       try {
         const warnings = await invoke<string[]>("save_config", { cfg: draft });
         setConfig(draft);
+        configRef.current = draft;
         if (warnings.length) showToast(warnings.join("\n"));
         else showToast("저장했어요", "info");
       } catch (e) {
@@ -127,6 +204,18 @@ export default function App() {
     setEditing(false);
     setDraft(null);
     setSelectedId(null);
+    // 편집하는 동안 쉬었던 자동 전환을 지금 앞에 있는 프로그램 기준으로 다시 맞춘다
+    editingRef.current = false;
+    auto.current = null;
+    setAutoApp(null);
+    syncCurrentApp();
+  }
+
+  function addPreset(p: AppPreset) {
+    const folder = presetFolder(p);
+    editHere((list) => [...list, folder]);
+    setSelectedId(folder.id);
+    showToast(`'${p.name}' 폴더를 만들었어요. 폴더를 열어 버튼을 고치거나 지울 수 있어요.`, "info", 3000);
   }
 
   /** 현재 폴더의 버튼 목록을 바꾼다 */
@@ -202,6 +291,16 @@ export default function App() {
         {!editing && path.length === 0 && (
           <span className="hint-key" data-tauri-drag-region>
             {prettyHotkey(config.toggleHotkey)}
+          </span>
+        )}
+        {!editing && autoApp && (
+          <span className="auto-badge" title={`${autoApp}에 연결된 폴더 — 다른 프로그램으로 가면 돌아가요`}>
+            🔗 {autoApp.replace(/\.exe$/i, "")}
+          </span>
+        )}
+        {editing && (
+          <span className="hint-key" data-tauri-drag-region title="편집하는 동안은 프로그램별 자동 전환이 멈춰요">
+            자동 전환 일시정지
           </span>
         )}
         <div className="actions">
@@ -292,15 +391,19 @@ export default function App() {
               onChange={updateButton}
               onDelete={() => deleteButton(selected)}
               onTest={() =>
-                invoke("test_action", { action: selected.action }).catch((e) => showToast(String(e)))
+                invoke("test_action", {
+                  action: selected.action,
+                  inheritedApp: inheritedApp(draft.buttons, path),
+                }).catch((e) => showToast(String(e)))
               }
               onOpenFolder={() => openFolder(selected.id)}
               folders={folderOptions(draft.buttons, selected.id)}
               currentPath={path}
+              inherited={inheritedApp(draft.buttons, path)}
               onMove={(to) => moveToFolder(selected, to)}
             />
           ) : (
-            <SettingsEditor config={draft} onChange={setDraft} />
+            <SettingsEditor config={draft} onChange={setDraft} onAddPreset={addPreset} />
           )}
         </section>
       )}

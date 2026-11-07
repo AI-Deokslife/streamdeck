@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import HotkeyInput from "./HotkeyInput";
+import { APP_PRESETS, AppPreset } from "./presets";
 import { FolderOption, Path, countDeep } from "./tree";
 import {
   ACTION_ICONS,
@@ -9,6 +11,7 @@ import {
   BUTTON_ACTION_TYPES,
   Config,
   DeckButton,
+  RunningApp,
   STEP_ACTION_TYPES,
   emptyAction,
   summarizeAction,
@@ -29,9 +32,83 @@ const KEY_PRESETS: [string, string][] = [
   ["바탕화면", "win+d"],
 ];
 
+// ---------------- 실행 중인 프로그램 고르기 ----------------
+
+/** [실행 중인 프로그램에서 선택] 버튼 → 목록에서 고르면 onPick */
+function AppPicker({ onPick, label = "실행 중인 프로그램에서 선택" }: { onPick: (a: RunningApp) => void; label?: string }) {
+  const [apps, setApps] = useState<RunningApp[] | null>(null);
+  if (!apps) {
+    return (
+      <button
+        type="button"
+        className="small"
+        onClick={() => invoke<RunningApp[]>("list_running_apps").then(setApps).catch(() => setApps([]))}
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <select
+      autoFocus
+      defaultValue=""
+      onChange={(e) => {
+        const a = apps.find((x) => x.exe === e.target.value);
+        if (a) onPick(a);
+        setApps(null);
+      }}
+      onBlur={() => setApps(null)}
+    >
+      <option value="" disabled>
+        {apps.length ? "프로그램을 고르세요" : "열린 창이 없어요"}
+      </option>
+      {apps.map((a) => (
+        <option key={a.exe} value={a.exe}>
+          {a.exe} — {a.title.slice(0, 40)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** 키/텍스트를 보낼 프로그램 */
+function TargetAppField({
+  value,
+  inherited,
+  onChange,
+}: {
+  value: string;
+  inherited?: string | null;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label>
+      보낼 프로그램 (선택)
+      <div className="row">
+        <input
+          className="grow"
+          value={value}
+          placeholder={inherited ? `비우면 폴더에 연결된 ${inherited}(으)로` : "비우면 지금 활성화된 창으로"}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <AppPicker label="선택" onPick={(a) => onChange(a.exe)} />
+      </div>
+    </label>
+  );
+}
+
 // ---------------- 동작 하나의 입력 필드 ----------------
 
-function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: Action) => void }) {
+function ActionFields({
+  action: a,
+  onChange,
+  inherited,
+}: {
+  action: Action;
+  onChange: (a: Action) => void;
+  /** 상위 폴더에 연결된 프로그램 */
+  inherited?: string | null;
+}) {
   const set = (patch: Partial<Action>) => onChange({ ...a, ...patch } as Action);
 
   switch (a.type) {
@@ -64,6 +141,7 @@ function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: A
               </button>
             ))}
           </div>
+          <TargetAppField value={a.app} inherited={inherited} onChange={(app) => set({ app })} />
         </>
       );
     case "url":
@@ -78,6 +156,7 @@ function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: A
         <label>
           입력할 텍스트
           <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+          <TargetAppField value={a.app} inherited={inherited} onChange={(app) => set({ app })} />
         </label>
       );
     case "script":
@@ -120,7 +199,7 @@ function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: A
         </label>
       );
     case "multi":
-      return <StepList steps={a.steps} onChange={(steps) => set({ steps })} />;
+      return <StepList steps={a.steps} inherited={inherited} onChange={(steps) => set({ steps })} />;
     case "folder":
       return null; // 폴더는 ButtonEditor에서 따로 표시
   }
@@ -148,7 +227,15 @@ function TypeSelect({
 
 // ---------------- 멀티 액션 단계 목록 ----------------
 
-function StepList({ steps, onChange }: { steps: Action[]; onChange: (s: Action[]) => void }) {
+function StepList({
+  steps,
+  onChange,
+  inherited,
+}: {
+  steps: Action[];
+  onChange: (s: Action[]) => void;
+  inherited?: string | null;
+}) {
   const [open, setOpen] = useState<number | null>(null);
 
   const update = (i: number, a: Action) => onChange(steps.map((s, j) => (j === i ? a : s)));
@@ -202,7 +289,7 @@ function StepList({ steps, onChange }: { steps: Action[]; onChange: (s: Action[]
           {open === i && (
             <div className="step-body">
               <TypeSelect value={s.type} types={STEP_ACTION_TYPES} onChange={(t) => update(i, emptyAction(t))} />
-              <ActionFields action={s} onChange={(a) => update(i, a)} />
+              <ActionFields action={s} inherited={inherited} onChange={(a) => update(i, a)} />
             </div>
           )}
         </div>
@@ -230,6 +317,8 @@ interface ButtonEditorProps {
   folders: FolderOption[];
   currentPath: Path;
   onMove: (to: Path) => void;
+  /** 상위 폴더에 연결된 프로그램 */
+  inherited: string | null;
 }
 
 export function ButtonEditor({
@@ -241,6 +330,7 @@ export function ButtonEditor({
   folders,
   currentPath,
   onMove,
+  inherited,
 }: ButtonEditorProps) {
   const set = (patch: Partial<DeckButton>) => onChange({ ...button, ...patch });
   const a = button.action;
@@ -307,7 +397,15 @@ export function ButtonEditor({
           </button>
         </div>
       ) : (
-        <ActionFields action={a} onChange={(action) => set({ action })} />
+        <ActionFields action={a} inherited={inherited} onChange={(action) => set({ action })} />
+      )}
+
+      {a.type === "folder" && (
+        <FolderAppFields
+          apps={a.apps}
+          launch={a.launch}
+          onChange={(patch) => set({ action: { ...a, ...patch } })}
+        />
       )}
 
       <label>
@@ -348,14 +446,89 @@ export function ButtonEditor({
   );
 }
 
+// ---------------- 폴더 ↔ 프로그램 연결 (스마트 프로필) ----------------
+
+function FolderAppFields({
+  apps,
+  launch,
+  onChange,
+}: {
+  apps: string[];
+  launch: string;
+  onChange: (p: { apps?: string[]; launch?: string }) => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const withApp = (exe: string) => {
+    const name = exe.trim();
+    return !name || apps.some((x) => x.toLowerCase() === name.toLowerCase()) ? apps : [...apps, name];
+  };
+  const addTyped = () => {
+    onChange({ apps: withApp(typed) });
+    setTyped("");
+  };
+
+  return (
+    <div className="link-box">
+      <label>연결된 프로그램</label>
+      <p className="hint">
+        이 프로그램이 앞에 오면 폴더가 자동으로 열리고, 다른 프로그램으로 가면 원래 화면으로 돌아가요. 폴더 안의 단축키
+        버튼은 이 프로그램 창으로 보내집니다.
+      </p>
+      <div className="chips">
+        {apps.map((exe) => (
+          <span key={exe} className="chip on">
+            🔗 {exe}
+            <button
+              type="button"
+              className="chip-x"
+              title="연결 해제"
+              onClick={() => onChange({ apps: apps.filter((x) => x !== exe) })}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        {apps.length === 0 && <span className="hint">연결 없음</span>}
+      </div>
+      <div className="row">
+        <input
+          className="grow"
+          value={typed}
+          placeholder="실행 파일 이름 (예: Hwp.exe)"
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addTyped()}
+        />
+        <button type="button" className="small" onClick={addTyped}>
+          추가
+        </button>
+        <AppPicker
+          label="실행 중에서 선택"
+          onPick={(a) => onChange({ apps: withApp(a.exe), launch: launch || a.path })}
+        />
+      </div>
+      <label>
+        폴더를 누르면 실행할 프로그램 (선택)
+        <input
+          value={launch}
+          placeholder="실행 파일 전체 경로 — 위 '실행 중에서 선택'으로 고르면 자동으로 채워져요"
+          onChange={(e) => onChange({ launch: e.target.value })}
+        />
+      </label>
+      <p className="hint">이미 실행 중이면 새로 띄우지 않고 그 창을 앞으로 가져와요.</p>
+    </div>
+  );
+}
+
 // ---------------- 전체 설정 ----------------
 
 interface SettingsProps {
   config: Config;
   onChange: (c: Config) => void;
+  /** 프로그램 프리셋을 지금 화면에 폴더로 추가 */
+  onAddPreset: (p: AppPreset) => void;
 }
 
-export function SettingsEditor({ config, onChange }: SettingsProps) {
+export function SettingsEditor({ config, onChange, onAddPreset }: SettingsProps) {
   return (
     <div className="editor">
       <p className="hint">
@@ -377,6 +550,21 @@ export function SettingsEditor({ config, onChange }: SettingsProps) {
           onChange={(e) => onChange({ ...config, columns: Number(e.target.value) })}
         />
       </label>
+
+      <label>프로그램 프리셋 추가</label>
+      <p className="hint">
+        고르면 그 프로그램에서 자주 쓰는 명령이 담긴 폴더가 이 화면에 만들어지고, 그 프로그램이 앞에 오면 자동으로 열려요.
+      </p>
+      <div className="chips">
+        {APP_PRESETS.map((p) => (
+          <button key={p.id} type="button" className="chip preset" onClick={() => onAddPreset(p)}>
+            <span className="preset-icon" style={{ background: p.color }}>
+              {p.icon}
+            </span>
+            {p.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

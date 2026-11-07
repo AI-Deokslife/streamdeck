@@ -1,13 +1,13 @@
 // Rust의 config.rs 구조와 1:1로 맞춘 타입
 export type Action =
   | { type: "launch"; target: string; args: string }
-  | { type: "keys"; keys: string }
+  | { type: "keys"; keys: string; app: string }
   | { type: "url"; url: string }
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; app: string }
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
   | { type: "multi"; steps: Action[] }
-  | { type: "folder"; buttons: DeckButton[] };
+  | { type: "folder"; buttons: DeckButton[]; apps: string[]; launch: string };
 
 export type ActionType = Action["type"];
 
@@ -80,11 +80,11 @@ export function emptyAction(type: ActionType): Action {
     case "launch":
       return { type, target: "", args: "" };
     case "keys":
-      return { type, keys: "" };
+      return { type, keys: "", app: "" };
     case "url":
       return { type, url: "https://" };
     case "text":
-      return { type, text: "" };
+      return { type, text: "", app: "" };
     case "script":
       return { type, command: "" };
     case "delay":
@@ -92,7 +92,7 @@ export function emptyAction(type: ActionType): Action {
     case "multi":
       return { type, steps: [] };
     case "folder":
-      return { type, buttons: [] };
+      return { type, buttons: [], apps: [], launch: "" };
   }
 }
 
@@ -105,4 +105,17 @@ export function newButton(): DeckButton {
     hotkey: "",
     action: emptyAction("launch"),
   };
+}
+
+/** Rust winutil::RunningApp */
+export interface RunningApp {
+  exe: string;
+  path: string;
+  title: string;
+}
+
+/** Rust AppFocusEvent */
+export interface AppFocus {
+  exe: string;
+  folderId: string | null;
 }

@@ -9,8 +9,10 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 /// 멀티 액션 한 단계의 최대 대기 시간 (실수로 너무 긴 값 입력 방지)
 const MAX_DELAY_MS: u64 = 60_000;
 
-/// 동작 실행. `from_hotkey`가 true면 사용자의 수정키가 떼어질 때까지 기다린다.
-pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool) -> Result<(), String> {
+/// 동작 실행.
+/// - `from_hotkey`: true면 사용자의 수정키가 떼어질 때까지 기다린다.
+/// - `inherited_app`: 상위 폴더에 연결된 프로그램. 키/텍스트 입력에 대상이 따로 없으면 이 프로그램으로 보낸다.
+pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_app: Option<&str>) -> Result<(), String> {
     match action {
         Action::Delay { ms } => {
             thread::sleep(Duration::from_millis((*ms).min(MAX_DELAY_MS)));
@@ -25,7 +27,7 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool) -> Result<(), St
                 if matches!(step, Action::Multi { .. } | Action::Folder { .. }) {
                     return Err(format!("{}번째 단계: 멀티 액션/폴더는 단계로 넣을 수 없습니다", i + 1));
                 }
-                run(app, step, wait_mods).map_err(|e| format!("{}번째 단계 실패: {e}", i + 1))?;
+                run(app, step, wait_mods, inherited_app).map_err(|e| format!("{}번째 단계 실패: {e}", i + 1))?;
                 if matches!(step, Action::Keys { .. } | Action::Text { .. }) {
                     wait_mods = false;
                 }
@@ -43,23 +45,57 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool) -> Result<(), St
             .spawn()
             .map(|_| ())
             .map_err(|e| format!("스크립트 실행 실패: {e}")),
-        Action::Keys { keys } => {
-            prepare_input(from_hotkey);
+        Action::Keys { keys, app: target } => {
+            prepare_input(from_hotkey, pick_target(target, inherited_app))?;
             send_keys(keys)
         }
-        Action::Text { text } => {
-            prepare_input(from_hotkey);
+        Action::Text { text, app: target } => {
+            prepare_input(from_hotkey, pick_target(target, inherited_app))?;
             let mut enigo = new_enigo()?;
             enigo.text(text).map_err(|e| format!("텍스트 입력 실패: {e}"))
         }
     }
 }
 
-fn prepare_input(from_hotkey: bool) {
+fn pick_target<'a>(own: &'a str, inherited: Option<&'a str>) -> Option<&'a str> {
+    let own = own.trim();
+    if own.is_empty() { inherited.filter(|s| !s.trim().is_empty()) } else { Some(own) }
+}
+
+/// 키 입력 전 준비: 수정키 해제 대기 → 대상 프로그램 창(또는 직전 창)을 앞으로
+fn prepare_input(from_hotkey: bool, target: Option<&str>) -> Result<(), String> {
     if from_hotkey {
         winutil::wait_modifiers_released();
     }
-    winutil::restore_foreign_focus();
+    match target {
+        Some(exe) => focus(exe),
+        None => {
+            winutil::restore_foreign_focus();
+            Ok(())
+        }
+    }
+}
+
+fn focus(exe: &str) -> Result<(), String> {
+    winutil::focus_app(exe).map_err(|e| match e {
+        winutil::FocusError::NotRunning => format!("'{exe}' 프로그램이 실행 중이 아닙니다"),
+        winutil::FocusError::Failed => format!("'{exe}' 창을 앞으로 가져오지 못했습니다"),
+    })
+}
+
+/// 프로그램 연결 폴더를 눌렀을 때: 실행 중이면 창을 앞으로, 아니면 실행
+pub fn activate_or_launch(app: &AppHandle, exe: &str, launch_path: &str) -> Result<(), String> {
+    if !exe.trim().is_empty() {
+        match winutil::focus_app(exe.trim()) {
+            Ok(()) => return Ok(()),
+            Err(winutil::FocusError::Failed) => return focus(exe.trim()),
+            Err(winutil::FocusError::NotRunning) => {}
+        }
+    }
+    if launch_path.trim().is_empty() {
+        return Err(format!("'{exe}' 프로그램이 실행 중이 아니고, 실행할 경로도 지정되지 않았습니다"));
+    }
+    launch(app, launch_path, "")
 }
 
 fn launch(app: &AppHandle, target: &str, args: &str) -> Result<(), String> {
