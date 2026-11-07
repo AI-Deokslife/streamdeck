@@ -338,6 +338,7 @@ function IconPicker({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState("");
 
   async function applyImage(file: Blob | null) {
@@ -359,6 +360,21 @@ function IconPicker({
       setError(String(e));
     }
     setBusy(false);
+  }
+
+  /** Windows 캡처 도구로 화면 일부를 잘라 버튼 이미지로 (캡처하는 동안 QuickDeck 창은 잠깐 숨음) */
+  async function captureScreen() {
+    setCapturing(true);
+    setError("");
+    try {
+      const dataUrl = await invoke<string>("capture_screen");
+      const blob = await (await fetch(dataUrl)).blob();
+      // 캡처는 보통 그림이므로 버튼 전체를 채우는 쪽이 자연스럽다
+      onChange({ image: await imageToDataUrl(blob), imageFull: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setCapturing(false);
   }
 
   return (
@@ -401,6 +417,15 @@ function IconPicker({
             <button type="button" className="small" onClick={() => fileRef.current?.click()}>
               🖼 이미지 선택
             </button>
+            {capturing ? (
+              <button type="button" className="small primary" onClick={() => invoke("cancel_capture")}>
+                캡처 취소
+              </button>
+            ) : (
+              <button type="button" className="small" onClick={captureScreen} title="화면에서 영역을 드래그해서 잘라 넣기">
+                ✂ 화면 캡처
+              </button>
+            )}
             {programTarget && (
               <button type="button" className="small" disabled={busy} onClick={useProgramIcon} title={programTarget}>
                 {busy ? "가져오는 중…" : "📦 프로그램 아이콘"}
@@ -423,6 +448,9 @@ function IconPicker({
             </div>
           ) : (
             <span className="hint">왼쪽 칸에 이미지를 끌어 놓거나, 클릭하고 Ctrl+V로 붙여넣어도 돼요</span>
+          )}
+          {capturing && (
+            <span className="keycap-hint">캡처할 영역을 마우스로 드래그하세요. Esc를 누르면 캡처 도구가 닫혀요.</span>
           )}
           {error && <span className="keycap-hint warn">{error}</span>}
         </div>

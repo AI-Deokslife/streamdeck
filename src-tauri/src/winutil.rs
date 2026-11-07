@@ -145,6 +145,20 @@ pub fn running_apps() -> Vec<RunningApp> {
     out
 }
 
+/// 지금 맨 앞 창의 (HWND, 실행 파일 이름)
+pub fn foreground_app() -> Option<(isize, String)> {
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.is_null() {
+        return None;
+    }
+    exe_path_of(fg).map(|p| (fg as isize, file_name(&p).to_string()))
+}
+
+/// 창이 아직 살아 있고 보이는지
+pub fn is_window_visible(hwnd: isize) -> bool {
+    unsafe { IsWindowVisible(hwnd as HWND) != 0 }
+}
+
 // ---------------- 활성 창 추적 ----------------
 
 /// 백그라운드에서 활성 창을 계속 기록하고, 활성 프로그램이 바뀌면 `on_app_change(exe 이름)`을 부른다.

@@ -85,7 +85,7 @@ unsafe fn icon_to_rgba(hicon: HICON) -> Result<(u32, u32, Vec<u8>), String> {
     Ok((w, h, pixels))
 }
 
-fn encode_png(w: u32, h: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
+pub fn encode_png(w: u32, h: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
     {
         let mut enc = png::Encoder::new(&mut out, w, h);

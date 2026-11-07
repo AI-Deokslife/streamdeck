@@ -1,5 +1,6 @@
 mod actions;
 mod apppath;
+mod capture;
 mod config;
 mod icon;
 mod winutil;
@@ -216,6 +217,19 @@ async fn get_app_icon(target: String) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// 화면 일부를 캡처해서 PNG data URL 로 (Windows 캡처 도구 사용)
+#[tauri::command]
+async fn capture_screen(app: AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || capture::capture_region(&app).map(|png| icon::to_data_url(&png)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn cancel_capture() {
+    capture::cancel();
+}
+
 #[tauri::command]
 fn hide_window(app: AppHandle) {
     if let Some(w) = main_window(&app) {
@@ -387,6 +401,8 @@ pub fn run() {
             activate_app,
             resolve_app_path,
             get_app_icon,
+            capture_screen,
+            cancel_capture,
             hide_window,
             set_edit_mode
         ])
