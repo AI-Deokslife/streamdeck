@@ -188,6 +188,35 @@ button.danger {
   box-shadow: 3px -3px 0 -1px rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
+/* 버튼 이미지: 아이콘 크기 */
+.tile-img {
+  width: 48%;
+  height: 48%;
+  object-fit: contain;
+  pointer-events: none;
+}
+/* 버튼 이미지: 버튼 전체에 꽉 채움 + 이름은 아래에 겹쳐 표시 */
+.tile-img-full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.tile-label.over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 4px 4px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  max-width: none;
+}
+.tile-badge {
+  z-index: 1;
+}
 .tile-icon {
   font-size: clamp(16px, 7vw, 30px);
   line-height: 1;
@@ -451,6 +480,60 @@ kbd {
   place-items: center;
   font-size: 11px;
   font-weight: 700;
+}
+.icon-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.icon-preview {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 28px;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: copy;
+}
+.icon-preview:focus {
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.25);
+}
+.icon-preview img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+}
+.icon-preview img.full {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.icon-controls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.icon-controls .row {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.editor input.emoji-input {
+  width: 64px;
+  text-align: center;
+}
+.editor label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
 }
 .folder-info {
   display: flex;

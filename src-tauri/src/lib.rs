@@ -1,6 +1,7 @@
 mod actions;
 mod apppath;
 mod config;
+mod icon;
 mod winutil;
 
 use config::{Action, Config};
@@ -198,6 +199,23 @@ async fn resolve_app_path(exe: String) -> Option<String> {
     tauri::async_runtime::spawn_blocking(move || apppath::resolve(&exe)).await.ok().flatten()
 }
 
+/// 프로그램 아이콘을 버튼 이미지용 PNG data URL 로.
+/// `target`은 전체 경로(C:\...\Hwp.exe) 또는 실행 파일 이름(Hwp.exe — 설치 위치를 찾아서 사용)
+#[tauri::command]
+async fn get_app_icon(target: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let t = target.trim().trim_matches('"');
+        let path = if std::path::Path::new(t).is_file() {
+            t.to_string()
+        } else {
+            apppath::resolve(t).ok_or_else(|| format!("'{t}' 파일을 찾지 못했어요"))?
+        };
+        icon::file_icon_png(&path, 128).map(|png| icon::to_data_url(&png))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 fn hide_window(app: AppHandle) {
     if let Some(w) = main_window(&app) {
@@ -368,6 +386,7 @@ pub fn run() {
             current_app,
             activate_app,
             resolve_app_path,
+            get_app_icon,
             hide_window,
             set_edit_mode
         ])

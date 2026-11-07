@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { firstImage, imageToDataUrl } from "./image";
 import { invoke } from "@tauri-apps/api/core";
 import HotkeyInput from "./HotkeyInput";
 import { APP_PRESETS, AppPreset } from "./presets";
@@ -309,6 +310,137 @@ function StepList({
   );
 }
 
+// ---------------- 버튼 아이콘 / 이미지 ----------------
+
+/** 이 버튼과 관련된 프로그램 (아이콘을 꺼내 올 대상) */
+function programTarget(a: Action, inherited: string[]): string {
+  switch (a.type) {
+    case "launch":
+      return a.target;
+    case "folder":
+      return a.launch || a.apps[0] || "";
+    case "keys":
+    case "text":
+      return a.app || inherited[0] || "";
+    default:
+      return "";
+  }
+}
+
+function IconPicker({
+  button,
+  onChange,
+  programTarget,
+}: {
+  button: DeckButton;
+  onChange: (p: Partial<DeckButton>) => void;
+  programTarget: string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function applyImage(file: Blob | null) {
+    if (!file) return;
+    setError("");
+    try {
+      onChange({ image: await imageToDataUrl(file) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function useProgramIcon() {
+    setBusy(true);
+    setError("");
+    try {
+      onChange({ image: await invoke<string>("get_app_icon", { target: programTarget }) });
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="icon-picker">
+      <label>아이콘</label>
+      <div className="row">
+        <div
+          className="icon-preview"
+          style={{ background: button.color }}
+          tabIndex={0}
+          title="이미지를 끌어다 놓거나, 클릭 후 Ctrl+V로 붙여넣기"
+          onPaste={(e) => {
+            const f = firstImage(e.clipboardData);
+            if (f) {
+              e.preventDefault();
+              applyImage(f);
+            }
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            applyImage(firstImage(e.dataTransfer));
+          }}
+        >
+          {button.image ? (
+            <img className={button.imageFull ? "full" : ""} src={button.image} alt="" />
+          ) : (
+            <span>{button.icon || "?"}</span>
+          )}
+        </div>
+        <div className="icon-controls">
+          <div className="row">
+            <input
+              className="emoji-input"
+              value={button.icon}
+              placeholder="이모지"
+              title="이미지가 없을 때 보이는 이모지/글자"
+              onChange={(e) => onChange({ icon: e.target.value })}
+            />
+            <button type="button" className="small" onClick={() => fileRef.current?.click()}>
+              🖼 이미지 선택
+            </button>
+            {programTarget && (
+              <button type="button" className="small" disabled={busy} onClick={useProgramIcon} title={programTarget}>
+                {busy ? "가져오는 중…" : "📦 프로그램 아이콘"}
+              </button>
+            )}
+          </div>
+          {button.image ? (
+            <div className="row">
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!!button.imageFull}
+                  onChange={(e) => onChange({ imageFull: e.target.checked })}
+                />
+                버튼 전체에 꽉 채우기
+              </label>
+              <button type="button" className="small ghost" onClick={() => onChange({ image: "", imageFull: false })}>
+                이미지 빼기
+              </button>
+            </div>
+          ) : (
+            <span className="hint">왼쪽 칸에 이미지를 끌어 놓거나, 클릭하고 Ctrl+V로 붙여넣어도 돼요</span>
+          )}
+          {error && <span className="keycap-hint warn">{error}</span>}
+        </div>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          applyImage(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
 // ---------------- 선택된 버튼 편집 ----------------
 
 interface ButtonEditorProps {
@@ -355,21 +487,12 @@ export function ButtonEditor({
 
   return (
     <div className="editor">
-      <div className="row">
-        <label className="grow">
-          이름
-          <input value={button.label} onChange={(e) => set({ label: e.target.value })} />
-        </label>
-        <label style={{ width: 70 }}>
-          아이콘
-          <input
-            value={button.icon}
-            onChange={(e) => set({ icon: e.target.value })}
-            placeholder="이모지"
-            className="center"
-          />
-        </label>
-      </div>
+      <label>
+        이름
+        <input value={button.label} onChange={(e) => set({ label: e.target.value })} />
+      </label>
+
+      <IconPicker button={button} onChange={set} programTarget={programTarget(a, inherited)} />
 
       <label>색상</label>
       <div className="colors">

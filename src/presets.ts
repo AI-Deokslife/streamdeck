@@ -177,7 +177,7 @@ function keyButton([label, icon, keys]: Item, color: string): DeckButton {
 }
 
 /** 프리셋 → 프로그램 연결 폴더 버튼 */
-export function presetFolder(p: AppPreset, launch = ""): DeckButton {
+export function presetFolder(p: AppPreset, launch = "", image = ""): DeckButton {
   const children = p.items.map((it) => keyButton(it, p.color));
   for (const sub of p.subfolders ?? []) {
     children.push({
@@ -193,7 +193,9 @@ export function presetFolder(p: AppPreset, launch = ""): DeckButton {
     id: crypto.randomUUID(),
     label: p.name,
     icon: p.icon,
-    color: p.color,
+    // 프로그램 아이콘이 있으면 이미지로 (프리셋 추가 시 설치된 프로그램에서 꺼내 옴)
+    image,
+    color: image ? "#1f2430" : p.color,
     hotkey: "",
     action: { type: "folder", apps: [...p.apps], launch, buttons: children },
   };

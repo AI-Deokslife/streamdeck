@@ -2805,7 +2805,9 @@ dependencies = [
 name = "quickdeck"
 version = "0.1.0"
 dependencies = [
+ "base64 0.23.1",
  "enigo",
+ "png",
  "serde",
  "serde_json",
  "tauri",

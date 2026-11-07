@@ -97,6 +97,12 @@ pub struct Button {
     pub label: String,
     #[serde(default)]
     pub icon: String,
+    /// 버튼 이미지 (data:image/png;base64,...). 있으면 이모지 대신 보여준다
+    #[serde(default)]
+    pub image: String,
+    /// true면 이미지를 버튼 전체에 꽉 채운다 (false면 아이콘 크기로)
+    #[serde(default)]
+    pub image_full: bool,
     #[serde(default = "default_color")]
     pub color: String,
     /// 이 버튼을 바로 실행하는 전역 단축키 (선택)
@@ -123,6 +129,8 @@ fn btn(id: &str, label: &str, icon: &str, color: &str, hotkey: &str, action: Act
         id: id.into(),
         label: label.into(),
         icon: icon.into(),
+        image: String::new(),
+        image_full: false,
         color: color.into(),
         hotkey: hotkey.into(),
         action,

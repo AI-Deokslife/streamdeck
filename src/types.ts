@@ -20,6 +20,10 @@ export interface DeckButton {
   id: string;
   label: string;
   icon: string;
+  /** 버튼 이미지 (PNG data URL). 있으면 이모지 대신 보여준다 */
+  image?: string;
+  /** true면 이미지를 버튼 전체에 꽉 채움 */
+  imageFull?: boolean;
   color: string;
   hotkey: string;
   action: Action;

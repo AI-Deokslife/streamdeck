@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ButtonEditor, SettingsEditor } from "./Editor";
 import { prettyHotkey } from "./HotkeyInput";
+import { firstImage, imageToDataUrl } from "./image";
 import { AppPreset, presetFolder } from "./presets";
 import {
   Path,
@@ -223,7 +224,9 @@ export default function App() {
         break;
       }
     }
-    const folder = presetFolder(p, launch);
+    // 설치된 프로그램의 아이콘을 폴더 이미지로
+    const image = launch ? await invoke<string>("get_app_icon", { target: launch }).catch(() => "") : "";
+    const folder = presetFolder(p, launch, image);
     editHere((list) => [...list, folder]);
     setSelectedId(folder.id);
     showToast(
@@ -377,10 +380,26 @@ export default function App() {
               draggable={editing}
               onDragStart={() => (dragId.current = b.id)}
               onDragOver={(e) => editing && e.preventDefault()}
-              onDrop={() => dragId.current && reorder(dragId.current, b.id)}
+              onDrop={(e) => {
+                if (!editing) return;
+                // 탐색기에서 이미지 파일을 버튼 위에 끌어 놓으면 그 버튼 이미지로
+                const file = firstImage(e.dataTransfer);
+                if (file) {
+                  e.preventDefault();
+                  imageToDataUrl(file)
+                    .then((image) => updateButton({ ...b, image }))
+                    .catch((err) => showToast(String(err.message ?? err)));
+                  return;
+                }
+                if (dragId.current) reorder(dragId.current, b.id);
+              }}
             >
-              <span className="tile-icon">{b.icon || (isFolder ? "📁" : "")}</span>
-              <span className="tile-label">{b.label}</span>
+              {b.image ? (
+                <img className={b.imageFull ? "tile-img-full" : "tile-img"} src={b.image} alt="" draggable={false} />
+              ) : (
+                <span className="tile-icon">{b.icon || (isFolder ? "📁" : "")}</span>
+              )}
+              {b.label && <span className={"tile-label" + (b.image && b.imageFull ? " over" : "")}>{b.label}</span>}
               {(b.hotkey || b.action.type === "multi" || isFolder) && (
                 <span className="tile-badge">
                   {isFolder ? "📂" : ""}
