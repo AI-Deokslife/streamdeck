@@ -78,7 +78,7 @@ function TargetAppField({
   onChange,
 }: {
   value: string;
-  inherited?: string | null;
+  inherited?: string[];
   onChange: (v: string) => void;
 }) {
   return (
@@ -88,7 +88,11 @@ function TargetAppField({
         <input
           className="grow"
           value={value}
-          placeholder={inherited ? `비우면 폴더에 연결된 ${inherited}(으)로` : "비우면 지금 활성화된 창으로"}
+          placeholder={
+            inherited?.length
+              ? `비우면 폴더에 연결된 ${inherited.join(" / ")} 중 열려 있는 창으로`
+              : "비우면 지금 활성화된 창으로"
+          }
           onChange={(e) => onChange(e.target.value)}
         />
         <AppPicker label="선택" onPick={(a) => onChange(a.exe)} />
@@ -107,7 +111,7 @@ function ActionFields({
   action: Action;
   onChange: (a: Action) => void;
   /** 상위 폴더에 연결된 프로그램 */
-  inherited?: string | null;
+  inherited?: string[];
 }) {
   const set = (patch: Partial<Action>) => onChange({ ...a, ...patch } as Action);
 
@@ -234,7 +238,7 @@ function StepList({
 }: {
   steps: Action[];
   onChange: (s: Action[]) => void;
-  inherited?: string | null;
+  inherited?: string[];
 }) {
   const [open, setOpen] = useState<number | null>(null);
 
@@ -318,7 +322,7 @@ interface ButtonEditorProps {
   currentPath: Path;
   onMove: (to: Path) => void;
   /** 상위 폴더에 연결된 프로그램 */
-  inherited: string | null;
+  inherited: string[];
 }
 
 export function ButtonEditor({
@@ -458,7 +462,8 @@ function FolderAppFields({
   onChange: (p: { apps?: string[]; launch?: string }) => void;
 }) {
   const [typed, setTyped] = useState("");
-  const withApp = (exe: string) => {
+  const [finding, setFinding] = useState(false);
+  const withApp =(exe: string) => {
     const name = exe.trim();
     return !name || apps.some((x) => x.toLowerCase() === name.toLowerCase()) ? apps : [...apps, name];
   };
@@ -507,12 +512,35 @@ function FolderAppFields({
         />
       </div>
       <label>
-        폴더를 누르면 실행할 프로그램 (선택)
-        <input
-          value={launch}
-          placeholder="실행 파일 전체 경로 — 위 '실행 중에서 선택'으로 고르면 자동으로 채워져요"
-          onChange={(e) => onChange({ launch: e.target.value })}
-        />
+        폴더를 누르면 실행할 프로그램
+        <div className="row">
+          <input
+            className="grow"
+            value={launch}
+            placeholder="비워 두면 연결된 프로그램의 설치 위치를 자동으로 찾아요"
+            onChange={(e) => onChange({ launch: e.target.value })}
+          />
+          <button
+            type="button"
+            className="small"
+            disabled={!apps.length || finding}
+            onClick={async () => {
+              setFinding(true);
+              for (const exe of apps) {
+                const found = await invoke<string | null>("resolve_app_path", { exe }).catch(() => null);
+                if (found) {
+                  onChange({ launch: found });
+                  setFinding(false);
+                  return;
+                }
+              }
+              setFinding(false);
+              window.alert(`${apps.join(", ")} 설치 위치를 찾지 못했어요. 경로를 직접 입력해 주세요.`);
+            }}
+          >
+            {finding ? "찾는 중…" : "자동으로 찾기"}
+          </button>
+        </div>
       </label>
       <p className="hint">이미 실행 중이면 새로 띄우지 않고 그 창을 앞으로 가져와요.</p>
     </div>

@@ -187,8 +187,17 @@ pub fn restore_foreign_focus() {
 
 // ---------------- 특정 프로그램 창 활성화 ----------------
 
+#[cfg(test)]
 fn exe_matches(hwnd: HWND, exe: &str) -> bool {
-    exe_path_of(hwnd).is_some_and(|p| file_name(&p).eq_ignore_ascii_case(exe))
+    exe_matches_any(hwnd, &[exe])
+}
+
+/// 창이 exes 가운데 하나의 프로그램 것인지
+fn exe_matches_any<S: AsRef<str>>(hwnd: HWND, exes: &[S]) -> bool {
+    exe_path_of(hwnd).is_some_and(|p| {
+        let name = file_name(&p);
+        exes.iter().any(|e| name.eq_ignore_ascii_case(e.as_ref().trim()))
+    })
 }
 
 /// 창을 맨 앞으로 가져온다. Windows의 포커스 제한에 걸리면 입력 스레드를 붙여서 다시 시도한다.
@@ -212,24 +221,25 @@ fn bring_to_front(hwnd: HWND) -> bool {
     }
 }
 
-/// `exe` 프로그램의 창을 앞으로 가져온다. 이미 앞에 있으면 아무것도 안 한다.
-/// 실행 중이 아니면 Err(NotRunning).
 pub enum FocusError {
     NotRunning,
     Failed,
 }
 
-pub fn focus_app(exe: &str) -> Result<(), FocusError> {
+/// `exes` 가운데 실행 중인 프로그램의 창을 앞으로 가져온다 (예: 크롬·엣지·웨일 중 열려 있는 것).
+/// 이미 그중 하나가 앞에 있으면 아무것도 안 한다. 여러 개가 열려 있으면 가장 최근에 쓴 창.
+/// 하나도 실행 중이 아니면 Err(NotRunning).
+pub fn focus_app<S: AsRef<str>>(exes: &[S]) -> Result<(), FocusError> {
     let fg = unsafe { GetForegroundWindow() };
-    if !fg.is_null() && exe_matches(fg, exe) {
+    if !fg.is_null() && exe_matches_any(fg, exes) {
         return Ok(());
     }
-    // 마지막으로 쓰던 창을 우선, 없으면 그 프로그램의 아무 창
+    // 마지막으로 쓰던 창을 우선, 없으면 화면 위쪽(=최근에 쓴) 순서로 첫 번째 창
     let last = LAST_FOREIGN.load(Ordering::SeqCst) as HWND;
-    let target = if !last.is_null() && exe_matches(last, exe) {
+    let target = if !last.is_null() && exe_matches_any(last, exes) {
         Some(last)
     } else {
-        all_app_windows().into_iter().find(|&h| exe_matches(h, exe))
+        all_app_windows().into_iter().find(|&h| exe_matches_any(h, exes))
     };
     let Some(hwnd) = target else {
         return Err(FocusError::NotRunning);
@@ -262,6 +272,21 @@ pub fn wait_modifiers_released() {
 mod tests {
     use super::*;
 
+    /// 여러 프로그램 중 하나만 열려 있어도 찾아야 한다 (크롬은 없고 웨일만 열린 경우 등).
+    /// 지금 앞에 있는 창을 그대로 쓰므로 화면이 바뀌지 않는다.
+    #[test]
+    fn any_of_several_apps_matches() {
+        let fg = unsafe { GetForegroundWindow() };
+        let Some(path) = (!fg.is_null()).then(|| exe_path_of(fg)).flatten() else {
+            return; // 데스크톱이 없는 환경 (CI 등)
+        };
+        let exe = file_name(&path).to_string();
+        let list = ["no_such_browser.exe".to_string(), exe.to_uppercase()];
+        assert!(exe_matches_any(fg, &list));
+        assert!(matches!(focus_app(&list), Ok(())), "앞에 있는 {exe}를 못 찾음");
+        assert!(matches!(focus_app(&["no_such_a.exe", "no_such_b.exe"]), Err(FocusError::NotRunning)));
+    }
+
     /// 실제 데스크톱이 필요하므로 수동 실행: cargo test --lib -- --ignored
     #[test]
     #[ignore]
@@ -270,10 +295,10 @@ mod tests {
         thread::sleep(Duration::from_millis(1500));
         let apps = running_apps();
         assert!(apps.iter().any(|a| a.exe.eq_ignore_ascii_case("notepad.exe")), "목록에 메모장 없음");
-        assert!(matches!(focus_app("notepad.exe"), Ok(())), "메모장 활성화 실패");
+        assert!(matches!(focus_app(&["notepad.exe"]), Ok(())), "메모장 활성화 실패");
         let fg = unsafe { GetForegroundWindow() };
         assert!(exe_matches(fg, "notepad.exe"), "앞에 있는 창이 메모장이 아님");
-        assert!(matches!(focus_app("no_such_app_123.exe"), Err(FocusError::NotRunning)));
+        assert!(matches!(focus_app(&["no_such_app_123.exe"]), Err(FocusError::NotRunning)));
         let _ = child.kill();
     }
 }

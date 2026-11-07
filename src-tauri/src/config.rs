@@ -47,15 +47,16 @@ pub enum Action {
     },
 }
 
-/// id 버튼과, 그 버튼이 속한 가장 가까운 "프로그램 연결 폴더"의 프로그램 이름
-pub fn find_button<'a>(buttons: &'a [Button], id: &str) -> Option<(&'a Button, Option<String>)> {
-    fn walk<'a>(list: &'a [Button], id: &str, inherited: Option<&str>) -> Option<(&'a Button, Option<String>)> {
+/// id 버튼과, 그 버튼이 속한 가장 가까운 "프로그램 연결 폴더"의 프로그램 목록 전체
+/// (예: 웹 브라우저 폴더 → [chrome.exe, msedge.exe, whale.exe] 중 열려 있는 것으로 보낸다)
+pub fn find_button<'a>(buttons: &'a [Button], id: &str) -> Option<(&'a Button, Vec<String>)> {
+    fn walk<'a>(list: &'a [Button], id: &str, inherited: &'a [String]) -> Option<(&'a Button, Vec<String>)> {
         for b in list {
             if b.id == id {
-                return Some((b, inherited.map(str::to_string)));
+                return Some((b, inherited.to_vec()));
             }
             if let Action::Folder { buttons, apps, .. } = &b.action {
-                let next = apps.first().map(String::as_str).or(inherited);
+                let next: &[String] = if apps.is_empty() { inherited } else { apps };
                 if let Some(found) = walk(buttons, id, next) {
                     return Some(found);
                 }
@@ -63,7 +64,7 @@ pub fn find_button<'a>(buttons: &'a [Button], id: &str) -> Option<(&'a Button, O
         }
         None
     }
-    walk(buttons, id, None)
+    walk(buttons, id, &[])
 }
 
 /// exe 프로그램에 연결된 폴더 id (가장 먼저 찾은 것)
@@ -229,12 +230,25 @@ mod tests {
         assert_eq!(folder_for_app(&buttons, "hwp.EXE").as_deref(), Some("hwp"));
         assert_eq!(folder_for_app(&buttons, "chrome.exe"), None);
         // 하위 폴더 안 버튼도 상위의 연결 프로그램을 물려받는다
-        assert_eq!(find_button(&buttons, "bold").unwrap().1.as_deref(), Some("Hwp.exe"));
-        assert_eq!(find_button(&buttons, "save").unwrap().1.as_deref(), Some("Hwp.exe"));
-        assert_eq!(find_button(&buttons, "top").unwrap().1, None);
+        assert_eq!(find_button(&buttons, "bold").unwrap().1, ["Hwp.exe"]);
+        assert_eq!(find_button(&buttons, "save").unwrap().1, ["Hwp.exe"]);
+        assert!(find_button(&buttons, "top").unwrap().1.is_empty());
         // 버튼에 직접 지정한 대상은 Action 안에 그대로 남아 있다
         let (other, _) = find_button(&buttons, "other").unwrap();
         assert!(matches!(&other.action, Action::Keys { app, .. } if app == "notepad.exe"));
+    }
+
+    #[test]
+    fn multi_app_folder_inherits_all_apps() {
+        // 웹 브라우저처럼 여러 프로그램을 연결한 폴더: 첫 번째만이 아니라 전부 물려받아야 한다
+        let json = r##"[
+            {"id":"web","label":"웹","action":{"type":"folder","apps":["chrome.exe","msedge.exe","whale.exe"],"buttons":[
+                {"id":"tab","label":"새 탭","action":{"type":"keys","keys":"ctrl+t"}}
+            ]}}
+        ]"##;
+        let buttons: Vec<Button> = serde_json::from_str(json).unwrap();
+        assert_eq!(find_button(&buttons, "tab").unwrap().1, ["chrome.exe", "msedge.exe", "whale.exe"]);
+        assert_eq!(folder_for_app(&buttons, "Whale.exe").as_deref(), Some("web"));
     }
 
     #[test]

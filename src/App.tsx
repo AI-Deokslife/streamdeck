@@ -10,7 +10,7 @@ import {
   countDeep,
   folderLabels,
   folderOptions,
-  inheritedApp,
+  inheritedApps,
   isWithin,
   pathToFolder,
   updateAt,
@@ -167,14 +167,16 @@ export default function App() {
       if (apps.length) {
         // 직접 연 폴더도 "연결 프로그램에서 벗어나면 원래 화면으로" 규칙을 따르게
         auto.current = { folderPath: [...path, b.id], returnPath: path };
-        setAutoApp(apps[0]);
+        setAutoApp(b.label);
       }
       openFolder(b.id);
-      // 연결 프로그램을 앞으로 가져오고, 실행 중이 아니면 실행
+      // 연결 프로그램을 앞으로 가져오고, 실행 중이 아니면 실행 (경로가 비면 설치 위치를 자동으로 찾음)
       if (launch || apps.length) {
-        invoke("activate_app", { exe: apps[0] ?? "", launch }).catch((e) => {
-          if (launch) showToast(String(e));
-        });
+        invoke<"focused" | "launched">("activate_app", { apps, launch })
+          .then((r) => {
+            if (r === "launched") showToast(`${b.label} 실행 중…`, "info", 2500);
+          })
+          .catch((e) => showToast(String(e), "error", 8000));
       }
       return;
     }
@@ -211,11 +213,26 @@ export default function App() {
     syncCurrentApp();
   }
 
-  function addPreset(p: AppPreset) {
-    const folder = presetFolder(p);
+  async function addPreset(p: AppPreset) {
+    // 설치 경로를 찾아서 "폴더를 누르면 실행"에 넣어 둔다
+    let launch = "";
+    for (const exe of p.apps) {
+      const found = await invoke<string | null>("resolve_app_path", { exe }).catch(() => null);
+      if (found) {
+        launch = found;
+        break;
+      }
+    }
+    const folder = presetFolder(p, launch);
     editHere((list) => [...list, folder]);
     setSelectedId(folder.id);
-    showToast(`'${p.name}' 폴더를 만들었어요. 폴더를 열어 버튼을 고치거나 지울 수 있어요.`, "info", 3000);
+    showToast(
+      launch
+        ? `'${p.name}' 폴더를 만들었어요. 누르면 ${p.name}이(가) 실행돼요.`
+        : `'${p.name}' 폴더를 만들었어요. 설치 위치를 못 찾았으니 '폴더를 누르면 실행할 프로그램'에 경로를 넣어 주세요.`,
+      launch ? "info" : "error",
+      5000,
+    );
   }
 
   /** 현재 폴더의 버튼 목록을 바꾼다 */
@@ -393,13 +410,13 @@ export default function App() {
               onTest={() =>
                 invoke("test_action", {
                   action: selected.action,
-                  inheritedApp: inheritedApp(draft.buttons, path),
+                  inheritedApps: inheritedApps(draft.buttons, path),
                 }).catch((e) => showToast(String(e)))
               }
               onOpenFolder={() => openFolder(selected.id)}
               folders={folderOptions(draft.buttons, selected.id)}
               currentPath={path}
-              inherited={inheritedApp(draft.buttons, path)}
+              inherited={inheritedApps(draft.buttons, path)}
               onMove={(to) => moveToFolder(selected, to)}
             />
           ) : (

@@ -1,4 +1,5 @@
 mod actions;
+mod apppath;
 mod config;
 mod winutil;
 
@@ -117,8 +118,8 @@ fn register_hotkeys(app: &AppHandle, cfg: &Config) -> Vec<String> {
     warnings
 }
 
-/// 버튼 동작과, 상위 폴더에서 물려받은 대상 프로그램
-fn find_action(app: &AppHandle, button_id: &str) -> Option<(Action, Option<String>)> {
+/// 버튼 동작과, 상위 폴더에서 물려받은 대상 프로그램들
+fn find_action(app: &AppHandle, button_id: &str) -> Option<(Action, Vec<String>)> {
     let state = app.state::<AppState>();
     let cfg = state.config.lock().unwrap();
     config::find_button(&cfg.buttons, button_id).map(|(b, inherited)| (b.action.clone(), inherited))
@@ -156,15 +157,15 @@ fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Ve
 #[tauri::command]
 async fn run_button(app: AppHandle, id: String) -> Result<(), String> {
     let (action, inherited) = find_action(&app, &id).ok_or("버튼을 찾을 수 없습니다")?;
-    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, inherited.as_deref()))
+    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, &inherited))
         .await
         .map_err(|e| e.to_string())?
 }
 
 /// 편집 중인(아직 저장 안 된) 동작을 바로 실행해 보는 용도
 #[tauri::command]
-async fn test_action(app: AppHandle, action: Action, inherited_app: Option<String>) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, inherited_app.as_deref()))
+async fn test_action(app: AppHandle, action: Action, inherited_apps: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, &inherited_apps))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -183,12 +184,18 @@ fn list_running_apps() -> Vec<winutil::RunningApp> {
     winutil::running_apps()
 }
 
-/// 프로그램 연결 폴더를 눌렀을 때: 실행 중이면 창을 앞으로, 아니면 실행
+/// 프로그램 연결 폴더를 눌렀을 때: 연결된 프로그램 중 열려 있는 것을 앞으로, 하나도 없으면 실행
 #[tauri::command]
-async fn activate_app(app: AppHandle, exe: String, launch: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || actions::activate_or_launch(&app, &exe, &launch))
+async fn activate_app(app: AppHandle, apps: Vec<String>, launch: String) -> Result<actions::Activated, String> {
+    tauri::async_runtime::spawn_blocking(move || actions::activate_or_launch(&app, &apps, &launch))
         .await
         .map_err(|e| e.to_string())?
+}
+
+/// 실행 파일 이름으로 설치 경로 찾기 (예: Hwp.exe → C:\...\Hwp.exe). 못 찾으면 null
+#[tauri::command]
+async fn resolve_app_path(exe: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || apppath::resolve(&exe)).await.ok().flatten()
 }
 
 #[tauri::command]
@@ -210,11 +217,19 @@ fn set_edit_mode(app: AppHandle, state: State<AppState>, on: bool) -> Result<(),
         let target = LogicalSize::new(size.width.max(460.0), size.height.max(620.0));
         let _ = w.set_size(target);
         let _ = w.set_focus();
+        // 단축키를 녹화할 때 이미 등록된 전역 단축키가 먼저 가로채지 않도록 편집 중에는 잠시 해제
+        let _ = app.global_shortcut().unregister_all();
+        state.hotkeys.lock().unwrap().clear();
     } else {
         if let Some(size) = state.saved_size.lock().unwrap().take() {
             let _ = w.set_size(size);
         }
         winutil::set_no_activate(true);
+        let cfg = state.config.lock().unwrap().clone();
+        // 경고는 저장할 때(save_config) 이미 화면에 보여줬으므로 여기서는 기록만
+        for warn in register_hotkeys(&app, &cfg) {
+            eprintln!("{warn}");
+        }
     }
     Ok(())
 }
@@ -288,11 +303,10 @@ pub fn run() {
                                     // 폴더 단축키: 창을 띄우고 그 폴더를 연다 (+ 연결 프로그램 실행/활성화)
                                     show_window(app);
                                     let _ = app.emit("open-folder", button_id.to_string());
-                                    if !launch.trim().is_empty() {
-                                        let (app, exe, launch) =
-                                            (app.clone(), apps.first().cloned().unwrap_or_default(), launch.clone());
+                                    if !launch.trim().is_empty() || !apps.is_empty() {
+                                        let (app, apps, launch) = (app.clone(), apps.clone(), launch.clone());
                                         thread::spawn(move || {
-                                            if let Err(e) = actions::activate_or_launch(&app, &exe, &launch) {
+                                            if let Err(e) = actions::activate_or_launch(&app, &apps, &launch) {
                                                 let _ = app.emit("action-error", e);
                                             }
                                         });
@@ -301,7 +315,7 @@ pub fn run() {
                                 }
                                 let app = app.clone();
                                 thread::spawn(move || {
-                                    if let Err(e) = actions::run(&app, &action, true, inherited.as_deref()) {
+                                    if let Err(e) = actions::run(&app, &action, true, &inherited) {
                                         let _ = app.emit("action-error", e);
                                     }
                                 });
@@ -353,6 +367,7 @@ pub fn run() {
             list_running_apps,
             current_app,
             activate_app,
+            resolve_app_path,
             hide_window,
             set_edit_mode
         ])

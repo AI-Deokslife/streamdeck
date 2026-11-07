@@ -320,6 +320,82 @@ button.danger {
   border-color: var(--accent);
   color: var(--accent);
 }
+.hotkey-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.keycap-box {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: text;
+  outline: none;
+}
+.keycap-box.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.25);
+}
+.keycap-placeholder {
+  color: var(--muted);
+  font-size: 12px;
+}
+.keycap-box.recording .keycap-placeholder {
+  color: var(--accent);
+}
+.keycap-combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  font: 600 11px/18px inherit;
+  font-family: inherit;
+  text-align: center;
+  color: var(--text);
+  background: linear-gradient(#3a4152, #2a2f3c);
+  border: 1px solid #4a5263;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+.keycap-plus,
+.keycap-then {
+  color: var(--muted);
+  font-size: 10px;
+  margin: 0 2px;
+}
+.keycap-then {
+  margin: 0 4px;
+}
+.keycap-caret {
+  width: 1px;
+  height: 14px;
+  background: var(--accent);
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.keycap-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+.keycap-hint.warn {
+  color: #f6ad55;
+}
 
 .auto-badge {
   font-size: 11px;

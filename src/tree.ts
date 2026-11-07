@@ -87,17 +87,18 @@ export function folderOptions(root: DeckButton[], excludeId: string): FolderOpti
   return out;
 }
 
-/** path 안에서 가장 가까운 "프로그램 연결 폴더"의 프로그램 (키 입력 대상으로 물려받음) */
-export function inheritedApp(root: DeckButton[], path: Path): string | null {
+/** path 안에서 가장 가까운 "프로그램 연결 폴더"의 프로그램들 (키 입력 대상으로 물려받음).
+ *  예: 웹 브라우저 폴더 → ["chrome.exe", "msedge.exe", "whale.exe"] 중 열려 있는 것으로 보낸다 */
+export function inheritedApps(root: DeckButton[], path: Path): string[] {
   let list = root;
-  let app: string | null = null;
+  let apps: string[] = [];
   for (const id of path) {
     const folder = list.find((b) => b.id === id);
     if (!folder || folder.action.type !== "folder") break;
-    if (folder.action.apps[0]) app = folder.action.apps[0];
+    if (folder.action.apps.length) apps = folder.action.apps;
     list = folder.action.buttons;
   }
-  return app;
+  return apps;
 }
 
 /** a가 b로 시작하는지 (b 폴더 또는 그 하위에 있는지) */
