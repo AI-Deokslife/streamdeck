@@ -8,11 +8,14 @@ use std::{
 use windows_sys::Win32::{
     Foundation::{CloseHandle, HWND, LPARAM},
     System::Threading::{
-        AttachThreadInput, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW,
+        AttachThreadInput, OpenProcess, QueryFullProcessImageNameW,
         PROCESS_QUERY_LIMITED_INFORMATION,
     },
     UI::{
-        Input::KeyboardAndMouse::{GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT},
+        Input::KeyboardAndMouse::{
+            keybd_event, GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_MOUSE, KEYEVENTF_KEYUP, MOUSEEVENTF_MOVE,
+            MOUSEINPUT, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+        },
         WindowsAndMessaging::{
             BringWindowToTop, EnumWindows, GetForegroundWindow, GetWindow, GetWindowLongPtrW,
             GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
@@ -214,24 +217,74 @@ fn exe_matches_any<S: AsRef<str>>(hwnd: HWND, exes: &[S]) -> bool {
     })
 }
 
-/// 창을 맨 앞으로 가져온다. Windows의 포커스 제한에 걸리면 입력 스레드를 붙여서 다시 시도한다.
-fn bring_to_front(hwnd: HWND) -> bool {
+/// 창이 실제로 앞에 올 때까지 잠깐 기다린다 (활성화는 비동기라 바로 확인하면 실패로 보일 수 있음)
+fn wait_foreground<S: AsRef<str>>(hwnd: HWND, exes: &[S], within: Duration) -> bool {
+    let start = Instant::now();
+    loop {
+        let fg = unsafe { GetForegroundWindow() };
+        if fg == hwnd || (!fg.is_null() && exe_matches_any(fg, exes)) {
+            return true;
+        }
+        if start.elapsed() >= within {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// 아무 효과 없는 마우스 입력(0만큼 이동)을 보낸다.
+/// Windows는 "마지막 입력을 받은 프로그램"에만 창 전환을 허락하는데, QuickDeck 버튼 클릭은
+/// 화면을 그리는 WebView2 프로세스가 받으므로 이 입력으로 권한을 얻는다.
+fn send_null_input() {
+    let input = INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT { dx: 0, dy: 0, mouseData: 0, dwFlags: MOUSEEVENTF_MOVE, time: 0, dwExtraInfo: 0 },
+        },
+    };
+    unsafe { SendInput(1, &input, std::mem::size_of::<INPUT>() as i32) };
+}
+
+/// 창을 맨 앞으로 가져온다. Windows의 창 전환 제한에 걸리면 단계별로 다른 방법을 시도한다.
+fn bring_to_front<S: AsRef<str>>(hwnd: HWND, exes: &[S]) -> bool {
+    let quick = Duration::from_millis(250);
     unsafe {
         if IsIconic(hwnd) != 0 {
             ShowWindow(hwnd, SW_RESTORE);
         }
-        if SetForegroundWindow(hwnd) == 0 {
-            let fg = GetForegroundWindow();
-            let fg_thread = GetWindowThreadProcessId(fg, std::ptr::null_mut());
-            let me = GetCurrentThreadId();
-            if fg_thread != 0 && fg_thread != me {
-                AttachThreadInput(me, fg_thread, 1);
-                BringWindowToTop(hwnd);
-                SetForegroundWindow(hwnd);
-                AttachThreadInput(me, fg_thread, 0);
-            }
+        // 1) 그냥 요청
+        SetForegroundWindow(hwnd);
+        if wait_foreground(hwnd, exes, quick) {
+            return true;
         }
-        GetForegroundWindow() == hwnd
+        eprintln!("창 전환: 기본 요청이 거절됨 → 우회 방법 시도");
+        // 2) 빈 입력으로 "마지막 입력" 권한을 얻은 뒤 다시
+        send_null_input();
+        SetForegroundWindow(hwnd);
+        if wait_foreground(hwnd, exes, quick) {
+            return true;
+        }
+        // 3) Alt 를 두 번 눌렀다 떼면 창 전환 잠금이 풀린다 (두 번이라 메뉴는 열리지 않음)
+        for _ in 0..2 {
+            keybd_event(VK_MENU as u8, 0, 0, 0);
+            keybd_event(VK_MENU as u8, 0, KEYEVENTF_KEYUP, 0);
+        }
+        BringWindowToTop(hwnd);
+        SetForegroundWindow(hwnd);
+        if wait_foreground(hwnd, exes, quick) {
+            return true;
+        }
+        // 4) 지금 앞에 있는 창의 입력 스레드에 잠깐 붙어서 시도
+        let fg = GetForegroundWindow();
+        let fg_thread = GetWindowThreadProcessId(fg, std::ptr::null_mut());
+        let target_thread = GetWindowThreadProcessId(hwnd, std::ptr::null_mut());
+        if fg_thread != 0 && target_thread != 0 && fg_thread != target_thread {
+            AttachThreadInput(target_thread, fg_thread, 1);
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+            AttachThreadInput(target_thread, fg_thread, 0);
+        }
+        wait_foreground(hwnd, exes, Duration::from_millis(400))
     }
 }
 
@@ -258,7 +311,7 @@ pub fn focus_app<S: AsRef<str>>(exes: &[S]) -> Result<(), FocusError> {
     let Some(hwnd) = target else {
         return Err(FocusError::NotRunning);
     };
-    if bring_to_front(hwnd) {
+    if bring_to_front(hwnd, exes) {
         thread::sleep(Duration::from_millis(120)); // 창이 키 입력을 받을 준비 시간
         Ok(())
     } else {
@@ -314,5 +367,27 @@ mod tests {
         assert!(exe_matches(fg, "notepad.exe"), "앞에 있는 창이 메모장이 아님");
         assert!(matches!(focus_app(&["no_such_app_123.exe"]), Err(FocusError::NotRunning)));
         let _ = child.kill();
+    }
+}
+
+#[cfg(test)]
+mod focus_real {
+    use super::*;
+
+    /// 백그라운드 프로그램에서 실제로 열려 있는 브라우저 창을 앞으로 가져오는지 (창 전환 제한 상황 재현).
+    /// 끝나면 원래 앞에 있던 창으로 되돌린다. 수동 실행: FOCUS_EXE=chrome.exe cargo test --lib bring_browser -- --ignored
+    #[test]
+    #[ignore]
+    fn bring_browser_to_front_from_background() {
+        let exe = std::env::var("FOCUS_EXE").unwrap_or_else(|_| "chrome.exe".into());
+        let before = unsafe { GetForegroundWindow() };
+        let result = focus_app(&[exe.as_str()]);
+        let now = foreground_app().map(|(_, e)| e).unwrap_or_default();
+        // 원래 창으로 복귀
+        if !before.is_null() {
+            bring_to_front(before, &[] as &[&str]);
+        }
+        assert!(matches!(result, Ok(())), "{exe} 창을 앞으로 가져오지 못함");
+        assert!(now.eq_ignore_ascii_case(&exe), "앞에 온 창: {now}");
     }
 }

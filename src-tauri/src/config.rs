@@ -107,6 +107,10 @@ pub struct Button {
     /// true면 이미지를 버튼 전체에 꽉 채운다 (false면 아이콘 크기로)
     #[serde(default)]
     pub image_full: bool,
+    /// true면 프로그램/사이트에서 자동으로 가져온 이미지 (대상이 바뀌면 다시 가져와도 됨).
+    /// 사용자가 직접 넣은 이미지는 false 라서 자동으로 덮어쓰지 않는다
+    #[serde(default)]
+    pub image_auto: bool,
     #[serde(default = "default_color")]
     pub color: String,
     /// 이 버튼을 바로 실행하는 전역 단축키 (선택)
@@ -122,6 +126,13 @@ pub struct Config {
     pub toggle_hotkey: String,
     pub columns: u32,
     pub buttons: Vec<Button>,
+    /// 화면 테마: "auto"(Windows 설정 따라감) / "light" / "dark"
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_theme() -> String {
+    "auto".into()
 }
 
 fn default_color() -> String {
@@ -135,6 +146,7 @@ fn btn(id: &str, label: &str, icon: &str, color: &str, hotkey: &str, action: Act
         icon: icon.into(),
         image: String::new(),
         image_full: false,
+        image_auto: false,
         color: color.into(),
         hotkey: hotkey.into(),
         action,
@@ -146,6 +158,7 @@ impl Default for Config {
         Self {
             toggle_hotkey: "Ctrl+Shift+F12".into(),
             columns: 4,
+            theme: default_theme(),
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),

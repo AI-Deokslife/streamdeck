@@ -138,3 +138,14 @@ mod tests {
         assert!(p.to_lowercase().ends_with("hwp.exe"));
     }
 }
+
+#[cfg(test)]
+mod manual_resolve {
+    /// 이름으로 찾은 경로 확인: RESOLVE_EXE=StarCraft.exe cargo test --lib print_resolved -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn print_resolved() {
+        let exe = std::env::var("RESOLVE_EXE").expect("RESOLVE_EXE");
+        println!("{exe} => {:?}", super::resolve(&exe));
+    }
+}

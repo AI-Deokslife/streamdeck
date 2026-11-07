@@ -226,31 +226,67 @@ pub fn activate_or_launch(app: &AppHandle, apps: &[String], launch_path: &str) -
     Ok(Activated::Launched)
 }
 
+/// 관리자 권한이 필요한 프로그램을 일반 실행하면 나는 오류 (ERROR_ELEVATION_REQUIRED)
+const ERROR_ELEVATION_REQUIRED: i32 = 740;
+
 fn launch(app: &AppHandle, target: &str, args: &str) -> Result<(), String> {
-    let target = target.trim();
+    let target = target.trim().trim_matches('"');
     if target.is_empty() {
         return Err("실행할 대상이 비어 있습니다".into());
     }
-    if args.trim().is_empty() {
-        // 경로/파일/폴더는 연결 프로그램으로, 이름만 있으면(notepad.exe) 그대로 실행
-        if std::path::Path::new(target).exists() {
-            return app
-                .opener()
-                .open_path(target, None::<&str>)
-                .map_err(|e| format!("열기 실패: {e}"));
+    // 이름만 적은 경우(StarCraft.exe) 아이콘을 가져올 때처럼 설치 위치를 찾아서 실행한다
+    let resolved: Option<String> = if std::path::Path::new(target).exists() {
+        Some(target.to_string())
+    } else if looks_like_program_name(target) {
+        crate::apppath::resolve(target)
+    } else {
+        None
+    };
+
+    match resolved {
+        Some(path) if path.to_lowercase().ends_with(".exe") => run_exe(app, &path, args),
+        // 바로가기·문서·폴더는 Windows 연결 프로그램으로 (바로가기의 작업 폴더 설정도 그대로 적용됨)
+        Some(path) if args.trim().is_empty() => {
+            app.opener().open_path(path, None::<&str>).map_err(|e| format!("열기 실패: {e}"))
         }
-        return Command::new("cmd")
+        Some(path) => Command::new(&path).raw_arg(args).spawn().map(|_| ()).map_err(|e| format!("실행 실패: {e}")),
+        // ms-settings:, battlenet:// 같은 주소나 PATH 에 있는 명령은 Windows 에 맡긴다
+        None if args.trim().is_empty() => Command::new("cmd")
             .args(["/C", "start", "", target])
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map(|_| ())
-            .map_err(|e| format!("실행 실패: {e}"));
+            .map_err(|e| format!("실행 실패: {e}")),
+        None => Command::new(target)
+            .raw_arg(args)
+            .spawn()
+            .map(|_| ())
+            .map_err(|_| format!("'{target}' 을(를) 찾지 못했어요. 전체 경로를 넣어 주세요")),
     }
-    Command::new(target)
-        .raw_arg(args)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("실행 실패: {e}"))
+}
+
+/// "StarCraft.exe" 처럼 경로 없이 실행 파일 이름만 있는지 (주소나 명령어는 제외)
+fn looks_like_program_name(t: &str) -> bool {
+    !t.contains(['\\', '/', ':']) && t.to_lowercase().ends_with(".exe")
+}
+
+/// exe 를 그 프로그램 폴더에서 실행한다 (게임 등은 자기 폴더에서 실행해야 데이터 파일을 찾는다).
+/// 관리자 권한이 필요한 프로그램이면 Windows 권한 확인 창을 거쳐 실행한다.
+fn run_exe(app: &AppHandle, path: &str, args: &str) -> Result<(), String> {
+    let mut cmd = Command::new(path);
+    if let Some(dir) = std::path::Path::new(path).parent() {
+        cmd.current_dir(dir);
+    }
+    if !args.trim().is_empty() {
+        cmd.raw_arg(args);
+    }
+    match cmd.spawn() {
+        Ok(_) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(ERROR_ELEVATION_REQUIRED) && args.trim().is_empty() => {
+            app.opener().open_path(path, None::<&str>).map_err(|e| format!("실행 실패: {e}"))
+        }
+        Err(e) => Err(format!("실행 실패: {e}")),
+    }
 }
 
 fn new_enigo() -> Result<Enigo, String> {
@@ -353,4 +389,19 @@ fn parse_key(name: &str) -> Result<Key, String> {
         }
     };
     Ok(key)
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::looks_like_program_name;
+
+    #[test]
+    fn program_name_detection() {
+        assert!(looks_like_program_name("StarCraft.exe"));
+        assert!(looks_like_program_name("Hwp.EXE"));
+        assert!(!looks_like_program_name(r"C:\Games\StarCraft.exe"), "경로는 그대로 사용");
+        assert!(!looks_like_program_name("ms-settings:display"), "주소는 Windows 에 맡김");
+        assert!(!looks_like_program_name("battlenet://SC1"));
+        assert!(!looks_like_program_name("notepad"), "확장자 없는 명령은 PATH 로");
+    }
 }

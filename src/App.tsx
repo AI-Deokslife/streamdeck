@@ -5,6 +5,7 @@ import AppIcon from "./AppIcon";
 import { ButtonEditor, SettingsEditor } from "./Editor";
 import { prettyHotkey } from "./HotkeyInput";
 import { firstImage, imageToDataUrl } from "./image";
+import { IconPatch, allButtons, canAutoIcon, fetchIcon, iconSource } from "./icons";
 import { AppPreset, presetFolder } from "./presets";
 import {
   Path,
@@ -17,9 +18,15 @@ import {
   isWithin,
   pathToFolder,
   updateAt,
+  updateById,
 } from "./tree";
 import { AppFocus, Config, DeckButton, newButton } from "./types";
 import "./App.css";
+
+/** 아이콘 아래 이름 줄 + 간격 */
+const LABEL_SPACE = 23;
+const MIN_ICON = 40;
+const MAX_ICON = 120;
 
 export default function App() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -141,10 +148,56 @@ export default function App() {
   const view = editing && draft ? draft : config;
   const current = view ? buttonsAt(view.buttons, path) : null;
 
+  // 테마: 편집 중에는 고르는 즉시 미리 보이게 draft 기준. 자동이면 Windows 설정이 바뀔 때도 따라간다
+  const theme = view?.theme ?? "auto";
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const apply = () => {
+      const light = theme === "light" || (theme === "auto" && media.matches);
+      document.documentElement.dataset.theme = light ? "light" : "dark";
+    };
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [theme]);
+
   // 폴더가 삭제됐거나 편집 취소로 사라지면 처음 화면으로
   useEffect(() => {
     if (view && current === null) setPath([]);
   }, [view, current]);
+
+  // 아이콘 크기: 창 너비만 보고 키우면 아래가 잘리므로, 모든 줄이 창 높이 안에 들어오는 크기로 맞춘다
+  const gridRef = useRef<HTMLElement>(null);
+  const [iconSize, setIconSize] = useState(60);
+  const tileCount =
+    (current ?? view?.buttons ?? []).length + (path.length > 0 ? 1 : 0) + (editing ? 1 : 0) + (editing && copied ? 1 : 0);
+  const columns = view?.columns ?? 4;
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const colGap = parseFloat(cs.columnGap) || 0;
+      const rowGap = parseFloat(cs.rowGap) || 0;
+      const colWidth = (el.clientWidth - padX - colGap * (columns - 1)) / columns;
+      const byWidth = colWidth * 0.84;
+      let size = byWidth;
+      if (!editing) {
+        // 편집 중이 아닐 때는 높이도 고려: 아이콘 + 이름(약 19px) 이 모든 줄에 들어가야 함
+        const rows = Math.max(1, Math.ceil(tileCount / columns));
+        const byHeight = (el.clientHeight - padY - rowGap * (rows - 1)) / rows - LABEL_SPACE;
+        size = Math.min(byWidth, byHeight);
+      }
+      // 너무 작으면 글자가 안 보이므로 하한을 두고(그땐 스크롤), 너무 커도 어색하므로 상한
+      setIconSize(Math.round(Math.max(MIN_ICON, Math.min(MAX_ICON, editing ? Math.min(size, 64) : size))));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tileCount, columns, editing]);
 
   // 편집 중 단축키 (Ctrl+C 복사, Ctrl+V 붙여넣기, Ctrl+D 복제). 핸들러는 매 렌더마다 최신으로 바꿔 끼운다
   const editKeys = useRef<(e: KeyboardEvent) => void>(undefined);
@@ -273,6 +326,41 @@ export default function App() {
     editHere((list) => list.map((x) => (x.id === b.id ? b : x)));
   }
 
+  /** 비동기 작업(아이콘 가져오기) 뒤에 최신 편집 상태에 일부만 반영. 그새 사용자가 직접 이미지를 넣었으면 건드리지 않음 */
+  function patchAutoIcon(id: string, patch: IconPatch) {
+    setDraft((d) => d && { ...d, buttons: updateById(d.buttons, id, (b) => (canAutoIcon(b) ? { ...b, ...patch } : b)) });
+  }
+
+  /** 모든 버튼(폴더 안 포함)에 프로그램·사이트 아이콘 넣기. 직접 넣은 이미지는 그대로 둔다 */
+  async function applyAllIcons() {
+    if (!draft) return;
+    const targets = allButtons(draft.buttons).filter((b) => canAutoIcon(b) && iconSource(b.action));
+    if (!targets.length) {
+      showToast("아이콘을 넣을 버튼이 없어요 (프로그램 실행·폴더·웹사이트 버튼만, 직접 넣은 이미지는 제외)", "info", 4000);
+      return;
+    }
+    showToast(`아이콘 가져오는 중… (${targets.length}개)`, "info", 30000);
+    let ok = 0;
+    const queue = [...targets];
+    // 사이트 아이콘은 네트워크라 몇 개씩 동시에
+    await Promise.all(
+      Array.from({ length: 4 }, async () => {
+        for (let b = queue.shift(); b; b = queue.shift()) {
+          const src = iconSource(b.action);
+          if (!src) continue;
+          try {
+            patchAutoIcon(b.id, await fetchIcon(src));
+            ok++;
+          } catch {
+            /* 실패한 버튼은 그대로 둔다 */
+          }
+        }
+      }),
+    );
+    const fail = targets.length - ok;
+    showToast(`아이콘 ${ok}개를 넣었어요${fail ? ` · ${fail}개는 찾지 못했어요` : ""}. 확인 후 '완료'를 누르세요`, "info", 5000);
+  }
+
   function addButton() {
     const b = newButton();
     editHere((list) => [...list, b]);
@@ -395,7 +483,16 @@ export default function App() {
         </div>
       </header>
 
-      <main className="grid" style={{ gridTemplateColumns: `repeat(${view.columns}, 1fr)` }}>
+      <main
+        ref={gridRef}
+        className="grid"
+        style={
+          {
+            gridTemplateColumns: `repeat(${view.columns}, 1fr)`,
+            "--icon-size": `${iconSize}px`,
+          } as React.CSSProperties
+        }
+      >
         {path.length > 0 && (
           <button
             className="tile back"
@@ -437,7 +534,7 @@ export default function App() {
                 if (file) {
                   e.preventDefault();
                   imageToDataUrl(file)
-                    .then((image) => updateButton({ ...b, image }))
+                    .then((image) => updateButton({ ...b, image, imageAuto: false }))
                     .catch((err) => showToast(String(err.message ?? err)));
                   return;
                 }
@@ -503,6 +600,7 @@ export default function App() {
               currentPath={path}
               inherited={inheritedApps(draft.buttons, path)}
               onMove={(to) => moveToFolder(selected, to)}
+              onAutoIcon={patchAutoIcon}
             />
           ) : (
             <SettingsEditor
@@ -510,6 +608,7 @@ export default function App() {
               onChange={setDraft}
               onAddPreset={addPreset}
               onNotice={(t, k) => showToast(t, k ?? "error", 5000)}
+              onApplyAllIcons={applyAllIcons}
             />
           )}
         </section>

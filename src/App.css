@@ -44,33 +44,32 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f2f2f7;
-    --bg-elevated: #ffffff;
-    --bg-elevated-2: #f2f2f7;
-    --bg-elevated-3: #e5e5ea;
-    --label: #000000;
-    --label-2: rgba(60, 60, 67, 0.6);
-    --label-3: rgba(60, 60, 67, 0.3);
-    --separator: rgba(60, 60, 67, 0.29);
-    --fill: rgba(120, 120, 128, 0.2);
-    --fill-2: rgba(120, 120, 128, 0.16);
-    --fill-3: rgba(118, 118, 128, 0.12);
-    --bar: rgba(249, 249, 249, 0.8);
-    --glass: rgba(255, 255, 255, 0.5);
-    --glass-border: rgba(255, 255, 255, 0.7);
-    --blue: #007aff;
-    --green: #34c759;
-    --red: #ff3b30;
-    --orange: #ff9500;
-    --tinted-blue: rgba(0, 122, 255, 0.12);
-    --tinted-red: rgba(255, 59, 48, 0.12);
-    --wallpaper: radial-gradient(120% 80% at 0% 0%, #cfe3ff 0%, transparent 60%),
-      radial-gradient(120% 90% at 100% 100%, #f3d9ff 0%, transparent 55%), #eef1f7;
-    --shadow-icon: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.1);
-    color-scheme: light;
-  }
+/* 밝은 테마: 설정의 "테마"(자동이면 Windows 설정)에 따라 html 에 data-theme="light" 가 붙는다 */
+:root[data-theme="light"] {
+  --bg: #f2f2f7;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #f2f2f7;
+  --bg-elevated-3: #e5e5ea;
+  --label: #000000;
+  --label-2: rgba(60, 60, 67, 0.6);
+  --label-3: rgba(60, 60, 67, 0.3);
+  --separator: rgba(60, 60, 67, 0.29);
+  --fill: rgba(120, 120, 128, 0.2);
+  --fill-2: rgba(120, 120, 128, 0.16);
+  --fill-3: rgba(118, 118, 128, 0.12);
+  --bar: rgba(249, 249, 249, 0.8);
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --tinted-blue: rgba(0, 122, 255, 0.12);
+  --tinted-red: rgba(255, 59, 48, 0.12);
+  --wallpaper: radial-gradient(120% 80% at 0% 0%, #cfe3ff 0%, transparent 60%),
+    radial-gradient(120% 90% at 100% 100%, #f3d9ff 0%, transparent 55%), #eef1f7;
+  --shadow-icon: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.1);
+  color-scheme: light;
 }
 
 * {
@@ -288,9 +287,11 @@ button.danger {
 
 .app-icon {
   position: relative;
-  width: 78%;
-  max-width: 76px;
+  /* 창 크기에 맞춰 App.tsx 가 계산한 크기 (모든 줄이 창 안에 들어오게) */
+  width: var(--icon-size, 60px);
+  max-width: 100%;
   aspect-ratio: 1;
+  flex-shrink: 0;
   /* iOS 아이콘 모서리 ≈ 한 변의 22.5% */
   border-radius: 22.5%;
   display: grid;
@@ -310,20 +311,20 @@ button.danger {
   filter: brightness(0.85);
 }
 .glyph {
-  font-size: clamp(16px, 6.5vw, 32px);
+  font-size: calc(var(--icon-size, 60px) * 0.46);
   line-height: 1;
   color: #fff;
   font-weight: 700;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
 }
 .glyph.chevron {
-  font-size: clamp(22px, 9vw, 40px);
+  font-size: calc(var(--icon-size, 60px) * 0.6);
   font-weight: 300;
   color: var(--label);
   margin-top: -4%;
 }
 .glyph.plus {
-  font-size: clamp(20px, 8vw, 36px);
+  font-size: calc(var(--icon-size, 60px) * 0.5);
   font-weight: 300;
   color: var(--label-2);
 }
@@ -368,7 +369,7 @@ button.danger {
   overflow: hidden;
   display: grid;
   place-items: center;
-  font-size: clamp(5px, 1.6vw, 9px);
+  font-size: calc(var(--icon-size, 60px) * 0.12);
   color: #fff;
   font-weight: 700;
 }
@@ -994,4 +995,33 @@ kbd {
   content: "✓ ";
   color: var(--green);
   font-weight: 700;
+}
+
+/* ---------- iOS 세그먼트 컨트롤 ---------- */
+.segmented {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  background: var(--fill-2);
+}
+.segmented button {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--label);
+  background: transparent;
+  border-radius: 7px;
+}
+.segmented button:hover {
+  background: var(--fill-3);
+}
+.segmented button.on {
+  background: var(--bg-elevated-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
+:root[data-theme="light"] .segmented button.on {
+  background: #ffffff;
 }

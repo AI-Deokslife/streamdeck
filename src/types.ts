@@ -24,6 +24,8 @@ export interface DeckButton {
   image?: string;
   /** true면 이미지를 버튼 전체에 꽉 채움 */
   imageFull?: boolean;
+  /** true면 프로그램·사이트에서 자동으로 가져온 이미지 (대상이 바뀌면 다시 가져옴) */
+  imageAuto?: boolean;
   color: string;
   hotkey: string;
   action: Action;
@@ -33,7 +35,11 @@ export interface Config {
   toggleHotkey: string;
   columns: number;
   buttons: DeckButton[];
+  /** 화면 테마: auto = Windows 설정을 따라감 */
+  theme?: Theme;
 }
+
+export type Theme = "auto" | "light" | "dark";
 
 export const ACTION_LABELS: Record<ActionType, string> = {
   launch: "프로그램 / 파일 실행",

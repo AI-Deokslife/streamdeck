@@ -2,6 +2,7 @@ mod actions;
 mod apppath;
 mod capture;
 mod config;
+mod favicon;
 mod icon;
 mod winutil;
 
@@ -215,6 +216,12 @@ async fn get_app_icon(target: String) -> Result<String, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// 웹사이트 아이콘 (URL 버튼 이미지용). 그 사이트에만 직접 접속한다
+#[tauri::command]
+async fn get_site_icon(url: String) -> Result<favicon::SiteIcon, String> {
+    tauri::async_runtime::spawn_blocking(move || favicon::fetch(&url)).await.map_err(|e| e.to_string())?
 }
 
 /// 화면 일부를 캡처해서 PNG data URL 로 (Windows 캡처 도구 사용)
@@ -454,6 +461,7 @@ pub fn run() {
             resolve_app_path,
             get_app_icon,
             capture_screen,
+            get_site_icon,
             cancel_capture,
             export_config,
             import_config,

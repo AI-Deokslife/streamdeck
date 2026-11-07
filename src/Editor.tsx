@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { firstImage, imageToDataUrl } from "./image";
+import { IconPatch, IconSource, canAutoIcon, fetchIcon, iconSource, sourceKey } from "./icons";
 import { invoke } from "@tauri-apps/api/core";
 import HotkeyInput from "./HotkeyInput";
 import { APP_PRESETS, AppPreset } from "./presets";
@@ -13,6 +14,7 @@ import {
   Config,
   DeckButton,
   RunningApp,
+  Theme,
   STEP_ACTION_TYPES,
   emptyAction,
   summarizeAction,
@@ -325,29 +327,29 @@ function StepList({
 
 // ---------------- 버튼 아이콘 / 이미지 ----------------
 
-/** 이 버튼과 관련된 프로그램 (아이콘을 꺼내 올 대상) */
-function programTarget(a: Action, inherited: string[]): string {
-  switch (a.type) {
-    case "launch":
-      return a.target;
-    case "folder":
-      return a.launch || a.apps[0] || "";
-    case "keys":
-    case "text":
-      return a.app || inherited[0] || "";
-    default:
-      return "";
+/** [아이콘 가져오기] 버튼이 쓸 대상: 프로그램/폴더/웹사이트, 그리고 단축키·텍스트 버튼은 보낼 프로그램 */
+function manualIconSource(a: Action, inherited: string[]): IconSource | null {
+  const auto = iconSource(a);
+  if (auto) return auto;
+  if (a.type === "keys" || a.type === "text") {
+    const t = (a.app || inherited[0] || "").trim();
+    return t ? { kind: "program", target: t } : null;
   }
+  return null;
 }
 
 function IconPicker({
   button,
   onChange,
-  programTarget,
+  source,
+  autoBusy,
 }: {
   button: DeckButton;
   onChange: (p: Partial<DeckButton>) => void;
-  programTarget: string;
+  /** 아이콘을 가져올 수 있는 프로그램/사이트 */
+  source: IconSource | null;
+  /** 자동 아이콘을 가져오는 중 */
+  autoBusy: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -358,17 +360,18 @@ function IconPicker({
     if (!file) return;
     setError("");
     try {
-      onChange({ image: await imageToDataUrl(file) });
+      onChange({ image: await imageToDataUrl(file), imageAuto: false });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
 
-  async function useProgramIcon() {
+  async function useSourceIcon() {
+    if (!source) return;
     setBusy(true);
     setError("");
     try {
-      onChange({ image: await invoke<string>("get_app_icon", { target: programTarget }) });
+      onChange(await fetchIcon(source));
     } catch (e) {
       setError(String(e));
     }
@@ -383,7 +386,7 @@ function IconPicker({
       const dataUrl = await invoke<string>("capture_screen");
       const blob = await (await fetch(dataUrl)).blob();
       // 캡처는 보통 그림이므로 버튼 전체를 채우는 쪽이 자연스럽다
-      onChange({ image: await imageToDataUrl(blob), imageFull: true });
+      onChange({ image: await imageToDataUrl(blob), imageFull: true, imageAuto: false });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -439,9 +442,15 @@ function IconPicker({
                 ✂ 화면 캡처
               </button>
             )}
-            {programTarget && (
-              <button type="button" className="small" disabled={busy} onClick={useProgramIcon} title={programTarget}>
-                {busy ? "가져오는 중…" : "📦 프로그램 아이콘"}
+            {source && (
+              <button
+                type="button"
+                className="small"
+                disabled={busy || autoBusy}
+                onClick={useSourceIcon}
+                title={source.kind === "program" ? source.target : source.url}
+              >
+                {busy || autoBusy ? "가져오는 중…" : source.kind === "site" ? "🌐 사이트 아이콘" : "📦 프로그램 아이콘"}
               </button>
             )}
           </div>
@@ -455,7 +464,7 @@ function IconPicker({
                 />
                 버튼 전체에 꽉 채우기
               </label>
-              <button type="button" className="small ghost" onClick={() => onChange({ image: "", imageFull: false })}>
+              <button type="button" className="small ghost" onClick={() => onChange({ image: "", imageFull: false, imageAuto: false })}>
                 이미지 빼기
               </button>
             </div>
@@ -498,6 +507,47 @@ interface ButtonEditorProps {
   onMove: (to: Path) => void;
   /** 상위 폴더에 연결된 프로그램 */
   inherited: string[];
+  /** 자동으로 가져온 아이콘을 최신 편집 상태에 반영 */
+  onAutoIcon: (id: string, patch: IconPatch) => void;
+}
+
+/** 실행할 프로그램·폴더 연결·웹 주소를 정하면 (입력이 멈추고 잠시 뒤) 아이콘을 자동으로 가져온다.
+ *  직접 넣은 이미지는 건드리지 않고, 처음 열 때 이미 이미지가 있으면 다시 가져오지 않는다. */
+function useAutoIcon(button: DeckButton, onAutoIcon: (id: string, patch: IconPatch) => void) {
+  const source = iconSource(button.action);
+  const key = sourceKey(source);
+  const [busy, setBusy] = useState(false);
+  const first = useRef(true);
+  const latest = useRef(button);
+  latest.current = button;
+
+  useEffect(() => {
+    const isFirst = first.current;
+    first.current = false;
+    if (!source || !canAutoIcon(latest.current)) return;
+    if (isFirst && latest.current.image) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setBusy(true);
+      try {
+        const patch = await fetchIcon(source);
+        if (!cancelled) onAutoIcon(latest.current.id, patch);
+      } catch {
+        // 못 찾으면 조용히 넘어간다 (아이콘 칸의 버튼으로 다시 시도 가능)
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    }, 700);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      setBusy(false);
+    };
+    // 대상(key)이 바뀔 때만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return busy;
 }
 
 export function ButtonEditor({
@@ -512,9 +562,11 @@ export function ButtonEditor({
   currentPath,
   onMove,
   inherited,
+  onAutoIcon,
 }: ButtonEditorProps) {
   const set = (patch: Partial<DeckButton>) => onChange({ ...button, ...patch });
   const a = button.action;
+  const autoBusy = useAutoIcon(button, onAutoIcon);
   const currentKey = currentPath.join("/");
 
   function changeType(t: ActionType) {
@@ -537,7 +589,7 @@ export function ButtonEditor({
         <input value={button.label} onChange={(e) => set({ label: e.target.value })} />
       </label>
 
-      <IconPicker button={button} onChange={set} programTarget={programTarget(a, inherited)} />
+      <IconPicker button={button} onChange={set} source={manualIconSource(a, inherited)} autoBusy={autoBusy} />
 
       <label>색상</label>
       <div className="colors">
@@ -731,9 +783,12 @@ interface SettingsProps {
   onAddPreset: (p: AppPreset) => void;
   /** 알림 띄우기 */
   onNotice: (text: string, kind?: "error" | "info") => void;
+  /** 모든 버튼에 프로그램·사이트 아이콘 넣기 */
+  onApplyAllIcons: () => Promise<void>;
 }
 
-export function SettingsEditor({ config, onChange, onAddPreset, onNotice }: SettingsProps) {
+export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onApplyAllIcons }: SettingsProps) {
+  const [applying, setApplying] = useState(false);
   async function exportConfig() {
     try {
       const path = await invoke<string | null>("export_config", { cfg: config });
@@ -759,6 +814,29 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice }: Sett
       <p className="hint">
         버튼을 클릭하면 편집하고, 끌어서 순서를 바꿀 수 있어요. 폴더는 더블클릭하면 안으로 들어갑니다.
       </p>
+      <label>화면 테마</label>
+      <div className="segmented" role="radiogroup" aria-label="화면 테마">
+        {(
+          [
+            ["auto", "자동"],
+            ["light", "밝게"],
+            ["dark", "어둡게"],
+          ] as [Theme, string][]
+        ).map(([value, name]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={(config.theme ?? "auto") === value}
+            className={(config.theme ?? "auto") === value ? "on" : ""}
+            onClick={() => onChange({ ...config, theme: value })}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <p className="hint">자동은 Windows의 밝게/어둡게 설정을 따라가요.</p>
+
       <label>창 보이기 / 숨기기 단축키</label>
       <HotkeyInput
         mode="global"
@@ -789,6 +867,25 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice }: Sett
             {p.name}
           </button>
         ))}
+      </div>
+
+      <label>아이콘</label>
+      <p className="hint">
+        프로그램 실행·폴더 버튼은 프로그램 아이콘을, 웹사이트 버튼은 사이트 아이콘을 넣어요. 직접 넣은 이미지는 그대로 둡니다.
+      </p>
+      <div className="row">
+        <button
+          type="button"
+          className="small"
+          disabled={applying}
+          onClick={async () => {
+            setApplying(true);
+            await onApplyAllIcons();
+            setApplying(false);
+          }}
+        >
+          {applying ? "가져오는 중…" : "✨ 모든 버튼에 아이콘 넣기"}
+        </button>
       </div>
 
       <label>설정 백업</label>

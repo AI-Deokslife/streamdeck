@@ -101,6 +101,17 @@ export function inheritedApps(root: DeckButton[], path: Path): string[] {
   return apps;
 }
 
+/** id 버튼을 (폴더 안까지 찾아서) fn 으로 바꾼 새 트리. 비동기 작업 뒤에 최신 상태에 적용할 때 쓴다 */
+export function updateById(root: DeckButton[], id: string, fn: (b: DeckButton) => DeckButton): DeckButton[] {
+  return root.map((b) => {
+    if (b.id === id) return fn(b);
+    if (b.action.type === "folder") {
+      return { ...b, action: { ...b.action, buttons: updateById(b.action.buttons, id, fn) } };
+    }
+    return b;
+  });
+}
+
 /** 버튼 깊은 복사. 폴더면 안의 버튼까지 모두 새 id 를 붙인다 (복제/붙여넣기용) */
 export function cloneWithNewIds(b: DeckButton): DeckButton {
   const copy: DeckButton = structuredClone(b);
