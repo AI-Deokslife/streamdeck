@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>QuickDeck 사용설명서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+/* ================= 교재 스타일 사용설명서 (A4) ================= */
+:root {
+  --navy: #173a63;
+  --navy-2: #24548c;
+  --teal: #0f8b8d;
+  --teal-soft: #e3f4f4;
+  --orange: #f08a24;
+  --orange-soft: #fff3e3;
+  --red: #d64545;
+  --red-soft: #fdecec;
+  --ink: #222831;
+  --ink-2: #555e6b;
+  --line: #d5dbe3;
+  --paper-tint: #f6f8fb;
+}
+@page {
+  size: A4;
+  margin: 20mm 17mm 18mm 17mm;
+  @bottom-center {
+    content: counter(page);
+    font-family: "Pretendard", sans-serif;
+    font-size: 9pt;
+    font-weight: 700;
+    color: #173a63;
+  }
+  @top-right {
+    content: "QuickDeck 사용설명서";
+    font-family: "Pretendard", sans-serif;
+    font-size: 8pt;
+    color: #8a94a3;
+  }
+}
+@page :first {
+  margin: 0;
+  @bottom-center { content: none; }
+  @top-right { content: none; }
+}
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  font-family: "Pretendard", "Malgun Gothic", sans-serif;
+  font-size: 10pt;
+  line-height: 1.68;
+  color: var(--ink);
+  word-break: keep-all;
+}
+p { margin: 0 0 2.4mm; }
+b, strong { color: var(--navy); }
+code, .key {
+  font-family: "Pretendard", sans-serif;
+  font-size: 8.6pt;
+  font-weight: 700;
+  padding: 0.2mm 1.6mm;
+  border-radius: 1.2mm;
+  background: #eef1f6;
+  border: 0.3mm solid #c9d1dc;
+  border-bottom-width: 0.6mm;
+  color: #253046;
+  white-space: nowrap;
+}
+code { font-weight: 600; background: #f1f3f7; border-width: 0.25mm; }
+
+/* ---------- 표지 ---------- */
+.cover {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  page-break-after: always;
+}
+.cover-band {
+  height: 168mm;
+  background:
+    radial-gradient(90mm 70mm at 85% 15%, rgba(255,255,255,0.18), transparent 70%),
+    linear-gradient(150deg, #0f8b8d 0%, #173a63 62%, #0f2747 100%);
+  color: #fff;
+  padding: 22mm 20mm 0;
+  position: relative;
+}
+.cover-series {
+  display: inline-block;
+  padding: 1.5mm 4mm;
+  border: 0.5mm solid rgba(255,255,255,0.7);
+  border-radius: 20mm;
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.cover-title {
+  margin: 12mm 0 0;
+  font-size: 44pt;
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+.cover-title small {
+  display: block;
+  font-size: 26pt;
+  font-weight: 700;
+  opacity: 0.92;
+}
+.cover-sub {
+  margin-top: 7mm;
+  font-size: 13pt;
+  font-weight: 500;
+  opacity: 0.9;
+}
+.cover-tags { margin-top: 9mm; display: flex; gap: 2.5mm; flex-wrap: wrap; }
+.cover-tags span {
+  padding: 1.2mm 3.5mm;
+  border-radius: 1.5mm;
+  background: rgba(255,255,255,0.14);
+  font-size: 9.5pt;
+  font-weight: 600;
+}
+.cover-shot {
+  position: absolute;
+  right: 20mm;
+  top: 128mm;
+  width: 96mm;
+  border-radius: 5mm;
+  box-shadow: 0 6mm 16mm rgba(10, 30, 60, 0.35);
+  border: 1.2mm solid #fff;
+}
+.cover-bottom {
+  position: absolute;
+  left: 20mm;
+  bottom: 22mm;
+  right: 20mm;
+}
+.cover-units { font-size: 9.5pt; color: var(--ink-2); line-height: 1.9; }
+.cover-units b { color: var(--teal); margin-right: 2mm; }
+.cover-foot {
+  margin-top: 10mm;
+  padding-top: 4mm;
+  border-top: 0.6mm solid var(--navy);
+  display: flex;
+  justify-content: space-between;
+  font-size: 9pt;
+  color: var(--ink-2);
+}
+.cover-foot b { color: var(--navy); font-size: 12pt; }
+
+/* ---------- 차례 ---------- */
+.toc-title {
+  font-size: 22pt;
+  font-weight: 900;
+  color: var(--navy);
+  margin: 0 0 2mm;
+  letter-spacing: -0.02em;
+}
+.toc-title span { color: var(--teal); font-size: 11pt; font-weight: 700; margin-left: 3mm; letter-spacing: 0.1em; }
+.toc-lead { color: var(--ink-2); margin-bottom: 4mm; font-size: 9.5pt; }
+.toc-unit {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+  margin: 2mm 0 0.4mm;
+  padding: 1.1mm 4mm;
+  font-size: 10.5pt;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 2mm;
+  font-weight: 800;
+  font-size: 11.5pt;
+}
+.toc-unit .num {
+  width: 7.5mm; height: 7.5mm; border-radius: 50%;
+  background: var(--teal);
+  display: grid; place-items: center;
+  font-size: 11pt;
+}
+.toc-unit .pg { margin-left: auto; font-size: 11pt; }
+.toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  padding: 0 4mm 0 16mm;
+  font-size: 9.3pt;
+  line-height: 1.5;
+}
+.toc-row .dots { flex: 1; border-bottom: 0.35mm dotted #aab3c0; transform: translateY(-1mm); }
+.toc-row .pg { font-weight: 700; color: var(--navy); min-width: 6mm; text-align: right; }
+.toc-row .sn { color: var(--teal); font-weight: 800; width: 7mm; }
+
+/* ---------- 단원 표지 ---------- */
+.unit {
+  break-before: page;
+  margin-bottom: 7mm;
+}
+.unit-head {
+  display: flex;
+  align-items: stretch;
+  border-radius: 3mm;
+  overflow: hidden;
+  background: linear-gradient(120deg, #173a63, #24548c);
+  color: #fff;
+}
+.unit-num {
+  width: 32mm;
+  background: var(--teal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5mm 0;
+}
+.unit-num small { font-size: 8.5pt; font-weight: 700; letter-spacing: 0.2em; opacity: 0.9; }
+.unit-num b { font-size: 30pt; font-weight: 900; color: #fff; line-height: 1; margin-top: 1mm; }
+.unit-title { padding: 6mm 7mm; }
+.unit-title h1 { margin: 0; font-size: 21pt; font-weight: 900; letter-spacing: -0.02em; }
+.unit-title p { margin: 1.5mm 0 0; opacity: 0.85; font-size: 10pt; }
+.goals {
+  margin-top: 4mm;
+  border: 0.5mm solid var(--teal);
+  border-radius: 2.5mm;
+  padding: 3.5mm 5mm 3mm;
+  background: var(--teal-soft);
+  position: relative;
+}
+.goals::before {
+  content: "학습 목표";
+  position: absolute;
+  top: -3.2mm; left: 4mm;
+  background: var(--teal);
+  color: #fff;
+  font-size: 8.5pt;
+  font-weight: 800;
+  padding: 0.6mm 3mm;
+  border-radius: 1.5mm;
+}
+.goals ul { margin: 1mm 0 0; padding-left: 5mm; }
+.goals li { margin: 0.6mm 0; }
+.goals li::marker { content: "✔  "; color: var(--teal); }
+
+/* ---------- 소단원 제목 ---------- */
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  margin: 8mm 0 3mm;
+  padding-bottom: 1.8mm;
+  border-bottom: 0.6mm solid var(--navy);
+  font-size: 14pt;
+  font-weight: 800;
+  color: var(--navy);
+  break-after: avoid;
+}
+h2 .sn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 10mm;
+  height: 7.5mm;
+  padding: 0 1.5mm;
+  border-radius: 1.5mm;
+  background: var(--orange);
+  color: #fff;
+  font-size: 11pt;
+  font-weight: 900;
+}
+h3 {
+  margin: 5mm 0 2mm;
+  font-size: 11pt;
+  font-weight: 800;
+  color: var(--teal);
+  break-after: avoid;
+}
+h3::before { content: "■ "; color: var(--orange); font-size: 8pt; vertical-align: 0.4mm; }
+
+/* ---------- 상자들 ---------- */
+.core, .tip, .warn, .note {
+  margin: 3.5mm 0;
+  border-radius: 2.5mm;
+  padding: 3.5mm 5mm;
+  break-inside: avoid;
+}
+:is(.core, .tip, .warn, .note) > .box-label {
+  display: inline-block;
+  margin-bottom: 1.5mm;
+  font-weight: 900;
+  font-size: 9.5pt;
+  letter-spacing: 0.02em;
+}
+:is(.core, .tip, .warn, .note) :is(p, ul, ol):last-child { margin-bottom: 0; }
+:is(.core, .tip, .warn, .note) :is(ul, ol) { margin: 0 0 1mm; padding-left: 5mm; }
+:is(.core, .tip, .warn, .note) li { margin: 0.5mm 0; }
+
+.core { border: 0.5mm solid var(--navy); padding: 0; overflow: hidden; }
+.core > .box-label {
+  display: block;
+  margin: 0;
+  background: var(--navy);
+  color: #fff;
+  padding: 1.5mm 5mm;
+}
+.core > .box-label::before { content: "📌 "; }
+.core .box-body { padding: 3mm 5mm 3.5mm; background: #fbfcfe; }
+
+.tip { background: var(--orange-soft); border-left: 1.6mm solid var(--orange); }
+.tip > .box-label { color: var(--orange); }
+.tip > .box-label::before { content: "💡 "; }
+
+.warn { background: var(--red-soft); border-left: 1.6mm solid var(--red); }
+.warn > .box-label { color: var(--red); }
+.warn > .box-label::before { content: "⚠ "; }
+
+.note { background: var(--paper-tint); border: 0.35mm dashed #9fb0c6; }
+.note > .box-label { color: var(--navy-2); }
+.note > .box-label::before { content: "📎 "; }
+
+/* 따라 해 보기 */
+.steps {
+  margin: 3.5mm 0;
+  border: 0.5mm solid var(--teal);
+  border-radius: 2.5mm;
+  padding: 3.5mm 5mm 3mm;
+  break-inside: avoid;
+}
+.steps > .box-label {
+  display: inline-block;
+  background: var(--teal);
+  color: #fff;
+  padding: 0.6mm 3mm;
+  border-radius: 1.5mm;
+  font-weight: 900;
+  font-size: 9.5pt;
+  margin-bottom: 2mm;
+}
+.steps > .box-label::before { content: "✍ "; }
+.steps ol { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 9mm;
+  margin: 1.6mm 0;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0.2mm;
+  width: 6mm; height: 6mm;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-weight: 900;
+  font-size: 8.5pt;
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- 그림 ---------- */
+figure { margin: 3.5mm 0; break-inside: avoid; text-align: center; }
+figure img {
+  border-radius: 2.5mm;
+  border: 0.35mm solid #c7d0dc;
+  box-shadow: 0 1.2mm 3mm rgba(20, 40, 70, 0.12);
+}
+figcaption {
+  margin-top: 1.8mm;
+  font-size: 8.6pt;
+  color: var(--ink-2);
+}
+figcaption b { color: var(--teal); margin-right: 1.5mm; }
+.fig-row { display: flex; gap: 5mm; justify-content: center; align-items: flex-start; }
+.fig-row figure { flex: 1; margin: 3.5mm 0; }
+.w60 { width: 60%; } .w70 { width: 70%; } .w100 { width: 100%; } .w45 { width: 45%; }
+.side { display: flex; gap: 6mm; align-items: flex-start; break-inside: avoid; }
+.side > .side-text { flex: 1.15; }
+.side > figure { flex: 1; margin-top: 0; }
+.side > figure img { width: 100%; }
+
+/* 그림 번호 설명 */
+.callouts { list-style: none; padding: 0; margin: 2mm 0; }
+.callouts li { display: flex; gap: 2.5mm; margin: 1.2mm 0; }
+.callouts .c {
+  flex-shrink: 0;
+  width: 5.5mm; height: 5.5mm;
+  border-radius: 50%;
+  background: var(--orange);
+  color: #fff;
+  font-size: 8pt;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  margin-top: 0.4mm;
+}
+
+/* ---------- 표 ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 3mm 0;
+  font-size: 9.2pt;
+  break-inside: avoid;
+}
+th {
+  background: var(--teal);
+  color: #fff;
+  font-weight: 800;
+  padding: 1.8mm 2.5mm;
+  text-align: left;
+  border: 0.3mm solid var(--teal);
+}
+td {
+  padding: 1.7mm 2.5mm;
+  border: 0.3mm solid var(--line);
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: #f7fafc; }
+td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
+
+/* ---------- 확인 문제 ---------- */
+.quiz {
+  margin-top: 8mm;
+  border: 0.6mm solid var(--navy);
+  border-radius: 3mm;
+  padding: 0 0 2mm;
+  break-inside: avoid;
+}
+.quiz-head {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  padding: 2mm 5mm;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 2.2mm 2.2mm 0 0;
+  font-weight: 900;
+  font-size: 11pt;
+}
+.quiz-head small { margin-left: auto; font-weight: 600; font-size: 8.5pt; opacity: 0.85; }
+.q { padding: 3mm 5mm 0; }
+.q .qt { font-weight: 700; }
+.q .qt .qn { color: var(--orange); font-weight: 900; margin-right: 1.5mm; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8mm 6mm; margin: 1.5mm 0 0 6mm; font-size: 9.4pt; }
+.choices.one { grid-template-columns: 1fr; }
+.ox { margin: 1.5mm 0 0 6mm; font-size: 9.4pt; color: var(--ink-2); }
+
+/* ---------- 부록: 정답 ---------- */
+.answer { display: flex; gap: 3mm; margin: 2mm 0; break-inside: avoid; }
+.answer .an {
+  flex-shrink: 0;
+  min-width: 15mm;
+  font-weight: 900;
+  color: var(--navy);
+}
+.answer .an em { font-style: normal; color: var(--orange); margin-left: 1mm; }
+.cols2 { columns: 2; column-gap: 8mm; }
+.cols2 > * { break-inside: avoid; }
+.two-tables { display: flex; gap: 6mm; align-items: flex-start; break-inside: avoid; }
+.two-tables table { flex: 1; margin: 2mm 0; }
+.two-tables td:first-child { white-space: normal; }
+.small { font-size: 8.8pt; color: var(--ink-2); }
+.center { text-align: center; }
+.keep { break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ======================= 표지 ======================= -->
+<section class="cover">
+  <div class="cover-band">
+    <span class="cover-series">기초부터 실전까지 · 따라 하며 익히는</span>
+    <h1 class="cover-title"><small>내 화면 위의 스트림덱</small>QuickDeck<br />사용설명서</h1>
+    <p class="cover-sub">버튼 하나로 프로그램 실행부터 단축키·자동화까지</p>
+    <div class="cover-tags">
+      <span>설치와 화면 구성</span><span>버튼·아이콘 만들기</span><span>폴더와 프로그램 연결</span><span>멀티 액션</span><span>문제 해결</span>
+    </div>
+  </div>
+  <img class="cover-shot" src="assets/shot-home-dark.png" alt="" />
+  <div class="cover-bottom">
+    <div class="cover-units">
+      <div><b>Ⅰ</b>시작하기</div>
+      <div><b>Ⅱ</b>버튼 만들기</div>
+      <div><b>Ⅲ</b>아이콘 꾸미기</div>
+      <div><b>Ⅳ</b>폴더와 프로그램 연결</div>
+      <div><b>Ⅴ</b>멀티 액션과 텍스트 입력</div>
+      <div><b>Ⅵ</b>설정과 관리</div>
+      <div><b>Ⅶ</b>문제 해결</div>
+    </div>
+    <div class="cover-foot">
+      <span><b>QuickDeck</b> &nbsp;v0.3.1 기준</span>
+      <span>2026. 11.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 차례 ======================= -->
+<section>
+  <h1 class="toc-title">차례 <span>CONTENTS</span></h1>
+  <p class="toc-lead">각 단원은 <b>학습 목표 → 개념 설명 → 따라 해 보기 → 확인 문제</b> 순서로 구성되어 있습니다. 처음 쓰는 분은 Ⅰ단원부터 차례대로, 필요한 기능만 찾는 분은 아래에서 바로 찾아가세요.</p>
+
+  <div class="toc-unit"><span class="num">Ⅰ</span>시작하기<span class="pg" data-find="QuickDeck 알아보기"></span></div>
+  <div class="toc-row"><span class="sn">01</span>QuickDeck 알아보기<span class="dots"></span><span class="pg" data-find="QuickDeck 알아보기"></span></div>
+  <div class="toc-row"><span class="sn">02</span>설치하고 실행하기<span class="dots"></span><span class="pg" data-find="설치하고 실행하기"></span></div>
+  <div class="toc-row"><span class="sn">03</span>화면 구성 살펴보기<span class="dots"></span><span class="pg" data-find="화면 구성 살펴보기"></span></div>
+  <div class="toc-row"><span class="sn">04</span>창 보이기·숨기기와 트레이 메뉴<span class="dots"></span><span class="pg" data-find="창 보이기·숨기기와 트레이 메뉴"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅱ</span>버튼 만들기<span class="pg" data-find="편집 모드 사용하기"></span></div>
+  <div class="toc-row"><span class="sn">01</span>편집 모드 사용하기<span class="dots"></span><span class="pg" data-find="편집 모드 사용하기"></span></div>
+  <div class="toc-row"><span class="sn">02</span>버튼 동작 7가지<span class="dots"></span><span class="pg" data-find="버튼 동작 7가지"></span></div>
+  <div class="toc-row"><span class="sn">03</span>단축키 녹화하기<span class="dots"></span><span class="pg" data-find="단축키 녹화하기"></span></div>
+  <div class="toc-row"><span class="sn">04</span>버튼마다 전역 단축키 붙이기<span class="dots"></span><span class="pg" data-find="버튼마다 전역 단축키 붙이기"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅲ</span>아이콘 꾸미기<span class="pg" data-find="이모지와 색상"></span></div>
+  <div class="toc-row"><span class="sn">01</span>이모지와 색상<span class="dots"></span><span class="pg" data-find="이모지와 색상"></span></div>
+  <div class="toc-row"><span class="sn">02</span>아이콘 자동으로 넣기<span class="dots"></span><span class="pg" data-find="아이콘 자동으로 넣기"></span></div>
+  <div class="toc-row"><span class="sn">03</span>내 이미지·화면 캡처 넣기<span class="dots"></span><span class="pg" data-find="내 이미지·화면 캡처 넣기"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅳ</span>폴더와 프로그램 연결<span class="pg" data-find="폴더 만들고 정리하기"></span></div>
+  <div class="toc-row"><span class="sn">01</span>폴더 만들고 정리하기<span class="dots"></span><span class="pg" data-find="폴더 만들고 정리하기"></span></div>
+  <div class="toc-row"><span class="sn">02</span>프로그램 연결 폴더<span class="dots"></span><span class="pg" data-find="프로그램 연결 폴더"></span></div>
+  <div class="toc-row"><span class="sn">03</span>프로그램 프리셋<span class="dots"></span><span class="pg" data-find="프로그램 프리셋"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅴ</span>멀티 액션과 텍스트 입력<span class="pg" data-find="멀티 액션 만들기"></span></div>
+  <div class="toc-row"><span class="sn">01</span>멀티 액션 만들기<span class="dots"></span><span class="pg" data-find="멀티 액션 만들기"></span></div>
+  <div class="toc-row"><span class="sn">02</span>텍스트 입력 버튼<span class="dots"></span><span class="pg" data-find="텍스트 입력 버튼"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅵ</span>설정과 관리<span class="pg" data-find="화면 설정"></span></div>
+  <div class="toc-row"><span class="sn">01</span>화면 설정<span class="dots"></span><span class="pg" data-find="화면 설정"></span></div>
+  <div class="toc-row"><span class="sn">02</span>복제·복사·붙여넣기<span class="dots"></span><span class="pg" data-find="복제·복사·붙여넣기"></span></div>
+  <div class="toc-row"><span class="sn">03</span>백업과 복원<span class="dots"></span><span class="pg" data-find="백업과 복원"></span></div>
+
+  <div class="toc-unit"><span class="num">Ⅶ</span>문제 해결<span class="pg" data-find="자주 묻는 질문"></span></div>
+  <div class="toc-row"><span class="sn">01</span>자주 묻는 질문<span class="dots"></span><span class="pg" data-find="자주 묻는 질문"></span></div>
+
+  <div class="toc-unit"><span class="num">+</span>부록<span class="pg" data-find="보낼 키 이름표"></span></div>
+  <div class="toc-row"><span class="sn">A</span>보낼 키 이름표<span class="dots"></span><span class="pg" data-find="보낼 키 이름표"></span></div>
+  <div class="toc-row"><span class="sn">B</span>한글 프리셋 단축키<span class="dots"></span><span class="pg" data-find="한글 프리셋 단축키"></span></div>
+  <div class="toc-row"><span class="sn">C</span>확인 문제 정답과 해설<span class="dots"></span><span class="pg" data-find="확인 문제 정답과 해설"></span></div>
+</section>
+
+<!-- ======================= Ⅰ 시작하기 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅰ</b></div>
+    <div class="unit-title"><h1>시작하기</h1><p>QuickDeck을 설치하고, 화면 구성과 기본 사용법을 익힙니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>QuickDeck이 무엇이고 어떤 일을 할 수 있는지 설명할 수 있다.</li>
+    <li>QuickDeck을 설치하고 Windows 시작 시 자동 실행되게 설정할 수 있다.</li>
+    <li>화면의 각 부분과 단축키로 창을 보이고 숨기는 방법을 안다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>QuickDeck 알아보기</h2>
+  <p><b>QuickDeck</b>은 컴퓨터 화면 위에 항상 떠 있는 <b>버튼판</b>입니다. 방송용 장비인 ‘스트림덱’처럼 버튼을 누르면 프로그램이 실행되거나, 단축키가 입력되거나, 정해 둔 작업이 차례대로 실행됩니다. 실물 장비 없이 무료로 쓸 수 있다는 것이 가장 큰 장점입니다.</p>
+  <div class="core"><span class="box-label">핵심 정리 — QuickDeck으로 할 수 있는 일</span><div class="box-body"><ul>
+    <li><b>프로그램·파일·폴더 실행</b> — 이름만 적어도 설치 위치를 찾아 실행합니다.</li>
+    <li><b>단축키 보내기</b> — <span class="key">Ctrl</span>+<span class="key">S</span> 같은 단축키를 버튼 하나로 입력합니다.</li>
+    <li><b>웹사이트 열기, 텍스트 입력, PowerShell 명령 실행</b></li>
+    <li><b>멀티 액션</b> — 여러 동작을 순서대로 한 번에 실행합니다.</li>
+    <li><b>프로그램 연결 폴더</b> — 한글을 쓰면 한글용 버튼으로 화면이 저절로 바뀝니다.</li>
+  </ul></div></div>
+  <div class="note"><span class="box-label">알아 두기</span><p>QuickDeck 버튼을 눌러도 <b>지금 쓰고 있는 창의 포커스를 빼앗지 않습니다.</b> 그래서 메모장에 글을 쓰다가 QuickDeck의 ‘복사’ 버튼을 눌러도, 단축키는 메모장으로 그대로 들어갑니다.</p></div>
+
+  <h2><span class="sn">02</span>설치하고 실행하기</h2>
+  <div class="steps"><span class="box-label">따라 해 보기 — 설치</span><ol>
+    <li>설치 파일 <code>QuickDeck_0.3.1_x64-setup.exe</code>를 더블클릭합니다.</li>
+    <li>“Windows의 PC 보호” 창이 뜨면 <b>추가 정보 → 실행</b>을 누릅니다. (코드 서명이 없는 프로그램이라 나타나는 안내입니다.)</li>
+    <li>설치가 끝나면 QuickDeck이 자동으로 실행되고, 작업 표시줄 오른쪽 <b>트레이</b>에 아이콘이 생깁니다.</li>
+    <li>트레이 아이콘을 우클릭해 <b>Windows 시작 시 자동 실행</b>에 체크하면, 컴퓨터를 켤 때마다 바로 쓸 수 있습니다.</li>
+  </ol></div>
+  <div class="warn"><span class="box-label">주의</span><p><b>새 버전으로 업데이트할 때</b>는 먼저 트레이에서 QuickDeck을 <b>종료</b>한 뒤 설치하세요. 설치 후 버튼이 기본 버튼 8개만 보이면, 편집하지 말고 QuickDeck을 종료했다가 다시 실행하면 원래 버튼이 돌아옵니다. (Ⅶ단원 참고)</p></div>
+
+  <h2><span class="sn">03</span>화면 구성 살펴보기</h2>
+  <div class="side">
+    <div class="side-text">
+      <ul class="callouts">
+        <li><span class="c">1</span><span><b>내비게이션 바</b> — 이 부분을 끌면 창이 움직입니다. 가운데는 지금 화면의 이름, 아래 작은 글씨는 창을 부르는 단축키입니다.</span></li>
+        <li><span class="c">2</span><span><b>편집</b> — 버튼을 만들고 고치는 편집 모드로 들어갑니다.</span></li>
+        <li><span class="c">3</span><span><b>—</b> — 창을 숨깁니다. 프로그램은 트레이에서 계속 실행 중입니다.</span></li>
+        <li><span class="c">4</span><span><b>버튼</b> — 누르면 정해 둔 동작을 실행합니다. 오른쪽 위 작은 표시로 종류를 알 수 있습니다.</span></li>
+      </ul>
+      <table>
+        <tr><th>표시</th><th>뜻</th></tr>
+        <tr><td>▦</td><td>프로그램 아이콘을 쓴 폴더</td></tr>
+        <tr><td>⛓</td><td>멀티 액션 버튼</td></tr>
+        <tr><td>⌘</td><td>전역 단축키가 붙은 버튼</td></tr>
+      </table>
+    </div>
+    <figure><img src="assets/shot-home-dark.png" alt="" /><figcaption><b>그림 Ⅰ-1</b>QuickDeck 처음 화면</figcaption></figure>
+  </div>
+  <p>창 크기는 가장자리를 끌어서 바꿀 수 있습니다. 창을 키우면 아이콘도 함께 커지고, <b>모든 줄이 창 안에 들어오도록</b> 크기가 자동으로 맞춰집니다.</p>
+
+  <h2><span class="sn">04</span>창 보이기·숨기기와 트레이 메뉴</h2>
+  <table>
+    <tr><th style="width:34%">방법</th><th>설명</th></tr>
+    <tr><td>창 토글 단축키</td><td>어느 프로그램에서든 누르면 창이 나타나고, 다시 누르면 숨습니다. 처음 설치하면 <span class="key">Ctrl</span>+<span class="key">Shift</span>+<span class="key">F12</span>입니다. (Ⅵ단원에서 바꿀 수 있음)</td></tr>
+    <tr><td>트레이 아이콘 왼쪽 클릭</td><td>창 보이기 / 숨기기</td></tr>
+    <tr><td>트레이 아이콘 오른쪽 클릭</td><td><b>보이기/숨기기</b>, <b>버튼 편집</b>, <b>Windows 시작 시 자동 실행</b>, <b>종료</b></td></tr>
+  </table>
+  <div class="tip"><span class="box-label">TIP</span><p>창 토글 단축키가 다른 프로그램과 겹치면, QuickDeck이 시작할 때 비어 있는 다른 조합으로 자동으로 바꾸고 알림으로 알려 줍니다.</p></div>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅰ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>QuickDeck 버튼을 눌렀을 때의 특징으로 옳은 것은?</div>
+      <div class="choices one">
+        <span>① 버튼을 누르면 항상 QuickDeck 창이 앞으로 나온다.</span>
+        <span>② 버튼을 눌러도 지금 쓰던 창의 포커스를 빼앗지 않는다.</span>
+        <span>③ 단축키 버튼은 QuickDeck 창 안에서만 동작한다.</span>
+      </div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>새 버전을 설치하기 전에 먼저 해야 할 일은 무엇인가요?</div><div class="ox">(서술형)</div></div>
+    <div class="q"><div class="qt"><span class="qn">3.</span>버튼 오른쪽 위의 ⛓ 표시는 무엇을 뜻하나요?</div>
+      <div class="choices"><span>① 폴더</span><span>② 멀티 액션</span><span>③ 전역 단축키</span><span>④ 웹사이트</span></div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅱ 버튼 만들기 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅱ</b></div>
+    <div class="unit-title"><h1>버튼 만들기</h1><p>편집 모드에서 버튼을 만들고, 동작과 단축키를 정합니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>편집 모드에서 버튼을 추가·삭제하고 순서를 바꿀 수 있다.</li>
+    <li>7가지 버튼 동작의 차이를 알고 알맞게 고를 수 있다.</li>
+    <li>키보드를 눌러 단축키를 녹화하고, 버튼에 전역 단축키를 붙일 수 있다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>편집 모드 사용하기</h2>
+  <div class="side">
+    <div class="side-text">
+      <p>오른쪽 위 <b>편집</b>을 누르면 아이콘이 흔들리며 편집 모드가 됩니다. iPhone 홈 화면을 편집하는 것과 같습니다.</p>
+      <ul>
+        <li><b>＋ 추가</b> 칸 — 지금 화면에 새 버튼을 만듭니다.</li>
+        <li><b>버튼 클릭</b> — 아래 편집 칸에 그 버튼의 설정이 나타납니다.</li>
+        <li><b>왼쪽 위 −</b> — 버튼을 지웁니다.</li>
+        <li><b>버튼 끌기</b> — 끌어다 놓아 순서를 바꿉니다.</li>
+        <li><b>완료</b> — 저장하고 나갑니다. <b>취소</b>는 바꾼 내용을 모두 버립니다.</li>
+      </ul>
+      <div class="note"><span class="box-label">알아 두기</span><p>편집하는 동안에는 전역 단축키와 프로그램별 자동 전환이 잠시 멈춥니다. 단축키를 녹화할 때 기존 단축키가 끼어들지 않게 하기 위해서입니다.</p></div>
+    </div>
+    <figure><img src="assets/shot-edit.png" alt="" /><figcaption><b>그림 Ⅱ-1</b>편집 모드와 버튼 편집 칸</figcaption></figure>
+  </div>
+
+  <h2><span class="sn">02</span>버튼 동작 7가지</h2>
+  <p>편집 칸의 <b>동작</b> 목록에서 버튼이 할 일을 고릅니다.</p>
+  <table>
+    <tr><th style="width:24%">동작</th><th>하는 일</th><th style="width:30%">예시</th></tr>
+    <tr><td>📂 폴더</td><td>안에 다른 버튼을 넣습니다. 누르면 폴더 안으로 들어갑니다.</td><td>업무, 한글, 게임</td></tr>
+    <tr><td>🚀 프로그램 / 파일 실행</td><td>프로그램·파일·폴더·바로가기를 엽니다. 이름만 적어도 설치 위치를 찾습니다.</td><td><code>notepad.exe</code>, <code>StarCraft.exe</code></td></tr>
+    <tr><td>⌨ 단축키 보내기</td><td>정해 둔 키 조합을 입력합니다.</td><td><code>ctrl+shift+esc</code></td></tr>
+    <tr><td>🌐 웹사이트 열기</td><td>기본 브라우저로 주소를 엽니다.</td><td><code>https://www.naver.com</code></td></tr>
+    <tr><td>📝 텍스트 입력</td><td>정해 둔 글을 붙여넣습니다. (Ⅴ단원)</td><td>인사말, 서명, 주소</td></tr>
+    <tr><td>💻 PowerShell 명령</td><td>명령을 창 없이 실행합니다.</td><td><code>shutdown /s /t 600</code></td></tr>
+    <tr><td>🔗 멀티 액션</td><td>위 동작들을 순서대로 실행합니다. (Ⅴ단원)</td><td>앱 실행 → 1초 → 입력</td></tr>
+  </table>
+  <div class="tip"><span class="box-label">TIP</span><p>설정을 바꾼 뒤 저장하기 전에 편집 칸 아래 <b>테스트 실행</b>으로 바로 시험해 볼 수 있습니다.</p></div>
+
+  <h2><span class="sn">03</span>단축키 녹화하기</h2>
+  <div class="side">
+    <div class="side-text">
+      <p>단축키 칸은 <b>클릭하고 키보드를 누르기만 하면</b> 그대로 기록됩니다. 직접 타자를 칠 필요가 없습니다.</p>
+      <div class="steps"><span class="box-label">따라 해 보기 — 작업 관리자 버튼</span><ol>
+        <li>새 버튼을 만들고 동작을 <b>단축키 보내기</b>로 고릅니다.</li>
+        <li>보낼 키 칸을 클릭합니다. (파란 테두리가 생기면 녹화 중)</li>
+        <li>키보드에서 <span class="key">Ctrl</span>+<span class="key">Shift</span>+<span class="key">Esc</span>를 누릅니다.</li>
+        <li>이름을 ‘작업 관리자’로 바꾸고 <b>완료</b>를 누릅니다.</li>
+      </ol></div>
+    </div>
+    <figure><img src="assets/shot-edit-keys.png" alt="" /><figcaption><b>그림 Ⅱ-2</b>보낼 키 녹화 칸과 자주 쓰는 키</figcaption></figure>
+  </div>
+  <table>
+    <tr><th style="width:30%">이럴 때</th><th>이렇게</th></tr>
+    <tr><td>순서대로 누르는 키</td><td>이어서 누르면 차례로 추가됩니다. 한글의 표 만들기 <span class="key">Ctrl</span>+<span class="key">N</span> → <span class="key">T</span></td></tr>
+    <tr><td>잘못 눌렀을 때</td><td><span class="key">⌫ Backspace</span>를 누르면 마지막 조합이 지워집니다.</td></tr>
+    <tr><td>볼륨·재생 등 특수 키</td><td>칸 아래 <b>볼륨 +, 음소거, 재생/정지</b> 같은 버튼을 누릅니다.</td></tr>
+    <tr><td>Windows가 가로채는 키</td><td><span class="key">Win</span> 조합처럼 기록되지 않는 키는 <b>✎</b>를 눌러 글자로 입력합니다. 예: <code>win+shift+s</code></td></tr>
+  </table>
+
+  <h2><span class="sn">04</span>버튼마다 전역 단축키 붙이기</h2>
+  <p>버튼 편집 칸 아래쪽 <b>이 버튼의 전역 단축키</b>에 키를 녹화하면, QuickDeck 창이 숨어 있어도 그 키로 버튼을 실행할 수 있습니다. 폴더 버튼에 붙이면 창이 나타나면서 그 폴더가 바로 열립니다.</p>
+  <div class="warn"><span class="box-label">주의</span><p>전역 단축키는 <span class="key">Ctrl</span>·<span class="key">Alt</span>·<span class="key">Shift</span>·<span class="key">Win</span> 중 하나와 함께 눌러야 합니다. 글자 키 하나만 쓰면 다른 프로그램에서 그 글자를 칠 수 없게 되기 때문입니다. (<span class="key">F1</span>~<span class="key">F24</span>, 볼륨 키는 단독 사용 가능)</p></div>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅱ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>한글의 ‘표 만들기(<span class="key">Ctrl</span>+<span class="key">N</span>, <span class="key">T</span>)’를 녹화하는 올바른 방법은?</div>
+      <div class="choices one">
+        <span>① <span class="key">Ctrl</span>+<span class="key">N</span>+<span class="key">T</span>를 동시에 누른다.</span>
+        <span>② <span class="key">Ctrl</span>+<span class="key">N</span>을 누르고 손을 뗀 뒤 이어서 <span class="key">T</span>를 누른다.</span>
+        <span>③ 녹화는 불가능하므로 다른 프로그램을 써야 한다.</span>
+      </div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>다음 중 전역 단축키로 쓸 수 <u>없는</u> 것은?</div>
+      <div class="choices"><span>① <span class="key">Ctrl</span>+<span class="key">Alt</span>+<span class="key">K</span></span><span>② <span class="key">F9</span></span><span>③ <span class="key">K</span></span><span>④ <span class="key">Shift</span>+<span class="key">F12</span></span></div></div>
+    <div class="q"><div class="qt"><span class="qn">3.</span>편집 모드에서 바꾼 내용을 모두 버리고 나가려면 어떤 버튼을 누르나요?</div><div class="ox">(단답형)</div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅲ 아이콘 꾸미기 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅲ</b></div>
+    <div class="unit-title"><h1>아이콘 꾸미기</h1><p>이모지, 프로그램 아이콘, 사이트 아이콘, 내 이미지로 버튼을 꾸밉니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>버튼 색상과 이모지를 바꿀 수 있다.</li>
+    <li>프로그램·웹사이트 아이콘이 자동으로 들어가는 원리를 이해한다.</li>
+    <li>파일·붙여넣기·화면 캡처로 버튼 이미지를 넣을 수 있다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>이모지와 색상</h2>
+  <p>아이콘 칸의 작은 입력 칸에 이모지나 글자를 넣고, <b>색상</b>에서 버튼 바탕색을 고릅니다. 색상은 Apple 시스템 색상 12가지가 준비되어 있고, 마지막 네모 칸을 누르면 원하는 색을 직접 고를 수 있습니다.</p>
+  <div class="tip"><span class="box-label">TIP</span><p>Windows에서 이모지는 <span class="key">Win</span>+<span class="key">.</span>(마침표)를 누르면 고를 수 있습니다.</p></div>
+
+  <h2><span class="sn">02</span>아이콘 자동으로 넣기</h2>
+  <div class="side">
+    <div class="side-text">
+      <p>아래 버튼들은 대상을 정하면 <b>잠시 뒤 아이콘이 자동으로</b> 들어갑니다.</p>
+      <table>
+        <tr><th>버튼</th><th>들어가는 아이콘</th></tr>
+        <tr><td>프로그램 실행</td><td>그 프로그램의 아이콘 (바로가기 .lnk, Steam .url 포함)</td></tr>
+        <tr><td>프로그램 연결 폴더</td><td>연결한 프로그램의 아이콘</td></tr>
+        <tr><td>웹사이트</td><td>그 사이트의 아이콘</td></tr>
+      </table>
+      <p>이미 만든 버튼이 많다면, 편집 모드에서 버튼을 선택하지 않은 상태로 설정 칸의 <b>✨ 모든 버튼에 아이콘 넣기</b>를 누르세요. 폴더 안 버튼까지 한 번에 채웁니다.</p>
+    </div>
+    <figure><img src="assets/shot-edit-icon.png" alt="" /><figcaption><b>그림 Ⅲ-1</b>스타크래프트 아이콘이 자동으로 들어간 모습</figcaption></figure>
+  </div>
+  <div class="core"><span class="box-label">핵심 정리 — 직접 넣은 이미지는 지켜 줍니다</span><div class="box-body">
+    <p>자동으로 들어간 아이콘은 실행할 프로그램이나 주소를 바꾸면 새 아이콘으로 바뀝니다. 하지만 <b>파일·붙여넣기·캡처로 직접 넣은 이미지는 절대 자동으로 바꾸지 않습니다.</b> 단축키·텍스트 버튼은 폴더 안 버튼이 모두 같은 아이콘이 되지 않도록 자동 대상에서 빠집니다. (필요하면 <b>📦 프로그램 아이콘</b> 버튼으로 직접 넣을 수 있습니다.)</p>
+  </div></div>
+
+  <h2><span class="sn">03</span>내 이미지·화면 캡처 넣기</h2>
+  <table>
+    <tr><th style="width:28%">방법</th><th>사용법</th></tr>
+    <tr><td>🖼 이미지 선택</td><td>파일 창에서 PNG·JPG·GIF·SVG 등을 고릅니다.</td></tr>
+    <tr><td>붙여넣기</td><td>왼쪽 미리보기 칸을 클릭하고 <span class="key">Ctrl</span>+<span class="key">V</span></td></tr>
+    <tr><td>끌어다 놓기</td><td>탐색기의 이미지 파일을 미리보기 칸이나 <b>버튼 위</b>로 끌어 놓습니다.</td></tr>
+    <tr><td>✂ 화면 캡처</td><td>Windows 캡처 화면이 뜨면 원하는 영역을 드래그합니다. 캡처하는 동안 QuickDeck 창은 잠시 숨습니다. <span class="key">Esc</span>로 취소할 수 있습니다.</td></tr>
+  </table>
+  <p>이미지가 들어가면 <b>버튼 전체에 꽉 채우기</b> 스위치로 아이콘 크기와 꽉 찬 모양 중 고를 수 있습니다. 큰 사진도 자동으로 작게 줄여 저장하므로 설정 파일이 커지지 않습니다.</p>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅲ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>다음 중 아이콘이 <u>자동으로 들어가지 않는</u> 버튼은?</div>
+      <div class="choices"><span>① 프로그램 실행 버튼</span><span>② 웹사이트 버튼</span><span>③ 단축키 보내기 버튼</span><span>④ 프로그램 연결 폴더</span></div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>화면 캡처로 넣은 이미지는 실행할 프로그램을 바꾸면 자동으로 바뀐다. (O / X)</div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅳ 폴더와 프로그램 연결 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅳ</b></div>
+    <div class="unit-title"><h1>폴더와 프로그램 연결</h1><p>버튼을 폴더로 정리하고, 프로그램에 맞춰 화면이 저절로 바뀌게 합니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>폴더를 만들고 버튼을 옮겨 정리할 수 있다.</li>
+    <li>프로그램 연결 폴더가 동작하는 방식을 설명할 수 있다.</li>
+    <li>프로그램 프리셋으로 한글·Office용 버튼을 한 번에 만들 수 있다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>폴더 만들고 정리하기</h2>
+  <div class="side">
+    <div class="side-text">
+      <div class="steps"><span class="box-label">따라 해 보기 — 폴더 만들기</span><ol>
+        <li>편집 모드에서 <b>＋ 추가</b>로 버튼을 만들고, 동작을 <b>📂 폴더</b>로 고릅니다.</li>
+        <li>폴더 버튼을 <b>더블클릭</b>하거나 <b>폴더 열어서 편집 →</b>을 눌러 안으로 들어갑니다.</li>
+        <li>안에서 <b>＋ 추가</b>로 버튼을 만듭니다. 그 버튼을 다시 폴더로 바꾸면 <b>하위 폴더</b>가 됩니다.</li>
+      </ol></div>
+      <ul>
+        <li><b>뒤로 가기</b> — 첫 칸의 ‹ 뒤로, 또는 왼쪽 위 ‹ 표시</li>
+        <li><b>다른 폴더로 옮기기</b> — 편집 칸의 <b>위치</b> 목록에서 폴더를 고르거나, 버튼을 ‹ 뒤로 칸에 끌어 놓으면 위 폴더로 옮겨집니다.</li>
+      </ul>
+    </div>
+    <figure><img src="assets/shot-folder.png" alt="" /><figcaption><b>그림 Ⅳ-1</b>폴더 안 화면 (서식은 하위 폴더)</figcaption></figure>
+  </div>
+
+  <h2><span class="sn">02</span>프로그램 연결 폴더</h2>
+  <p>폴더에 프로그램을 연결하면, <b>그 프로그램이 앞에 올 때 폴더가 저절로 열리고</b> 다른 프로그램으로 옮겨 가면 원래 화면으로 돌아옵니다. 한글을 쓰는 동안에는 한글용 버튼이, 웹 브라우저를 쓰는 동안에는 브라우저용 버튼이 보이는 식입니다.</p>
+  <div class="fig-row">
+    <figure><img class="w100" src="assets/shot-edit-folder.png" alt="" /><figcaption><b>그림 Ⅳ-2</b>폴더에 Hwp.exe 연결하기</figcaption></figure>
+    <figure><img class="w100" src="assets/shot-auto.png" alt="" /><figcaption><b>그림 Ⅳ-3</b>한글이 앞에 오면 저절로 열린 폴더 (초록 ● 표시)</figcaption></figure>
+  </div>
+  <div class="core"><span class="box-label">핵심 정리 — 프로그램 연결 폴더의 4가지 규칙</span><div class="box-body"><ol>
+    <li><b>자동 전환</b> — 연결한 프로그램이 앞에 오면 폴더가 열리고, 다른 프로그램으로 가면 돌아옵니다.</li>
+    <li><b>키를 그 프로그램으로</b> — 폴더 안 단축키 버튼은 지금 어떤 창이 앞에 있든 <b>연결한 프로그램 창으로</b> 키를 보냅니다. 하위 폴더 안 버튼도 같습니다.</li>
+    <li><b>여러 프로그램 연결</b> — 크롬·엣지·웨일처럼 여러 개를 연결하면 그중 <b>열려 있는 것</b>(여러 개면 최근에 쓴 것)으로 보냅니다.</li>
+    <li><b>폴더를 누르면 실행</b> — 연결 프로그램이 꺼져 있으면 실행하고, 이미 켜져 있으면 그 창을 앞으로 가져옵니다. 실행 경로가 비어 있으면 설치 위치를 자동으로 찾습니다.</li>
+  </ol></div></div>
+  <div class="tip"><span class="box-label">TIP</span><p><b>실행 중에서 선택</b>을 누르면 지금 열려 있는 프로그램 목록에서 고를 수 있어 실행 파일 이름을 몰라도 됩니다. 버튼마다 따로 <b>보낼 프로그램</b>을 정할 수도 있습니다.</p></div>
+
+  <h2><span class="sn">03</span>프로그램 프리셋</h2>
+  <p>편집 모드에서 버튼을 선택하지 않으면 아래에 설정 칸이 나옵니다. <b>프로그램 프리셋 추가</b>에서 프로그램을 고르면, 자주 쓰는 명령 버튼이 담긴 <b>프로그램 연결 폴더</b>가 한 번에 만들어지고 설치된 프로그램의 아이콘도 들어갑니다.</p>
+  <table>
+    <tr><th style="width:20%">프리셋</th><th style="width:28%">연결 프로그램</th><th>들어 있는 버튼 (예)</th></tr>
+    <tr><td>한글</td><td>Hwp.exe</td><td>새 문서, 저장, 인쇄, 찾기, 표 만들기, 쪽 번호, 각주, 맞춤법 + 서식 하위 폴더 (부록 B)</td></tr>
+    <tr><td>Word</td><td>WINWORD.EXE</td><td>새 문서, 저장, 찾기·바꾸기, 페이지 나누기, 글꼴, 맞춤법</td></tr>
+    <tr><td>Excel</td><td>EXCEL.EXE</td><td>셀 서식, 자동 합계, 필터, 오늘 날짜, 행 삽입, 시트 이동</td></tr>
+    <tr><td>PowerPoint</td><td>POWERPNT.EXE</td><td>새 슬라이드, 슬라이드 복제, 슬라이드 쇼, 그룹</td></tr>
+    <tr><td>웹 브라우저</td><td>chrome·msedge·whale·firefox</td><td>새 탭, 탭 닫기, 닫은 탭 열기, 시크릿 창, 주소창</td></tr>
+    <tr><td>VS Code</td><td>Code.exe</td><td>명령 팔레트, 파일 찾기, 터미널, 코드 정리, 주석</td></tr>
+  </table>
+  <p class="small">프리셋으로 만든 버튼도 일반 버튼처럼 고치고 지울 수 있습니다. 프로그램 설정에서 단축키를 바꿔 쓰고 있다면 버튼의 키도 그에 맞게 고치세요.</p>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅳ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>‘웹 브라우저’ 폴더에 크롬·엣지·웨일이 연결되어 있고, 지금은 웨일만 켜져 있다. 폴더 안 ‘새 탭’ 버튼을 누르면?</div>
+      <div class="choices one">
+        <span>① 크롬이 꺼져 있다는 오류가 난다.</span>
+        <span>② 웨일 창이 앞으로 오고 새 탭이 열린다.</span>
+        <span>③ 크롬을 새로 실행한다.</span>
+      </div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>연결한 프로그램이 이미 실행 중일 때 폴더 버튼을 누르면 어떻게 되나요?</div><div class="ox">(서술형)</div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅴ 멀티 액션과 텍스트 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅴ</b></div>
+    <div class="unit-title"><h1>멀티 액션과 텍스트 입력</h1><p>여러 동작을 한 번에 실행하고, 자주 쓰는 글을 버튼 하나로 입력합니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>멀티 액션에 단계를 추가하고 순서를 바꿀 수 있다.</li>
+    <li>‘기다리기’ 단계가 필요한 이유를 설명할 수 있다.</li>
+    <li>텍스트 입력 버튼의 두 가지 방식을 구분할 수 있다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>멀티 액션 만들기</h2>
+  <div class="side">
+    <div class="side-text">
+      <div class="steps"><span class="box-label">따라 해 보기 — 아침 루틴 버튼</span><ol>
+        <li>동작을 <b>🔗 멀티 액션</b>으로 고릅니다.</li>
+        <li>아래 버튼으로 단계를 추가합니다: <b>🚀 실행</b> <code>notepad.exe</code> → <b>⏱ 기다리기</b> 1초 → <b>📝 텍스트</b> ‘오늘 할 일:’</li>
+        <li>단계를 클릭하면 펼쳐져 수정할 수 있고, ▲▼로 순서를, ✕로 삭제합니다.</li>
+        <li><b>테스트 실행</b>으로 확인한 뒤 <b>완료</b>를 누릅니다.</li>
+      </ol></div>
+      <div class="warn"><span class="box-label">주의</span><p>프로그램 실행은 창이 다 뜰 때까지 기다리지 않습니다. 실행 바로 뒤에 키 입력이 있으면 <b>기다리기 단계</b>(보통 0.5~1.5초)를 꼭 넣으세요.</p></div>
+    </div>
+    <figure><img src="assets/shot-edit-multi.png" alt="" /><figcaption><b>그림 Ⅴ-1</b>멀티 액션 단계 목록</figcaption></figure>
+  </div>
+  <p class="small">중간 단계가 실패하면 “3번째 단계 실패: …”처럼 몇 번째인지 알려 주고 멈춥니다. 기다리기는 한 단계에 최대 60초이고, 멀티 액션 안에 멀티 액션이나 폴더는 넣을 수 없습니다.</p>
+
+  <h2><span class="sn">02</span>텍스트 입력 버튼</h2>
+  <table>
+    <tr><th style="width:24%">방식</th><th>설명</th></tr>
+    <tr><td>붙여넣기 (기본)</td><td>글을 클립보드에 넣고 <span class="key">Ctrl</span>+<span class="key">V</span>로 붙여넣은 뒤, <b>원래 복사해 둔 내용을 다시 돌려놓습니다.</b> 한글 입력기 상태와 상관없이 긴 한글 문장도 깨지지 않습니다.</td></tr>
+    <tr><td>한 글자씩 입력</td><td>붙여넣기를 막아 둔 프로그램(일부 보안 입력 칸 등)용입니다. ‘한 글자씩 입력하기’ 스위치를 켭니다.</td></tr>
+  </table>
+  <div class="tip"><span class="box-label">TIP</span><p>자주 쓰는 인사말, 이메일 서명, 집 주소, 계좌 안내문 등을 버튼으로 만들어 두면 편리합니다. 단, 비밀번호처럼 민감한 정보는 버튼에 저장하지 마세요.</p></div>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅴ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>‘메모장 실행 → 글 입력’ 멀티 액션에서 글이 입력되지 않았다. 가장 알맞은 해결 방법은?</div>
+      <div class="choices one">
+        <span>① 두 단계 사이에 ‘기다리기’ 단계를 넣는다.</span>
+        <span>② 텍스트를 영어로 바꾼다.</span>
+        <span>③ 전역 단축키를 지운다.</span>
+      </div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>붙여넣기 방식의 텍스트 버튼을 눌러도 원래 복사해 둔 내용은 사라지지 않는다. (O / X)</div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅵ 설정과 관리 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅵ</b></div>
+    <div class="unit-title"><h1>설정과 관리</h1><p>화면 테마와 칸 수를 바꾸고, 버튼을 복제·백업·복원합니다.</p></div>
+  </div>
+  <div class="goals"><ul>
+    <li>테마, 칸 수, 창 토글 단축키를 바꿀 수 있다.</li>
+    <li>버튼을 복제하거나 다른 폴더로 복사할 수 있다.</li>
+    <li>설정을 내보내고, 자동 백업에서 복원할 수 있다.</li>
+  </ul></div>
+
+  <h2><span class="sn">01</span>화면 설정</h2>
+  <div class="side">
+    <div class="side-text">
+      <p>편집 모드에서 <b>버튼을 선택하지 않으면</b> 편집 칸에 전체 설정이 나옵니다.</p>
+      <table>
+        <tr><th style="width:38%">설정</th><th>설명</th></tr>
+        <tr><td>화면 테마</td><td><b>자동</b>(Windows 설정 따라감) / <b>밝게</b> / <b>어둡게</b>. 고르는 즉시 미리 보입니다.</td></tr>
+        <tr><td>창 보이기/숨기기 단축키</td><td>칸을 클릭하고 원하는 조합을 누릅니다.</td></tr>
+        <tr><td>한 줄에 버튼 수</td><td>2~8칸 사이로 고릅니다.</td></tr>
+      </table>
+    </div>
+    <figure><img src="assets/shot-settings.png" alt="" /><figcaption><b>그림 Ⅵ-1</b>설정 칸 (밝은 테마)</figcaption></figure>
+  </div>
+  <figure><img class="w60" src="assets/shot-home-light.png" alt="" /><figcaption><b>그림 Ⅵ-2</b>밝은 테마의 처음 화면</figcaption></figure>
+
+  <h2><span class="sn">02</span>복제·복사·붙여넣기</h2>
+  <table>
+    <tr><th style="width:24%">기능</th><th style="width:22%">단축키</th><th>설명</th></tr>
+    <tr><td>복제</td><td><span class="key">Ctrl</span>+<span class="key">D</span></td><td>선택한 버튼 바로 옆에 복사본을 만듭니다.</td></tr>
+    <tr><td>복사</td><td><span class="key">Ctrl</span>+<span class="key">C</span></td><td>선택한 버튼을 기억해 둡니다. 다른 폴더로 옮겨 가서 붙여넣으세요.</td></tr>
+    <tr><td>붙여넣기</td><td><span class="key">Ctrl</span>+<span class="key">V</span></td><td>지금 화면에 붙여넣습니다. 편집 모드의 📋 붙여넣기 칸을 눌러도 됩니다.</td></tr>
+  </table>
+  <p class="small">폴더를 복사하면 안의 버튼까지 통째로 복사됩니다. 같은 단축키가 두 버튼에 걸려 충돌하지 않도록, 복사본의 전역 단축키는 비워 둡니다.</p>
+
+  <h2><span class="sn">03</span>백업과 복원</h2>
+  <div class="core"><span class="box-label">핵심 정리 — 설정은 자동으로 백업됩니다</span><div class="box-body"><ul>
+    <li><b>완료</b>를 눌러 저장할 때마다 바로 전 설정이 <b>최근 30개까지</b> 자동으로 백업됩니다.</li>
+    <li>설정 파일 위치: <code>%APPDATA%\com.deck.streamdeck\config.json</code>, 백업은 같은 곳의 <code>backups</code> 폴더</li>
+    <li>설정 파일이 손상되면 덮어쓰지 않고 따로 보관한 뒤 알려 줍니다.</li>
+  </ul></div></div>
+  <div class="steps"><span class="box-label">따라 해 보기 — 다른 PC로 옮기기 / 백업에서 복원</span><ol>
+    <li>편집 모드 → 버튼 선택 없이 설정 칸 맨 아래 <b>설정 백업</b>으로 갑니다.</li>
+    <li><b>내보내기</b>로 설정 파일(.json)을 저장해 다른 PC로 옮깁니다.</li>
+    <li>다른 PC 또는 복원할 때는 <b>가져오기 / 백업에서 복원</b>으로 파일을 고릅니다. (처음에는 자동 백업 폴더가 열립니다.)</li>
+    <li>불러온 버튼을 확인하고 <b>완료</b>를 눌러야 저장됩니다. 마음에 들지 않으면 <b>취소</b>를 누르면 원래대로 돌아갑니다.</li>
+  </ol></div>
+
+  <div class="quiz">
+    <div class="quiz-head">Ⅵ단원 확인 문제<small>정답은 부록 C</small></div>
+    <div class="q"><div class="qt"><span class="qn">1.</span>설정 칸이 보이지 않는다. 어떻게 해야 하나요?</div>
+      <div class="choices one">
+        <span>① 편집 모드에서 선택된 버튼을 한 번 더 눌러 선택을 해제한다.</span>
+        <span>② 트레이에서 QuickDeck을 종료한다.</span>
+        <span>③ 창 크기를 줄인다.</span>
+      </div></div>
+    <div class="q"><div class="qt"><span class="qn">2.</span>‘가져오기’로 설정 파일을 불러오면 그 즉시 저장된다. (O / X)</div></div>
+  </div>
+</section>
+
+<!-- ======================= Ⅶ 문제 해결 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>UNIT</small><b>Ⅶ</b></div>
+    <div class="unit-title"><h1>문제 해결</h1><p>자주 생기는 문제와 해결 방법을 정리했습니다.</p></div>
+  </div>
+
+  <h2><span class="sn">01</span>자주 묻는 질문</h2>
+  <table>
+    <tr><th style="width:33%">증상</th><th>원인과 해결</th></tr>
+    <tr><td>창 토글 단축키가 안 된다</td><td>다른 프로그램이 같은 단축키를 쓰고 있을 수 있습니다. 편집 → 설정에서 다른 조합으로 바꾸세요. 시작할 때 자동으로 바뀌었다면 알림에 새 단축키가 나옵니다.</td></tr>
+    <tr><td>“창을 앞으로 가져오지 못했습니다”</td><td>대상 프로그램이 <b>관리자 권한</b>으로 실행 중이면 Windows 보안 정책 때문에 키를 보낼 수 없습니다. 대상 프로그램을 일반 권한으로 실행하세요.</td></tr>
+    <tr><td>“프로그램이 실행 중이 아닙니다”</td><td>폴더에 연결한 프로그램이 꺼져 있습니다. 먼저 실행하거나, 폴더 설정의 <b>폴더를 누르면 실행할 프로그램</b>을 채워 두세요.</td></tr>
+    <tr><td>이름만 넣은 프로그램이 실행되지 않는다</td><td>설치 위치를 찾지 못한 경우입니다. 실행 파일 전체 경로나 바탕화면 바로가기(<code>.lnk</code>) 경로를 넣으세요.</td></tr>
+    <tr><td>게임 중에 창이 안 보인다</td><td><b>단독 전체화면</b> 게임 위에는 창이 표시되지 않습니다. 전역 단축키는 그대로 동작합니다. 게임을 ‘창 모드 전체화면’으로 바꾸면 보입니다.</td></tr>
+    <tr><td>업데이트 후 버튼이 기본 8개만 보인다</td><td>설치 직후 설정 파일을 잠깐 읽지 못한 경우입니다. 버튼은 지워지지 않았습니다. <b>편집하지 말고</b> 트레이에서 종료 후 다시 실행하세요. 그래도 안 되면 Ⅵ단원의 ‘백업에서 복원’을 쓰세요.</td></tr>
+    <tr><td>텍스트가 이상하게 입력된다</td><td>붙여넣기를 막아 둔 입력 칸일 수 있습니다. 버튼의 ‘한 글자씩 입력하기’를 켜 보세요.</td></tr>
+    <tr><td>Win 키 조합이 녹화되지 않는다</td><td>Windows가 먼저 가로채는 키입니다. ✎를 눌러 <code>win+shift+s</code>처럼 글자로 입력하세요.</td></tr>
+    <tr><td>웹사이트 아이콘이 안 들어간다</td><td>인터넷 연결을 확인하세요. 아이콘을 제공하지 않는 사이트도 있습니다. 이때는 이미지를 직접 넣으세요.</td></tr>
+  </table>
+  <div class="note"><span class="box-label">알아 두기</span><p>설치할 때 “Windows의 PC 보호” 경고가 뜨는 것은 코드 서명 인증서가 없는 프로그램이기 때문입니다. 직접 만든 설치 파일이라면 <b>추가 정보 → 실행</b>을 눌러 설치하면 됩니다.</p></div>
+</section>
+
+<!-- ======================= 부록 ======================= -->
+<section class="unit">
+  <div class="unit-head">
+    <div class="unit-num"><small>APPENDIX</small><b>+</b></div>
+    <div class="unit-title"><h1>부록</h1><p>보낼 키 이름표, 한글 프리셋 단축키, 확인 문제 정답</p></div>
+  </div>
+
+  <h2><span class="sn">A</span>보낼 키 이름표</h2>
+  <p>✎ 직접 입력으로 단축키를 쓸 때는 아래 이름을 <code>+</code>로 이어 씁니다. 공백으로 나누면 순서대로 누릅니다. 예: <code>ctrl+shift+esc</code>, <code>ctrl+n t</code></p>
+  <div class="two-tables">
+    <table>
+      <tr><th>이름</th><th>키</th></tr>
+      <tr><td>ctrl, alt, shift, win</td><td>수정키</td></tr>
+      <tr><td>enter, esc, tab, space</td><td>Enter, Esc, Tab, 스페이스</td></tr>
+      <tr><td>backspace, delete, insert</td><td>지우기, Del, Ins</td></tr>
+      <tr><td>home, end, pageup, pagedown</td><td>이동 키</td></tr>
+      <tr><td>up, down, left, right</td><td>방향키</td></tr>
+      <tr><td>f1 ~ f24</td><td>기능 키</td></tr>
+    </table>
+    <table>
+      <tr><th>이름</th><th>키</th></tr>
+      <tr><td>a ~ z, 0 ~ 9</td><td>글자·숫자</td></tr>
+      <tr><td>numpad0 ~ numpad9</td><td>숫자 키패드</td></tr>
+      <tr><td>volumeup, volumedown, mute</td><td>볼륨 +, −, 음소거</td></tr>
+      <tr><td>playpause, next, prev</td><td>재생/정지, 다음 곡, 이전 곡</td></tr>
+      <tr><td>printscreen</td><td>PrtSc</td></tr>
+      <tr><td>minus, equal, comma, period, slash, semicolon</td><td>- = , . / ;</td></tr>
+    </table>
+  </div>
+
+  <div class="keep">
+  <h2><span class="sn">B</span>한글 프리셋 단축키</h2>
+  <p class="small">한컴오피스 한글 기본 단축키 기준입니다. (출처: 한컴 도움말 단축키 일람) ‘A, B’는 A를 누르고 뗀 뒤 B를 누르는 겹글쇠입니다.</p>
+  <div class="two-tables">
+    <table>
+      <tr><th>버튼</th><th>단축키</th></tr>
+      <tr><td>새 문서</td><td>Alt+N</td></tr>
+      <tr><td>불러오기</td><td>Alt+O</td></tr>
+      <tr><td>저장</td><td>Alt+S</td></tr>
+      <tr><td>다른 이름으로</td><td>Alt+V</td></tr>
+      <tr><td>인쇄</td><td>Alt+P</td></tr>
+      <tr><td>되돌리기</td><td>Ctrl+Z</td></tr>
+      <tr><td>찾기</td><td>Ctrl+Q, F</td></tr>
+      <tr><td>찾아 바꾸기</td><td>Ctrl+H</td></tr>
+      <tr><td>쪽 나누기</td><td>Ctrl+Enter</td></tr>
+      <tr><td>표 만들기</td><td>Ctrl+N, T</td></tr>
+      <tr><td>그림 넣기</td><td>Ctrl+N, I</td></tr>
+      <tr><td>쪽 번호</td><td>Ctrl+N, P</td></tr>
+    </table>
+    <table>
+      <tr><th>버튼</th><th>단축키</th></tr>
+      <tr><td>각주</td><td>Ctrl+N, N</td></tr>
+      <tr><td>편집 용지</td><td>F7</td></tr>
+      <tr><td>맞춤법</td><td>F8</td></tr>
+      <tr><td>글자 모양</td><td>Alt+L</td></tr>
+      <tr><td>문단 모양</td><td>Alt+T</td></tr>
+      <tr><td>스타일</td><td>F6</td></tr>
+      <tr><td>진하게 / 기울임 / 밑줄</td><td>Ctrl+B / I / U</td></tr>
+      <tr><td>왼쪽 / 가운데 정렬</td><td>Ctrl+Shift+L / C</td></tr>
+      <tr><td>오른쪽 / 양쪽 정렬</td><td>Ctrl+Shift+R / M</td></tr>
+      <tr><td>글자 크게 / 작게</td><td>Ctrl+] / Ctrl+[</td></tr>
+    </table>
+  </div>
+
+  </div>
+
+  <h2><span class="sn">C</span>확인 문제 정답과 해설</h2>
+  <div class="cols2">
+    <div class="answer"><span class="an">Ⅰ-1 <em>②</em></span><span>QuickDeck 창은 클릭해도 활성화되지 않아, 쓰던 창의 포커스가 유지됩니다.</span></div>
+    <div class="answer"><span class="an">Ⅰ-2</span><span>트레이에서 QuickDeck을 <b>종료</b>합니다.</span></div>
+    <div class="answer"><span class="an">Ⅰ-3 <em>②</em></span><span>⛓은 멀티 액션, ⌘은 전역 단축키, ▦은 아이콘을 쓴 폴더입니다.</span></div>
+    <div class="answer"><span class="an">Ⅱ-1 <em>②</em></span><span>이어서 누르면 순서대로 기록됩니다. (<code>ctrl+n t</code>)</span></div>
+    <div class="answer"><span class="an">Ⅱ-2 <em>③</em></span><span>글자 키 하나는 다른 프로그램의 타이핑을 막으므로 쓸 수 없습니다.</span></div>
+    <div class="answer"><span class="an">Ⅱ-3</span><span><b>취소</b></span></div>
+    <div class="answer"><span class="an">Ⅲ-1 <em>③</em></span><span>폴더 안 버튼이 모두 같은 아이콘이 되지 않도록 단축키·텍스트 버튼은 자동 대상에서 빠집니다.</span></div>
+    <div class="answer"><span class="an">Ⅲ-2 <em>X</em></span><span>직접 넣은 이미지는 자동으로 바뀌지 않습니다.</span></div>
+    <div class="answer"><span class="an">Ⅳ-1 <em>②</em></span><span>연결한 프로그램 중 열려 있는 것으로 키를 보냅니다.</span></div>
+    <div class="answer"><span class="an">Ⅳ-2</span><span>새로 실행하지 않고, 이미 열린 창을 앞으로 가져옵니다.</span></div>
+    <div class="answer"><span class="an">Ⅴ-1 <em>①</em></span><span>실행은 창이 뜰 때까지 기다리지 않으므로 ‘기다리기’가 필요합니다.</span></div>
+    <div class="answer"><span class="an">Ⅴ-2 <em>O</em></span><span>붙여넣은 뒤 원래 클립보드 내용을 되돌려 놓습니다.</span></div>
+    <div class="answer"><span class="an">Ⅵ-1 <em>①</em></span><span>버튼을 선택하지 않은 상태에서 설정 칸이 나옵니다.</span></div>
+    <div class="answer"><span class="an">Ⅵ-2 <em>X</em></span><span>확인 후 <b>완료</b>를 눌러야 저장됩니다.</span></div>
+  </div>
+</section>
+
+</body>
+</html>

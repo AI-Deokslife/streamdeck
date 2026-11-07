@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 사용설명서 미리보기 이미지
+docs/manual/_preview/

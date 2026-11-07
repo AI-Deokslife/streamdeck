@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>QuickDeck 설명서 스크린샷 (개발용)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <script>
+      // 사용설명서용 화면을 가짜 데이터로 띄운다. (npx vite 실행 후 ?view=...&theme=...)
+      const qs = new URLSearchParams(location.search);
+      const view = qs.get("view") || "home";
+      const w = qs.get("w") || 420, h = qs.get("h") || 330;
+      document.write(`<style>html,body,#root{width:${w}px !important;height:${h}px !important}</style>`);
+
+      const toUrl = (p) => fetch(p).then((r) => r.blob()).then((b) => new Promise((ok) => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b); }));
+      const k = (id, label, icon, color, keys) => ({ id, label, icon, color, hotkey: "", action: { type: "keys", keys, app: "" } });
+
+      const cfgPromise = Promise.all(["hwp", "chrome", "starcraft"].map((n) => toUrl(`/docs/manual/assets/${n}.png`))).then(([hwp, chrome, sc]) => ({
+        toggleHotkey: "Ctrl+Shift+Space",
+        columns: 4,
+        theme: qs.get("theme") || "dark",
+        buttons: [
+          { id: "hwp", label: "한글", icon: "한", image: hwp, imageAuto: true, color: "#1c1c1e", hotkey: "Ctrl+Alt+KeyH",
+            action: { type: "folder", apps: ["Hwp.exe"], launch: "C:\\Program Files (x86)\\Hnc\\Office 2020\\HOffice110\\Bin\\Hwp.exe", buttons: [
+              k("h1", "새 문서", "📄", "#0a84ff", "alt+n"), k("h2", "불러오기", "📂", "#0a84ff", "alt+o"), k("h3", "저장", "💾", "#0a84ff", "alt+s"),
+              k("h4", "인쇄", "🖨️", "#0a84ff", "alt+p"), k("h5", "표 만들기", "▦", "#0a84ff", "ctrl+n t"), k("h6", "찾기", "🔍", "#0a84ff", "ctrl+q f"),
+              { id: "h7", label: "서식", icon: "🔤", color: "#8e8e93", hotkey: "", action: { type: "folder", apps: [], launch: "", buttons: [k("s1", "진하게", "𝐁", "#8e8e93", "ctrl+b"), k("s2", "기울임", "𝐼", "#8e8e93", "ctrl+i"), k("s3", "밑줄", "U̲", "#8e8e93", "ctrl+u")] } },
+            ] } },
+          { id: "web", label: "웹 브라우저", icon: "🌐", image: chrome, imageAuto: true, color: "#1c1c1e", hotkey: "",
+            action: { type: "folder", apps: ["chrome.exe", "msedge.exe", "whale.exe"], launch: "", buttons: [k("w1", "새 탭", "➕", "#40c8e0", "ctrl+t"), k("w2", "탭 닫기", "✖️", "#40c8e0", "ctrl+w")] } },
+          { id: "sc", label: "스타크래프트", icon: "🎮", image: sc, imageAuto: true, color: "#1c1c1e", hotkey: "", action: { type: "launch", target: "StarCraft.exe", args: "" } },
+          { id: "np", label: "메모장", icon: "📝", color: "#ff9f0a", hotkey: "", action: { type: "launch", target: "notepad.exe", args: "" } },
+          { id: "routine", label: "아침 루틴", icon: "☀️", color: "#ff375f", hotkey: "Ctrl+Alt+KeyM",
+            action: { type: "multi", steps: [
+              { type: "launch", target: "notepad.exe", args: "" },
+              { type: "delay", ms: 1000 },
+              { type: "text", text: "오늘 할 일:", app: "" },
+              { type: "keys", keys: "ctrl+s", app: "" },
+            ] } },
+          k("cap", "화면 캡처", "✂️", "#30d158", "win+shift+s"),
+          k("vol", "볼륨 +", "🔊", "#5e5ce6", "volumeup"),
+          k("mute", "음소거", "🔇", "#ff453a", "mute"),
+        ],
+      }));
+
+      const L = {};
+      window.__TAURI_INTERNALS__ = {
+        transformCallback: (cb) => { const id = Math.floor(Math.random() * 1e9); window["_" + id] = cb; return id; },
+        unregisterCallback: () => {},
+        invoke: async (cmd, a) => {
+          if (cmd === "get_config") return structuredClone(await cfgPromise);
+          if (cmd === "take_startup_notices") return [];
+          if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
+          if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
+          if (cmd === "plugin:event|listen") { (L[a.event] ||= []).push(a.handler); return a.handler; }
+          return null;
+        },
+        metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } },
+      };
+      window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
+
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const q = (s) => [...document.querySelectorAll(s)];
+      const tile = (t) => q(".tile").find((x) => x.textContent.includes(t));
+      const edit = () => q("header button").find((b) => b.title === "버튼 편집")?.click();
+      const scrollPanelTo = (el) => { const p = document.querySelector(".panel"); if (p && el) p.scrollTop = el.offsetTop - 8; };
+      const label = (t) => q(".editor label").find((l) => l.textContent.trim().startsWith(t));
+
+      (async () => {
+        await wait(900);
+        if (view === "folder") tile("한글")?.click();
+        if (view === "edit") { edit(); await wait(150); tile("메모장")?.click(); }
+        if (view === "edit-icon") { edit(); await wait(150); tile("스타크래프트")?.click(); }
+        if (view === "edit-keys") { edit(); await wait(150); tile("화면 캡처")?.click(); await wait(150); scrollPanelTo(label("보낼 키")); }
+        if (view === "edit-folder") { edit(); await wait(150); tile("한글")?.click(); await wait(150); scrollPanelTo(document.querySelector(".folder-info")); }
+        if (view === "edit-multi") { edit(); await wait(150); tile("아침 루틴")?.click(); await wait(150); q(".step-head")[1]?.click(); await wait(100); scrollPanelTo(document.querySelector(".steps")); }
+        if (view === "settings") { edit(); await wait(250); scrollPanelTo(label("화면 테마")); }
+        if (view === "settings-2") { edit(); await wait(250); scrollPanelTo(label("프로그램 프리셋")); }
+        await wait(300);
+        document.title = "READY";
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
