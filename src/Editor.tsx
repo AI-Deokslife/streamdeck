@@ -1,5 +1,17 @@
+import { useState } from "react";
 import HotkeyInput from "./HotkeyInput";
-import { ACTION_LABELS, Action, ActionType, Config, DeckButton, emptyAction } from "./types";
+import {
+  ACTION_ICONS,
+  ACTION_LABELS,
+  Action,
+  ActionType,
+  BUTTON_ACTION_TYPES,
+  Config,
+  DeckButton,
+  STEP_ACTION_TYPES,
+  emptyAction,
+  summarizeAction,
+} from "./types";
 
 const COLORS = ["#2d3748", "#2b6cb0", "#2f855a", "#c05621", "#9b2c2c", "#6b46c1", "#2c7a7b", "#b7791f", "#d53f8c"];
 
@@ -16,6 +28,193 @@ const KEY_PRESETS: [string, string][] = [
   ["바탕화면", "win+d"],
 ];
 
+// ---------------- 동작 하나의 입력 필드 ----------------
+
+function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: Action) => void }) {
+  const set = (patch: Partial<Action>) => onChange({ ...a, ...patch } as Action);
+
+  switch (a.type) {
+    case "launch":
+      return (
+        <>
+          <label>
+            실행할 프로그램 / 파일 / 폴더 경로
+            <input
+              value={a.target}
+              placeholder="예: notepad.exe 또는 C:\Program Files\...\app.exe"
+              onChange={(e) => set({ target: e.target.value })}
+            />
+          </label>
+          <label>
+            인자 (선택)
+            <input value={a.args} onChange={(e) => set({ args: e.target.value })} />
+          </label>
+        </>
+      );
+    case "keys":
+      return (
+        <>
+          <label>보낼 키 (공백으로 구분하면 순서대로 여러 번)</label>
+          <HotkeyInput mode="send" value={a.keys} onChange={(v) => set({ keys: v })} placeholder="예: ctrl+shift+esc" />
+          <div className="chips">
+            {KEY_PRESETS.map(([name, keys]) => (
+              <button key={keys} type="button" className="chip" onClick={() => set({ keys })}>
+                {name}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    case "url":
+      return (
+        <label>
+          주소
+          <input value={a.url} onChange={(e) => set({ url: e.target.value })} />
+        </label>
+      );
+    case "text":
+      return (
+        <label>
+          입력할 텍스트
+          <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+        </label>
+      );
+    case "script":
+      return (
+        <label>
+          PowerShell 명령
+          <textarea
+            rows={3}
+            value={a.command}
+            placeholder='예: Start-Process "https://youtube.com"'
+            onChange={(e) => set({ command: e.target.value })}
+          />
+        </label>
+      );
+    case "delay":
+      return (
+        <label>
+          기다릴 시간: {(a.ms / 1000).toFixed(1)}초
+          <div className="row">
+            <input
+              type="range"
+              className="grow"
+              min={100}
+              max={10000}
+              step={100}
+              value={a.ms}
+              onChange={(e) => set({ ms: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              style={{ width: 80 }}
+              min={0}
+              max={60000}
+              step={100}
+              value={a.ms}
+              onChange={(e) => set({ ms: Math.max(0, Math.min(60000, Number(e.target.value) || 0)) })}
+            />
+            <span className="unit">ms</span>
+          </div>
+        </label>
+      );
+    case "multi":
+      return <StepList steps={a.steps} onChange={(steps) => set({ steps })} />;
+  }
+}
+
+function TypeSelect({
+  value,
+  types,
+  onChange,
+}: {
+  value: ActionType;
+  types: ActionType[];
+  onChange: (t: ActionType) => void;
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value as ActionType)}>
+      {types.map((t) => (
+        <option key={t} value={t}>
+          {ACTION_ICONS[t]} {ACTION_LABELS[t]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ---------------- 멀티 액션 단계 목록 ----------------
+
+function StepList({ steps, onChange }: { steps: Action[]; onChange: (s: Action[]) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+
+  const update = (i: number, a: Action) => onChange(steps.map((s, j) => (j === i ? a : s)));
+  const remove = (i: number) => {
+    onChange(steps.filter((_, j) => j !== i));
+    setOpen(null);
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= steps.length) return;
+    const list = [...steps];
+    [list[i], list[j]] = [list[j], list[i]];
+    onChange(list);
+    if (open === i) setOpen(j);
+  };
+  const add = (t: ActionType) => {
+    onChange([...steps, emptyAction(t)]);
+    setOpen(steps.length);
+  };
+
+  return (
+    <div className="steps">
+      <label>단계 ({steps.length}) — 위에서부터 순서대로 실행돼요</label>
+      {steps.length === 0 && <p className="hint">아래에서 단계를 추가하세요.</p>}
+      {steps.map((s, i) => (
+        <div key={i} className={"step" + (open === i ? " open" : "")}>
+          <div className="step-head" onClick={() => setOpen(open === i ? null : i)}>
+            <span className="step-no">{i + 1}</span>
+            <span className="step-icon">{ACTION_ICONS[s.type]}</span>
+            <span className="step-summary">
+              <b>{ACTION_LABELS[s.type]}</b> {summarizeAction(s)}
+            </span>
+            <span className="step-tools" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="icon" disabled={i === 0} onClick={() => move(i, -1)} title="위로">
+                ▲
+              </button>
+              <button
+                type="button"
+                className="icon"
+                disabled={i === steps.length - 1}
+                onClick={() => move(i, 1)}
+                title="아래로"
+              >
+                ▼
+              </button>
+              <button type="button" className="icon" onClick={() => remove(i)} title="단계 삭제">
+                ✕
+              </button>
+            </span>
+          </div>
+          {open === i && (
+            <div className="step-body">
+              <TypeSelect value={s.type} types={STEP_ACTION_TYPES} onChange={(t) => update(i, emptyAction(t))} />
+              <ActionFields action={s} onChange={(a) => update(i, a)} />
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="chips">
+        {STEP_ACTION_TYPES.map((t) => (
+          <button key={t} type="button" className="chip" onClick={() => add(t)}>
+            + {ACTION_ICONS[t]} {ACTION_LABELS[t]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------------- 선택된 버튼 편집 ----------------
 
 interface ButtonEditorProps {
@@ -27,8 +226,15 @@ interface ButtonEditorProps {
 
 export function ButtonEditor({ button, onChange, onDelete, onTest }: ButtonEditorProps) {
   const set = (patch: Partial<DeckButton>) => onChange({ ...button, ...patch });
-  const setAction = (patch: Partial<Action>) => set({ action: { ...button.action, ...patch } as Action });
-  const a = button.action;
+
+  function changeType(t: ActionType) {
+    if (t === "multi" && button.action.type !== "multi") {
+      // 기존 동작을 첫 단계로 옮겨서 이어서 편집할 수 있게
+      set({ action: { type: "multi", steps: [button.action] } });
+    } else {
+      set({ action: emptyAction(t) });
+    }
+  }
 
   return (
     <div className="editor">
@@ -64,74 +270,10 @@ export function ButtonEditor({ button, onChange, onDelete, onTest }: ButtonEdito
 
       <label>
         동작
-        <select
-          value={a.type}
-          onChange={(e) => set({ action: emptyAction(e.target.value as ActionType) })}
-        >
-          {Object.entries(ACTION_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+        <TypeSelect value={button.action.type} types={BUTTON_ACTION_TYPES} onChange={changeType} />
       </label>
 
-      {a.type === "launch" && (
-        <>
-          <label>
-            실행할 프로그램 / 파일 / 폴더 경로
-            <input
-              value={a.target}
-              placeholder="예: notepad.exe 또는 C:\Program Files\...\app.exe"
-              onChange={(e) => setAction({ target: e.target.value })}
-            />
-          </label>
-          <label>
-            인자 (선택)
-            <input value={a.args} onChange={(e) => setAction({ args: e.target.value })} />
-          </label>
-        </>
-      )}
-
-      {a.type === "keys" && (
-        <>
-          <label>보낼 키 (공백으로 구분하면 순서대로 여러 번)</label>
-          <HotkeyInput mode="send" value={a.keys} onChange={(v) => setAction({ keys: v })} placeholder="예: ctrl+shift+esc" />
-          <div className="chips">
-            {KEY_PRESETS.map(([name, keys]) => (
-              <button key={keys} type="button" className="chip" onClick={() => setAction({ keys })}>
-                {name}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {a.type === "url" && (
-        <label>
-          주소
-          <input value={a.url} onChange={(e) => setAction({ url: e.target.value })} />
-        </label>
-      )}
-
-      {a.type === "text" && (
-        <label>
-          입력할 텍스트
-          <textarea rows={3} value={a.text} onChange={(e) => setAction({ text: e.target.value })} />
-        </label>
-      )}
-
-      {a.type === "script" && (
-        <label>
-          PowerShell 명령
-          <textarea
-            rows={3}
-            value={a.command}
-            placeholder='예: Start-Process "https://youtube.com"'
-            onChange={(e) => setAction({ command: e.target.value })}
-          />
-        </label>
-      )}
+      <ActionFields action={button.action} onChange={(action) => set({ action })} />
 
       <label>이 버튼의 전역 단축키 (선택)</label>
       <HotkeyInput mode="global" value={button.hotkey} onChange={(v) => set({ hotkey: v })} placeholder="없음" />

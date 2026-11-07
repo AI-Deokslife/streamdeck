@@ -167,7 +167,12 @@ export default function App() {
           >
             <span className="tile-icon">{b.icon}</span>
             <span className="tile-label">{b.label}</span>
-            {b.hotkey && <span className="tile-badge">⌨</span>}
+            {(b.hotkey || b.action.type === "multi") && (
+              <span className="tile-badge">
+                {b.action.type === "multi" ? "🔗" : ""}
+                {b.hotkey ? "⌨" : ""}
+              </span>
+            )}
           </button>
         ))}
         {editing && (

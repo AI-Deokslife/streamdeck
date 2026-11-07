@@ -276,6 +276,84 @@ button.danger {
   color: var(--accent);
 }
 
+/* ---------- 멀티 액션 단계 ---------- */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.step {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.step.open {
+  border-color: var(--accent);
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 8px;
+  cursor: pointer;
+  min-width: 0;
+}
+.step-no {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}
+.step-icon {
+  flex-shrink: 0;
+}
+.step-summary {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.step-summary b {
+  color: var(--text);
+  font-weight: 500;
+  margin-right: 4px;
+}
+.step-tools {
+  display: flex;
+  flex-shrink: 0;
+}
+.step-tools button.icon {
+  padding: 2px 5px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.step-tools button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+.unit {
+  align-self: center;
+  color: var(--muted);
+}
+
 /* ---------- 알림 ---------- */
 .toast {
   position: fixed;

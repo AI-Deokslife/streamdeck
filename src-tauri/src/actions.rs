@@ -6,10 +6,30 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+/// 멀티 액션 한 단계의 최대 대기 시간 (실수로 너무 긴 값 입력 방지)
+const MAX_DELAY_MS: u64 = 60_000;
 
 /// 동작 실행. `from_hotkey`가 true면 사용자의 수정키가 떼어질 때까지 기다린다.
 pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool) -> Result<(), String> {
     match action {
+        Action::Delay { ms } => {
+            thread::sleep(Duration::from_millis((*ms).min(MAX_DELAY_MS)));
+            Ok(())
+        }
+        Action::Multi { steps } => {
+            // 수정키 해제 대기는 첫 단계에서 한 번이면 충분
+            let mut wait_mods = from_hotkey;
+            for (i, step) in steps.iter().enumerate() {
+                if matches!(step, Action::Multi { .. }) {
+                    return Err(format!("{}번째 단계: 멀티 액션 안에 멀티 액션은 넣을 수 없습니다", i + 1));
+                }
+                run(app, step, wait_mods).map_err(|e| format!("{}번째 단계 실패: {e}", i + 1))?;
+                if matches!(step, Action::Keys { .. } | Action::Text { .. }) {
+                    wait_mods = false;
+                }
+            }
+            Ok(())
+        }
         Action::Launch { target, args } => launch(app, target, args),
         Action::Url { url } => app
             .opener()

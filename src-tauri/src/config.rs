@@ -21,6 +21,10 @@ pub enum Action {
     Text { text: String },
     /// PowerShell 명령 실행
     Script { command: String },
+    /// 기다리기 (멀티 액션의 단계로 사용)
+    Delay { ms: u64 },
+    /// 여러 동작을 순서대로 실행
+    Multi { steps: Vec<Action> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,4 +112,35 @@ pub fn save(app: &AppHandle, cfg: &Config) -> Result<(), String> {
     let path = config_path(app)?;
     let text = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
     fs::write(path, text).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn multi_action_roundtrip() {
+        let json = r#"{"type":"multi","steps":[
+            {"type":"launch","target":"notepad.exe"},
+            {"type":"delay","ms":1000},
+            {"type":"text","text":"안녕하세요"},
+            {"type":"keys","keys":"ctrl+s"}
+        ]}"#;
+        let action: Action = serde_json::from_str(json).unwrap();
+        let Action::Multi { steps } = &action else { panic!("multi 아님") };
+        assert_eq!(steps.len(), 4);
+        assert!(matches!(steps[1], Action::Delay { ms: 1000 }));
+        let back = serde_json::to_string(&action).unwrap();
+        assert!(back.contains(r#""type":"delay""#));
+    }
+
+    #[test]
+    fn old_config_still_loads() {
+        // 멀티 액션 추가 전에 저장된 설정도 그대로 읽혀야 한다
+        let json = r##"{"toggleHotkey":"Ctrl+Shift+Space","columns":6,"buttons":[
+            {"id":"b1","label":"메모장","icon":"📝","color":"#2b6cb0","hotkey":"",
+             "action":{"type":"launch","target":"notepad.exe","args":""}}]}"##;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.buttons.len(), 1);
+    }
 }
