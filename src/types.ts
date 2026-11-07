@@ -6,12 +6,13 @@ export type Action =
   | { type: "text"; text: string }
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
-  | { type: "multi"; steps: Action[] };
+  | { type: "multi"; steps: Action[] }
+  | { type: "folder"; buttons: DeckButton[] };
 
 export type ActionType = Action["type"];
 
 /** 버튼 하나에 바로 지정할 수 있는 동작 (기다리기는 단독으로 의미가 없음) */
-export const BUTTON_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "multi"];
+export const BUTTON_ACTION_TYPES: ActionType[] = ["folder", "launch", "keys", "url", "text", "script", "multi"];
 /** 멀티 액션의 단계로 넣을 수 있는 동작 */
 export const STEP_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "delay"];
 
@@ -38,6 +39,7 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   script: "PowerShell 명령",
   delay: "기다리기",
   multi: "멀티 액션 (여러 동작 순서대로)",
+  folder: "폴더 (안에 버튼 넣기)",
 };
 
 export const ACTION_ICONS: Record<ActionType, string> = {
@@ -48,6 +50,7 @@ export const ACTION_ICONS: Record<ActionType, string> = {
   script: "💻",
   delay: "⏱️",
   multi: "🔗",
+  folder: "📂",
 };
 
 /** 단계 목록에 보여줄 한 줄 요약 */
@@ -67,6 +70,8 @@ export function summarizeAction(a: Action): string {
       return `${(a.ms / 1000).toFixed(a.ms % 1000 ? 1 : 0)}초`;
     case "multi":
       return `${a.steps.length}단계`;
+    case "folder":
+      return `버튼 ${a.buttons.length}개`;
   }
 }
 
@@ -86,6 +91,8 @@ export function emptyAction(type: ActionType): Action {
       return { type, ms: 500 };
     case "multi":
       return { type, steps: [] };
+    case "folder":
+      return { type, buttons: [] };
   }
 }
 

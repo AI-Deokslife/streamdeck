@@ -1,5 +1,6 @@
 import { useState } from "react";
 import HotkeyInput from "./HotkeyInput";
+import { FolderOption, Path, countDeep } from "./tree";
 import {
   ACTION_ICONS,
   ACTION_LABELS,
@@ -120,6 +121,8 @@ function ActionFields({ action: a, onChange }: { action: Action; onChange: (a: A
       );
     case "multi":
       return <StepList steps={a.steps} onChange={(steps) => set({ steps })} />;
+    case "folder":
+      return null; // 폴더는 ButtonEditor에서 따로 표시
   }
 }
 
@@ -222,13 +225,33 @@ interface ButtonEditorProps {
   onChange: (b: DeckButton) => void;
   onDelete: () => void;
   onTest: () => void;
+  onOpenFolder: () => void;
+  /** 옮길 수 있는 폴더 목록 (현재 위치 포함) */
+  folders: FolderOption[];
+  currentPath: Path;
+  onMove: (to: Path) => void;
 }
 
-export function ButtonEditor({ button, onChange, onDelete, onTest }: ButtonEditorProps) {
+export function ButtonEditor({
+  button,
+  onChange,
+  onDelete,
+  onTest,
+  onOpenFolder,
+  folders,
+  currentPath,
+  onMove,
+}: ButtonEditorProps) {
   const set = (patch: Partial<DeckButton>) => onChange({ ...button, ...patch });
+  const a = button.action;
+  const currentKey = currentPath.join("/");
 
   function changeType(t: ActionType) {
-    if (t === "multi" && button.action.type !== "multi") {
+    if (a.type === "folder" && a.buttons.length > 0) {
+      const n = countDeep(a.buttons);
+      if (!window.confirm(`폴더 안의 버튼 ${n}개가 함께 사라집니다. 계속할까요?`)) return;
+    }
+    if (t === "multi" && a.type !== "multi" && a.type !== "folder") {
       // 기존 동작을 첫 단계로 옮겨서 이어서 편집할 수 있게
       set({ action: { type: "multi", steps: [button.action] } });
     } else {
@@ -273,18 +296,53 @@ export function ButtonEditor({ button, onChange, onDelete, onTest }: ButtonEdito
         <TypeSelect value={button.action.type} types={BUTTON_ACTION_TYPES} onChange={changeType} />
       </label>
 
-      <ActionFields action={button.action} onChange={(action) => set({ action })} />
+      {a.type === "folder" ? (
+        <div className="folder-info">
+          <span>
+            📂 안에 버튼 {a.buttons.length}개
+            {countDeep(a.buttons) > a.buttons.length && ` (하위 폴더 포함 ${countDeep(a.buttons)}개)`}
+          </span>
+          <button type="button" className="primary" onClick={onOpenFolder}>
+            폴더 열어서 편집 →
+          </button>
+        </div>
+      ) : (
+        <ActionFields action={a} onChange={(action) => set({ action })} />
+      )}
 
-      <label>이 버튼의 전역 단축키 (선택)</label>
+      <label>
+        {a.type === "folder" ? "이 폴더를 바로 여는 전역 단축키 (선택)" : "이 버튼의 전역 단축키 (선택)"}
+      </label>
       <HotkeyInput mode="global" value={button.hotkey} onChange={(v) => set({ hotkey: v })} placeholder="없음" />
+
+      {folders.length > 1 && (
+        <label>
+          위치 (다른 폴더로 옮기기)
+          <select
+            value={currentKey}
+            onChange={(e) => {
+              const target = folders.find((f) => f.path.join("/") === e.target.value);
+              if (target) onMove(target.path);
+            }}
+          >
+            {folders.map((f) => (
+              <option key={f.path.join("/")} value={f.path.join("/")}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <div className="row end">
         <button type="button" className="danger" onClick={onDelete}>
           삭제
         </button>
-        <button type="button" onClick={onTest} title="지금 설정으로 한 번 실행해 봅니다">
-          테스트 실행
-        </button>
+        {a.type !== "folder" && (
+          <button type="button" onClick={onTest} title="지금 설정으로 한 번 실행해 봅니다">
+            테스트 실행
+          </button>
+        )}
       </div>
     </div>
   );
@@ -300,7 +358,9 @@ interface SettingsProps {
 export function SettingsEditor({ config, onChange }: SettingsProps) {
   return (
     <div className="editor">
-      <p className="hint">버튼을 클릭하면 편집하고, 끌어서 순서를 바꿀 수 있어요.</p>
+      <p className="hint">
+        버튼을 클릭하면 편집하고, 끌어서 순서를 바꿀 수 있어요. 폴더는 더블클릭하면 안으로 들어갑니다.
+      </p>
       <label>창 보이기 / 숨기기 단축키</label>
       <HotkeyInput
         mode="global"

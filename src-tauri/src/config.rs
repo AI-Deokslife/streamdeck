@@ -25,6 +25,26 @@ pub enum Action {
     Delay { ms: u64 },
     /// 여러 동작을 순서대로 실행
     Multi { steps: Vec<Action> },
+    /// 하위 폴더: 누르면 안의 버튼들로 화면이 바뀐다 (여러 단계로 중첩 가능)
+    Folder {
+        #[serde(default)]
+        buttons: Vec<Button>,
+    },
+}
+
+/// 폴더 안까지 포함한 모든 버튼을 펼쳐서 돌려준다.
+pub fn all_buttons(buttons: &[Button]) -> Vec<&Button> {
+    let mut out = Vec::new();
+    fn walk<'a>(list: &'a [Button], out: &mut Vec<&'a Button>) {
+        for b in list {
+            out.push(b);
+            if let Action::Folder { buttons } = &b.action {
+                walk(buttons, out);
+            }
+        }
+    }
+    walk(buttons, &mut out);
+    out
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +152,22 @@ mod tests {
         assert!(matches!(steps[1], Action::Delay { ms: 1000 }));
         let back = serde_json::to_string(&action).unwrap();
         assert!(back.contains(r#""type":"delay""#));
+    }
+
+    #[test]
+    fn nested_folders_flatten() {
+        let json = r##"[
+            {"id":"f1","label":"폴더","action":{"type":"folder","buttons":[
+                {"id":"a","label":"A","hotkey":"Ctrl+Alt+KeyA","action":{"type":"keys","keys":"ctrl+c"}},
+                {"id":"f2","label":"하위","action":{"type":"folder","buttons":[
+                    {"id":"b","label":"B","action":{"type":"url","url":"https://example.com"}}
+                ]}}
+            ]}},
+            {"id":"empty","label":"빈 폴더","action":{"type":"folder"}}
+        ]"##;
+        let buttons: Vec<Button> = serde_json::from_str(json).unwrap();
+        let ids: Vec<_> = all_buttons(&buttons).iter().map(|b| b.id.as_str()).collect();
+        assert_eq!(ids, ["f1", "a", "f2", "b", "empty"]);
     }
 
     #[test]

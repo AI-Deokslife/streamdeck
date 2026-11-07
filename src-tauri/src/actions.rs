@@ -16,12 +16,14 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool) -> Result<(), St
             thread::sleep(Duration::from_millis((*ms).min(MAX_DELAY_MS)));
             Ok(())
         }
+        // 폴더 이동은 화면(UI)이 처리한다
+        Action::Folder { .. } => Ok(()),
         Action::Multi { steps } => {
             // 수정키 해제 대기는 첫 단계에서 한 번이면 충분
             let mut wait_mods = from_hotkey;
             for (i, step) in steps.iter().enumerate() {
-                if matches!(step, Action::Multi { .. }) {
-                    return Err(format!("{}번째 단계: 멀티 액션 안에 멀티 액션은 넣을 수 없습니다", i + 1));
+                if matches!(step, Action::Multi { .. } | Action::Folder { .. }) {
+                    return Err(format!("{}번째 단계: 멀티 액션/폴더는 단계로 넣을 수 없습니다", i + 1));
                 }
                 run(app, step, wait_mods).map_err(|e| format!("{}번째 단계 실패: {e}", i + 1))?;
                 if matches!(step, Action::Keys { .. } | Action::Text { .. }) {

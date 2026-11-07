@@ -59,6 +59,38 @@ header {
   font-size: 11px;
   color: var(--muted);
 }
+.crumbs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.crumb-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.crumb {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crumb:disabled {
+  color: var(--text);
+  font-weight: 600;
+  cursor: default;
+  filter: none;
+}
+.crumb-sep {
+  color: var(--muted);
+  font-size: 11px;
+}
 .actions {
   margin-left: auto;
   display: flex;
@@ -142,6 +174,17 @@ button.danger {
   border: 2px dashed var(--border);
   box-shadow: none;
   color: var(--muted);
+}
+.tile.back {
+  background: transparent;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  color: var(--muted);
+}
+/* 폴더: 뒤에 종이가 겹친 듯한 표시 */
+.tile.folder {
+  box-shadow: 3px -3px 0 -1px rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .tile-icon {
   font-size: clamp(16px, 7vw, 30px);
@@ -274,6 +317,18 @@ button.danger {
 .hotkey-input input.recording {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.folder-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--muted);
 }
 
 /* ---------- 멀티 액션 단계 ---------- */

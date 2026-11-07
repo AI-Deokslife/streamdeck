@@ -86,7 +86,11 @@ fn register_hotkeys(app: &AppHandle, cfg: &Config) -> Vec<String> {
     let mut warnings = Vec::new();
 
     let entries = std::iter::once((TOGGLE_ID.to_string(), "창 보이기/숨기기".to_string(), cfg.toggle_hotkey.clone()))
-        .chain(cfg.buttons.iter().map(|b| (b.id.clone(), b.label.clone(), b.hotkey.clone())));
+        .chain(
+            config::all_buttons(&cfg.buttons)
+                .into_iter()
+                .map(|b| (b.id.clone(), b.label.clone(), b.hotkey.clone())),
+        );
 
     for (id, label, hotkey) in entries {
         if hotkey.trim().is_empty() {
@@ -116,7 +120,10 @@ fn register_hotkeys(app: &AppHandle, cfg: &Config) -> Vec<String> {
 fn find_action(app: &AppHandle, button_id: &str) -> Option<Action> {
     let state = app.state::<AppState>();
     let cfg = state.config.lock().unwrap();
-    cfg.buttons.iter().find(|b| b.id == button_id).map(|b| b.action.clone())
+    config::all_buttons(&cfg.buttons)
+        .into_iter()
+        .find(|b| b.id == button_id)
+        .map(|b| b.action.clone())
 }
 
 // ---------------- 프론트엔드에서 호출하는 명령 ----------------
@@ -248,6 +255,12 @@ pub fn run() {
                         Some(TOGGLE_ID) => toggle_window(app),
                         Some(button_id) => {
                             if let Some(action) = find_action(app, button_id) {
+                                if matches!(action, Action::Folder { .. }) {
+                                    // 폴더 단축키: 창을 띄우고 그 폴더를 연다
+                                    show_window(app);
+                                    let _ = app.emit("open-folder", button_id.to_string());
+                                    return;
+                                }
                                 let app = app.clone();
                                 thread::spawn(move || {
                                     if let Err(e) = actions::run(&app, &action, true) {
