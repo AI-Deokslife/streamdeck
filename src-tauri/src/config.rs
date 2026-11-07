@@ -205,7 +205,22 @@ pub fn load(app: &AppHandle) -> (Config, Option<String>) {
     let Ok(path) = config_path(app) else {
         return (Config::default(), None);
     };
-    match fs::read_to_string(&path) {
+    match read_with_retry(&path) {
+        // 정말 처음 실행이라 파일이 없을 때만 기본 설정을 만든다
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let cfg = Config::default();
+            let _ = save(app, &cfg);
+            (cfg, None)
+        }
+        // 파일은 있는데 읽지 못함 (설치 직후 백신 검사, 다른 프로그램이 잠금 등).
+        // 기본 설정으로 덮어쓰면 버튼이 사라진 것처럼 보이므로 파일은 절대 건드리지 않는다.
+        Err(e) => (
+            Config::default(),
+            Some(format!(
+                "설정 파일을 읽지 못해서 임시로 기본 버튼을 보여주고 있어요 ({e}). 버튼은 지워지지 않았어요. \
+                 QuickDeck 을 종료했다가 다시 실행해 주세요. 그 전에는 편집·저장하지 않는 게 좋아요."
+            )),
+        ),
         Ok(text) => match parse(&text) {
             Ok(cfg) => (cfg, None),
             Err(e) => {
@@ -223,12 +238,23 @@ pub fn load(app: &AppHandle) -> (Config, Option<String>) {
                 )
             }
         },
-        Err(_) => {
-            let cfg = Config::default();
-            let _ = save(app, &cfg);
-            (cfg, None)
+    }
+}
+
+/// 설정 파일 읽기. 잠깐 잠겨 있는 경우를 위해 몇 번 다시 시도한다 (없는 파일은 바로 NotFound)
+fn read_with_retry(path: &std::path::Path) -> std::io::Result<String> {
+    let mut last = None;
+    for _ in 0..10 {
+        match fs::read_to_string(path) {
+            Ok(text) => return Ok(text),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(e),
+            Err(e) => {
+                last = Some(e);
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
         }
     }
+    Err(last.unwrap())
 }
 
 /// JSON 문자열 → 설정 (가져오기에서도 사용)
@@ -377,5 +403,42 @@ mod tests {
              "action":{"type":"launch","target":"notepad.exe","args":""}}]}"##;
         let cfg: Config = serde_json::from_str(json).unwrap();
         assert_eq!(cfg.buttons.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod manual_parse {
+    /// 실제 설정 파일이 읽히는지: QD_CONFIG=경로 cargo test --lib parse_real_config -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn parse_real_config() {
+        let p = std::env::var("QD_CONFIG").expect("QD_CONFIG");
+        let text = std::fs::read_to_string(&p).unwrap();
+        match super::parse(&text) {
+            Ok(c) => println!("OK: 최상위 버튼 {}개, 전체 {}개", c.buttons.len(), super::all_buttons(&c.buttons).len()),
+            Err(e) => println!("FAIL: {e}"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod read_tests {
+    use super::read_with_retry;
+
+    #[test]
+    fn missing_file_is_not_found_immediately() {
+        let p = std::env::temp_dir().join("qd-no-such-config-file.json");
+        let start = std::time::Instant::now();
+        let e = read_with_retry(&p).unwrap_err();
+        assert_eq!(e.kind(), std::io::ErrorKind::NotFound);
+        assert!(start.elapsed().as_millis() < 200, "없는 파일은 기다리지 않아야 함");
+    }
+
+    #[test]
+    fn reads_existing_file() {
+        let p = std::env::temp_dir().join(format!("qd-read-test-{}.json", std::process::id()));
+        std::fs::write(&p, "{}").unwrap();
+        assert_eq!(read_with_retry(&p).unwrap(), "{}");
+        let _ = std::fs::remove_file(&p);
     }
 }
