@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#232838"/>
+      <stop offset="1" stop-color="#12141a"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="none" stroke="#3a4152" stroke-width="12"/>
+  <!-- 3x3 버튼 -->
+  <g>
+    <rect x="152" y="152" width="200" height="200" rx="44" fill="#4f8cff"/>
+    <rect x="412" y="152" width="200" height="200" rx="44" fill="#2f855a"/>
+    <rect x="672" y="152" width="200" height="200" rx="44" fill="#c05621"/>
+    <rect x="152" y="412" width="200" height="200" rx="44" fill="#6b46c1"/>
+    <rect x="412" y="412" width="200" height="200" rx="44" fill="#f6f7fb"/>
+    <rect x="672" y="412" width="200" height="200" rx="44" fill="#2c7a7b"/>
+    <rect x="152" y="672" width="200" height="200" rx="44" fill="#9b2c2c"/>
+    <rect x="412" y="672" width="200" height="200" rx="44" fill="#b7791f"/>
+    <rect x="672" y="672" width="200" height="200" rx="44" fill="#d53f8c"/>
+  </g>
+  <!-- 가운데 번개 -->
+  <path d="M530 448 L466 528 H508 L490 580 L558 496 H514 Z" fill="#12141a"/>
+</svg>
