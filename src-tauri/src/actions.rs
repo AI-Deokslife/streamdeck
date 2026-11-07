@@ -50,11 +50,88 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_apps: 
             prepare_input(from_hotkey, &pick_targets(target, inherited_apps))?;
             send_keys(keys)
         }
-        Action::Text { text, app: target } => {
+        Action::Text { text, app: target, typing } => {
             prepare_input(from_hotkey, &pick_targets(target, inherited_apps))?;
-            let mut enigo = new_enigo()?;
-            enigo.text(text).map_err(|e| format!("텍스트 입력 실패: {e}"))
+            if *typing {
+                let mut enigo = new_enigo()?;
+                enigo.text(text).map_err(|e| format!("텍스트 입력 실패: {e}"))
+            } else {
+                paste_text(text)
+            }
         }
+    }
+}
+
+/// 붙여넣기 전 클립보드에 있던 것 (끝나면 되돌려 놓는다)
+enum SavedClipboard {
+    Text(String),
+    Image(arboard::ImageData<'static>),
+    Nothing,
+}
+
+/// 붙여넣은 프로그램이 클립보드를 다 읽을 때까지 기다리는 시간 (너무 짧으면 예전 내용이 붙여넣어짐)
+const PASTE_SETTLE_MS: u64 = 400;
+
+/// 텍스트를 클립보드에 넣고 Ctrl+V. 원래 클립보드 내용(글자/이미지)은 끝나고 되돌려 놓는다.
+/// 한 글자씩 키를 보내는 방식과 달리 한글 입력기 상태와 상관없이 그대로 들어간다.
+fn paste_text(text: &str) -> Result<(), String> {
+    let mut cb = arboard::Clipboard::new().map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
+    let saved = save_clipboard(&mut cb);
+    cb.set_text(text.to_string()).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))?;
+    thread::sleep(Duration::from_millis(30));
+    let result = send_keys("ctrl+v");
+    thread::sleep(Duration::from_millis(PASTE_SETTLE_MS));
+    // 되돌리기 실패는 붙여넣기 자체의 실패가 아니므로 기록만 한다
+    if let Err(e) = restore_clipboard(&mut cb, saved) {
+        eprintln!("클립보드 되돌리기 실패: {e}");
+    }
+    result
+}
+
+fn save_clipboard(cb: &mut arboard::Clipboard) -> SavedClipboard {
+    match cb.get_text() {
+        Ok(t) => SavedClipboard::Text(t),
+        Err(_) => match cb.get_image() {
+            Ok(img) => SavedClipboard::Image(img.to_owned_img()),
+            Err(_) => SavedClipboard::Nothing,
+        },
+    }
+}
+
+fn restore_clipboard(cb: &mut arboard::Clipboard, saved: SavedClipboard) -> Result<(), arboard::Error> {
+    match saved {
+        SavedClipboard::Text(t) => cb.set_text(t),
+        SavedClipboard::Image(img) => cb.set_image(img),
+        SavedClipboard::Nothing => cb.clear(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn launch_guard_blocks_quick_relaunch() {
+        let p = r"C:\Test\Fake_Guard_App.exe";
+        assert!(!recently_launched(p));
+        mark_launched(p);
+        assert!(recently_launched(&p.to_uppercase()), "대소문자 달라도 같은 프로그램");
+        assert!(!recently_launched(r"C:\Test\Other.exe"));
+    }
+
+    /// 붙여넣기 뒤 원래 클립보드(글자)가 그대로 돌아오는지. 실행 전 클립보드도 마지막에 되돌린다.
+    #[test]
+    fn clipboard_is_restored_after_paste() {
+        let Ok(mut cb) = arboard::Clipboard::new() else { return };
+        let user_original = save_clipboard(&mut cb);
+
+        cb.set_text("원래 복사해 둔 글".to_string()).unwrap();
+        let saved = save_clipboard(&mut cb);
+        cb.set_text("버튼이 넣은 텍스트".to_string()).unwrap();
+        restore_clipboard(&mut cb, saved).unwrap();
+        assert_eq!(cb.get_text().unwrap(), "원래 복사해 둔 글");
+
+        let _ = restore_clipboard(&mut cb, user_original);
     }
 }
 
@@ -98,6 +175,23 @@ pub enum Activated {
     Focused,
     /// 새로 실행함
     Launched,
+    /// 조금 전에 실행해서 아직 뜨는 중 (다시 실행하지 않음)
+    Starting,
+}
+
+/// 프로그램을 실행한 뒤 창이 뜰 때까지 다시 실행하지 않고 기다려 주는 시간
+const LAUNCH_GUARD: Duration = Duration::from_secs(15);
+static RECENT_LAUNCHES: std::sync::Mutex<Vec<(String, std::time::Instant)>> = std::sync::Mutex::new(Vec::new());
+
+fn recently_launched(path: &str) -> bool {
+    let key = path.to_lowercase();
+    let mut list = RECENT_LAUNCHES.lock().unwrap();
+    list.retain(|(_, t)| t.elapsed() < LAUNCH_GUARD);
+    list.iter().any(|(p, _)| *p == key)
+}
+
+fn mark_launched(path: &str) {
+    RECENT_LAUNCHES.lock().unwrap().push((path.to_lowercase(), std::time::Instant::now()));
 }
 
 /// 프로그램 연결 폴더를 눌렀을 때: 실행 중이면 창을 앞으로, 아니면 실행.
@@ -123,7 +217,13 @@ pub fn activate_or_launch(app: &AppHandle, apps: &[String], launch_path: &str) -
         })?,
         p => p.to_string(),
     };
-    launch(app, &path, "").map(|_| Activated::Launched)
+    // 방금 실행해서 아직 창이 안 뜬 경우(한글은 몇 초 걸림) 또 실행하지 않는다
+    if recently_launched(&path) {
+        return Ok(Activated::Starting);
+    }
+    launch(app, &path, "")?;
+    mark_launched(&path);
+    Ok(Activated::Launched)
 }
 
 fn launch(app: &AppHandle, target: &str, args: &str) -> Result<(), String> {

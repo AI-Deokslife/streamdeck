@@ -3,7 +3,7 @@ export type Action =
   | { type: "launch"; target: string; args: string }
   | { type: "keys"; keys: string; app: string }
   | { type: "url"; url: string }
-  | { type: "text"; text: string; app: string }
+  | { type: "text"; text: string; app: string; typing?: boolean }
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
   | { type: "multi"; steps: Action[] }
@@ -105,7 +105,7 @@ export function newButton(): DeckButton {
     id: crypto.randomUUID(),
     label: "새 버튼",
     icon: "⭐",
-    color: "#2d3748",
+    color: "#0a84ff",
     hotkey: "",
     action: emptyAction("launch"),
   };

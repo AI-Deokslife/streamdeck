@@ -27,6 +27,10 @@ pub enum Action {
         text: String,
         #[serde(default)]
         app: String,
+        /// true면 한 글자씩 키 입력으로 보낸다 (붙여넣기를 막아 둔 프로그램용).
+        /// 기본(false)은 클립보드에 넣고 Ctrl+V — 한글·긴 글도 깨지지 않는다
+        #[serde(default)]
+        typing: bool,
     },
     /// PowerShell 명령 실행
     Script { command: String },
@@ -162,27 +166,93 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("config.json"))
 }
 
-pub fn load(app: &AppHandle) -> Config {
+/// 자동 백업 폴더 (%APPDATA%\com.deck.streamdeck\backups)
+pub fn backup_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?.join("backups");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// 남겨 둘 자동 백업 개수
+const KEEP_BACKUPS: usize = 30;
+
+/// "2026-11-08_14-03-22" (이 PC 시간 기준)
+fn timestamp() -> String {
+    use windows_sys::Win32::{Foundation::SYSTEMTIME, System::SystemInformation::GetLocalTime};
+    let mut t: SYSTEMTIME = unsafe { std::mem::zeroed() };
+    unsafe { GetLocalTime(&mut t) };
+    format!(
+        "{:04}-{:02}-{:02}_{:02}-{:02}-{:02}-{:03}",
+        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds
+    )
+}
+
+/// 설정을 읽는다. 파일이 깨져 있으면 덮어쓰지 않도록 옆으로 옮겨 두고 기본값으로 시작하며, 알림 문구를 돌려준다.
+pub fn load(app: &AppHandle) -> (Config, Option<String>) {
     let Ok(path) = config_path(app) else {
-        return Config::default();
+        return (Config::default(), None);
     };
     match fs::read_to_string(&path) {
-        Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
-            eprintln!("config.json 파싱 실패, 기본값 사용: {e}");
-            Config::default()
-        }),
+        Ok(text) => match parse(&text) {
+            Ok(cfg) => (cfg, None),
+            Err(e) => {
+                let broken = path.with_file_name(format!("config.broken-{}.json", timestamp()));
+                let _ = fs::rename(&path, &broken);
+                let cfg = Config::default();
+                let _ = save(app, &cfg);
+                (
+                    cfg,
+                    Some(format!(
+                        "설정 파일이 손상돼서 기본 설정으로 시작했어요 ({e}). 원래 파일은 {} 에 남겨 두었고, \
+                         편집 → '설정 가져오기'로 backups 폴더의 이전 백업을 불러올 수 있어요.",
+                        broken.display()
+                    )),
+                )
+            }
+        },
         Err(_) => {
             let cfg = Config::default();
             let _ = save(app, &cfg);
-            cfg
+            (cfg, None)
         }
     }
 }
 
+/// JSON 문자열 → 설정 (가져오기에서도 사용)
+pub fn parse(text: &str) -> Result<Config, String> {
+    let mut cfg: Config = serde_json::from_str(text).map_err(|e| format!("QuickDeck 설정 형식이 아니에요: {e}"))?;
+    cfg.columns = cfg.columns.clamp(1, 12);
+    Ok(cfg)
+}
+
+/// 저장: 이전 파일은 backups 폴더에 남기고, 임시 파일에 쓴 뒤 바꿔치기해서 저장 도중 꺼져도 파일이 깨지지 않게 한다.
 pub fn save(app: &AppHandle, cfg: &Config) -> Result<(), String> {
     let path = config_path(app)?;
     let text = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    fs::write(path, text).map_err(|e| e.to_string())
+    if path.is_file() {
+        if let Ok(dir) = backup_dir(app) {
+            let _ = fs::copy(&path, dir.join(format!("config-{}.json", timestamp())));
+            prune_backups(&dir);
+        }
+    }
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, text).map_err(|e| format!("설정 저장 실패: {e}"))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("설정 저장 실패: {e}"))
+}
+
+/// 오래된 자동 백업 지우기 (이름에 시각이 들어 있어 이름순 = 시간순)
+fn prune_backups(dir: &std::path::Path) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    let mut files: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("config-")))
+        .collect();
+    files.sort();
+    let excess = files.len().saturating_sub(KEEP_BACKUPS);
+    for old in &files[..excess] {
+        let _ = fs::remove_file(old);
+    }
 }
 
 #[cfg(test)]
@@ -203,6 +273,33 @@ mod tests {
         assert!(matches!(steps[1], Action::Delay { ms: 1000 }));
         let back = serde_json::to_string(&action).unwrap();
         assert!(back.contains(r#""type":"delay""#));
+    }
+
+    #[test]
+    fn prune_keeps_newest_backups() {
+        let dir = std::env::temp_dir().join(format!("qd-backup-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        for i in 0..(KEEP_BACKUPS + 5) {
+            fs::write(dir.join(format!("config-2026-01-01_00-00-{i:02}-000.json")), "{}").unwrap();
+        }
+        fs::write(dir.join("other.txt"), "x").unwrap(); // 백업이 아닌 파일은 건드리지 않음
+        prune_backups(&dir);
+        let mut left: Vec<String> =
+            fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left.len(), KEEP_BACKUPS + 1);
+        assert!(left.contains(&"other.txt".to_string()));
+        assert!(!left.contains(&"config-2026-01-01_00-00-00-000.json".to_string()), "가장 오래된 것은 지워져야");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_rejects_garbage_and_clamps_columns() {
+        assert!(parse("이건 설정이 아님").is_err());
+        assert!(parse(r#"{"foo":1}"#).is_err());
+        let cfg = parse(r#"{"toggleHotkey":"","columns":99,"buttons":[]}"#).unwrap();
+        assert_eq!(cfg.columns, 12);
     }
 
     #[test]

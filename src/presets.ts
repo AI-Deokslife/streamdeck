@@ -184,9 +184,9 @@ export function presetFolder(p: AppPreset, launch = "", image = ""): DeckButton 
       id: crypto.randomUUID(),
       label: sub.name,
       icon: sub.icon,
-      color: "#4a5568",
+      color: "#8e8e93",
       hotkey: "",
-      action: { type: "folder", apps: [], launch: "", buttons: sub.items.map((it) => keyButton(it, "#4a5568")) },
+      action: { type: "folder", apps: [], launch: "", buttons: sub.items.map((it) => keyButton(it, "#8e8e93")) },
     });
   }
   return {

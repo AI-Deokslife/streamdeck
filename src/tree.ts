@@ -101,6 +101,19 @@ export function inheritedApps(root: DeckButton[], path: Path): string[] {
   return apps;
 }
 
+/** 버튼 깊은 복사. 폴더면 안의 버튼까지 모두 새 id 를 붙인다 (복제/붙여넣기용) */
+export function cloneWithNewIds(b: DeckButton): DeckButton {
+  const copy: DeckButton = structuredClone(b);
+  const renew = (x: DeckButton) => {
+    x.id = crypto.randomUUID();
+    // 같은 전역 단축키가 두 버튼에 걸리면 충돌하므로 복사본에서는 비운다
+    x.hotkey = "";
+    if (x.action.type === "folder") x.action.buttons.forEach(renew);
+  };
+  renew(copy);
+  return copy;
+}
+
 /** a가 b로 시작하는지 (b 폴더 또는 그 하위에 있는지) */
 export function isWithin(a: Path, b: Path): boolean {
   return b.length <= a.length && b.every((id, i) => a[i] === id);

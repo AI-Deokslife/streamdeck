@@ -230,6 +230,56 @@ fn cancel_capture() {
     capture::cancel();
 }
 
+/// 설정을 파일로 내보내기 (편집 중인 내용 그대로). 저장한 경로를 돌려주고, 취소하면 null
+#[tauri::command]
+async fn export_config(app: AppHandle, cfg: Config) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+        let Some(file) = app
+            .dialog()
+            .file()
+            .add_filter("QuickDeck 설정", &["json"])
+            .set_file_name("QuickDeck 설정.json")
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let path = file.into_path().map_err(|e| e.to_string())?;
+        let text = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+        std::fs::write(&path, text).map_err(|e| format!("내보내기 실패: {e}"))?;
+        Ok(Some(path.display().to_string()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// 설정 파일 가져오기 (자동 백업 폴더에서 시작). 읽은 설정을 돌려주고, 저장은 화면에서 확인 후 한다
+#[tauri::command]
+async fn import_config(app: AppHandle) -> Result<Option<Config>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+        let mut dialog = app.dialog().file().add_filter("QuickDeck 설정", &["json"]);
+        if let Ok(dir) = config::backup_dir(&app) {
+            dialog = dialog.set_directory(dir);
+        }
+        let Some(file) = dialog.blocking_pick_file() else {
+            return Ok(None);
+        };
+        let path = file.into_path().map_err(|e| e.to_string())?;
+        let text = std::fs::read_to_string(&path).map_err(|e| format!("파일을 읽지 못했어요: {e}"))?;
+        config::parse(&text).map(Some)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn open_backup_folder(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = config::backup_dir(&app)?;
+    app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn hide_window(app: AppHandle) {
     if let Some(w) = main_window(&app) {
@@ -312,6 +362,7 @@ pub fn run() {
         // 이미 실행 중이면 새로 띄우지 않고 기존 창을 보여준다 (반드시 첫 번째 플러그인)
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -361,7 +412,7 @@ pub fn run() {
         .manage(AppState::default())
         .setup(|app| {
             let handle = app.handle().clone();
-            let mut cfg = config::load(&handle);
+            let (mut cfg, load_notice) = config::load(&handle);
 
             if let Some(w) = main_window(&handle) {
                 if let Ok(hwnd) = w.hwnd() {
@@ -380,7 +431,8 @@ pub fn run() {
                 let _ = tracker_app.emit("app-focus", AppFocusEvent { exe, folder_id });
             });
 
-            let notices = register_on_startup(&handle, &mut cfg);
+            let mut notices = register_on_startup(&handle, &mut cfg);
+            notices.extend(load_notice);
             for n in &notices {
                 eprintln!("{n}");
             }
@@ -403,6 +455,9 @@ pub fn run() {
             get_app_icon,
             capture_screen,
             cancel_capture,
+            export_config,
+            import_config,
+            open_backup_folder,
             hide_window,
             set_edit_mode
         ])

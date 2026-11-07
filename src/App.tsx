@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import AppIcon from "./AppIcon";
 import { ButtonEditor, SettingsEditor } from "./Editor";
 import { prettyHotkey } from "./HotkeyInput";
 import { firstImage, imageToDataUrl } from "./image";
@@ -8,6 +9,7 @@ import { AppPreset, presetFolder } from "./presets";
 import {
   Path,
   buttonsAt,
+  cloneWithNewIds,
   countDeep,
   folderLabels,
   folderOptions,
@@ -29,6 +31,8 @@ export default function App() {
   const [pressedId, setPressedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; kind: "error" | "info" } | null>(null);
   const dragId = useRef<string | null>(null);
+  /** 편집 중 복사해 둔 버튼 (다른 폴더에 붙여넣기용) */
+  const [copied, setCopied] = useState<DeckButton | null>(null);
   const toastTimer = useRef<number>(undefined);
   /** 연결 프로그램 때문에 자동으로 연 폴더 (스마트 프로필) */
   const [autoApp, setAutoApp] = useState<string | null>(null);
@@ -142,11 +146,32 @@ export default function App() {
     if (view && current === null) setPath([]);
   }, [view, current]);
 
+  // 편집 중 단축키 (Ctrl+C 복사, Ctrl+V 붙여넣기, Ctrl+D 복제). 핸들러는 매 렌더마다 최신으로 바꿔 끼운다
+  const editKeys = useRef<(e: KeyboardEvent) => void>(undefined);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => editKeys.current?.(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
   if (!config || !view) return <div className="loading">불러오는 중…</div>;
 
   const buttons = current ?? view.buttons;
   const selected = editing ? buttons.find((b) => b.id === selectedId) ?? null : null;
   const crumbs = folderLabels(view.buttons, path);
+
+  editKeys.current = (e) => {
+    if (!editing || !e.ctrlKey || e.altKey || e.shiftKey) return;
+    // 글자 입력 칸이나 단축키 녹화 칸에서는 원래 동작 그대로
+    const t = e.target as HTMLElement | null;
+    if (t?.closest("input, textarea, select, [contenteditable], .keycap-box, .icon-preview")) return;
+    const k = e.code;
+    if (k === "KeyC" && selected) copyButton(selected);
+    else if (k === "KeyV" && copied) pasteButton();
+    else if (k === "KeyD" && selected) duplicateButton(selected);
+    else return;
+    e.preventDefault();
+  };
 
   function openFolder(id: string) {
     setPath((p) => [...p, id]);
@@ -173,9 +198,10 @@ export default function App() {
       openFolder(b.id);
       // 연결 프로그램을 앞으로 가져오고, 실행 중이 아니면 실행 (경로가 비면 설치 위치를 자동으로 찾음)
       if (launch || apps.length) {
-        invoke<"focused" | "launched">("activate_app", { apps, launch })
+        invoke<"focused" | "launched" | "starting">("activate_app", { apps, launch })
           .then((r) => {
             if (r === "launched") showToast(`${b.label} 실행 중…`, "info", 2500);
+            if (r === "starting") showToast(`${b.label}이(가) 아직 뜨는 중이에요. 잠시만 기다려 주세요`, "info", 2500);
           })
           .catch((e) => showToast(String(e), "error", 8000));
       }
@@ -253,6 +279,31 @@ export default function App() {
     setSelectedId(b.id);
   }
 
+  /** 바로 옆에 복사본 만들기 (폴더면 안의 버튼까지) */
+  function duplicateButton(b: DeckButton) {
+    const copy = cloneWithNewIds(b);
+    copy.label = b.label ? `${b.label} 복사본` : "";
+    editHere((list) => {
+      const i = list.findIndex((x) => x.id === b.id);
+      const next = [...list];
+      next.splice(i + 1, 0, copy);
+      return next;
+    });
+    setSelectedId(copy.id);
+  }
+
+  function copyButton(b: DeckButton) {
+    setCopied(structuredClone(b));
+    showToast(`'${b.label}'을(를) 복사했어요. 다른 폴더에서 '붙여넣기' 칸이나 Ctrl+V로 넣으세요`, "info", 3000);
+  }
+
+  function pasteButton() {
+    if (!copied) return;
+    const b = cloneWithNewIds(copied);
+    editHere((list) => [...list, b]);
+    setSelectedId(b.id);
+  }
+
   function deleteButton(b: DeckButton) {
     if (b.action.type === "folder" && b.action.buttons.length > 0) {
       const n = countDeep(b.action.buttons);
@@ -288,58 +339,56 @@ export default function App() {
 
   return (
     <div className={"app" + (editing ? " editing" : "")}>
-      <header data-tauri-drag-region>
-        {path.length === 0 ? (
-          <span className="title" data-tauri-drag-region>
-            {editing ? "✏️ 편집 모드" : "QuickDeck"}
-          </span>
-        ) : (
-          <nav className="crumbs">
-            <button className="crumb" onClick={() => goTo(0)} title="처음 화면">
-              🏠
-            </button>
-            {crumbs.map((name, i) => (
-              <span key={i} className="crumb-wrap">
-                <span className="crumb-sep">›</span>
-                <button className="crumb" onClick={() => goTo(i + 1)} disabled={i === crumbs.length - 1}>
-                  {name}
-                </button>
-              </span>
-            ))}
-          </nav>
-        )}
-        {!editing && path.length === 0 && (
-          <span className="hint-key" data-tauri-drag-region>
-            {prettyHotkey(config.toggleHotkey)}
-          </span>
-        )}
-        {!editing && autoApp && (
-          <span className="auto-badge" title={`${autoApp}에 연결된 폴더 — 다른 프로그램으로 가면 돌아가요`}>
-            🔗 {autoApp.replace(/\.exe$/i, "")}
-          </span>
-        )}
-        {editing && (
-          <span className="hint-key" data-tauri-drag-region title="편집하는 동안은 프로그램별 자동 전환이 멈춰요">
-            자동 전환 일시정지
-          </span>
-        )}
-        <div className="actions">
+      {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
+      <header className="navbar" data-tauri-drag-region>
+        <div className="nav-side left" data-tauri-drag-region>
           {editing ? (
-            <>
-              <button className="small ghost" onClick={() => finishEdit(false)}>
-                취소
+            <button className="nav-btn" onClick={() => finishEdit(false)}>
+              취소
+            </button>
+          ) : (
+            path.length > 0 && (
+              <button className="nav-back" onClick={() => goTo(path.length - 1)} title="상위 폴더로">
+                <span className="chev">‹</span>
+                {crumbs.length > 1 ? crumbs[crumbs.length - 2] : "홈"}
               </button>
-              <button className="small primary" onClick={() => finishEdit(true)}>
-                저장
+            )
+          )}
+        </div>
+        <div className="nav-title" data-tauri-drag-region>
+          <span className="nav-title-text" data-tauri-drag-region>
+            {path.length > 0 ? crumbs[crumbs.length - 1] : editing ? "편집" : "QuickDeck"}
+          </span>
+          <span className="nav-subtitle" data-tauri-drag-region>
+            {editing ? (
+              <span title="편집하는 동안은 프로그램별 자동 전환이 멈춰요">자동 전환 일시정지</span>
+            ) : autoApp ? (
+              <span className="auto-pill" title={`${autoApp}에 연결된 폴더 — 다른 프로그램으로 가면 돌아가요`}>
+                ● {autoApp.replace(/\.exe$/i, "")}
+              </span>
+            ) : path.length > 1 ? (
+              <button className="nav-home" onClick={() => goTo(0)}>
+                홈으로
               </button>
-            </>
+            ) : (
+              prettyHotkey(config.toggleHotkey)
+            )}
+          </span>
+        </div>
+        <div className="nav-side right" data-tauri-drag-region>
+          {editing ? (
+            <button className="nav-btn bold" onClick={() => finishEdit(true)}>
+              완료
+            </button>
           ) : (
             <>
-              <button className="icon" title="버튼 편집" onClick={() => startEdit(config)}>
-                ✏️
+              <button className="nav-btn" title="버튼 편집" onClick={() => startEdit(config)}>
+                편집
               </button>
-              <button className="icon" title="숨기기 (트레이에 남아 있어요)" onClick={() => invoke("hide_window")}>
-                —
+              <button className="nav-icon" title="숨기기 (트레이에 남아 있어요)" onClick={() => invoke("hide_window")}>
+                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                  <path d="M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
               </button>
             </>
           )}
@@ -358,7 +407,9 @@ export default function App() {
               if (b) moveToFolder(b, path.slice(0, -1));
             }}
           >
-            <span className="tile-icon">⬅</span>
+            <span className="app-icon glass">
+              <span className="glyph chevron">‹</span>
+            </span>
             <span className="tile-label">뒤로</span>
           </button>
         )}
@@ -373,7 +424,6 @@ export default function App() {
                 (pressedId === b.id ? " pressed" : "") +
                 (selectedId === b.id ? " selected" : "")
               }
-              style={{ background: b.color }}
               onClick={() => press(b)}
               onDoubleClick={() => editing && isFolder && openFolder(b.id)}
               title={b.hotkey ? `${b.label} (${prettyHotkey(b.hotkey)})` : b.label}
@@ -394,17 +444,21 @@ export default function App() {
                 if (dragId.current) reorder(dragId.current, b.id);
               }}
             >
-              {b.image ? (
-                <img className={b.imageFull ? "tile-img-full" : "tile-img"} src={b.image} alt="" draggable={false} />
-              ) : (
-                <span className="tile-icon">{b.icon || (isFolder ? "📁" : "")}</span>
-              )}
-              {b.label && <span className={"tile-label" + (b.image && b.imageFull ? " over" : "")}>{b.label}</span>}
-              {(b.hotkey || b.action.type === "multi" || isFolder) && (
-                <span className="tile-badge">
-                  {isFolder ? "📂" : ""}
-                  {b.action.type === "multi" ? "🔗" : ""}
-                  {b.hotkey ? "⌨" : ""}
+              <AppIcon b={b} />
+              {b.label && <span className="tile-label">{b.label}</span>}
+              {editing && (
+                <span
+                  className="del-badge"
+                  role="button"
+                  title="삭제"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteButton(b);
+                  }}
+                >
+                  <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">
+                    <path d="M2 5h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
                 </span>
               )}
             </button>
@@ -412,8 +466,18 @@ export default function App() {
         })}
         {editing && (
           <button className="tile add" onClick={addButton} title="이 화면에 버튼 추가">
-            <span className="tile-icon">＋</span>
+            <span className="app-icon dashed">
+              <span className="glyph plus">+</span>
+            </span>
             <span className="tile-label">추가</span>
+          </button>
+        )}
+        {editing && copied && (
+          <button className="tile add" onClick={pasteButton} title={`'${copied.label}' 붙여넣기 (Ctrl+V)`}>
+            <span className="app-icon dashed">
+              <span className="glyph">📋</span>
+            </span>
+            <span className="tile-label">붙여넣기</span>
           </button>
         )}
       </main>
@@ -426,6 +490,8 @@ export default function App() {
               button={selected}
               onChange={updateButton}
               onDelete={() => deleteButton(selected)}
+              onDuplicate={() => duplicateButton(selected)}
+              onCopy={() => copyButton(selected)}
               onTest={() =>
                 invoke("test_action", {
                   action: selected.action,
@@ -439,7 +505,12 @@ export default function App() {
               onMove={(to) => moveToFolder(selected, to)}
             />
           ) : (
-            <SettingsEditor config={draft} onChange={setDraft} onAddPreset={addPreset} />
+            <SettingsEditor
+              config={draft}
+              onChange={setDraft}
+              onAddPreset={addPreset}
+              onNotice={(t, k) => showToast(t, k ?? "error", 5000)}
+            />
           )}
         </section>
       )}

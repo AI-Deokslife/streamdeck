@@ -18,7 +18,11 @@ import {
   summarizeAction,
 } from "./types";
 
-const COLORS = ["#2d3748", "#2b6cb0", "#2f855a", "#c05621", "#9b2c2c", "#6b46c1", "#2c7a7b", "#b7791f", "#d53f8c"];
+/** iOS 시스템 색상 (blue, green, indigo, orange, pink, purple, red, teal, yellow, mint, gray, graphite) */
+const COLORS = [
+  "#0a84ff", "#30d158", "#5e5ce6", "#ff9f0a", "#ff375f", "#bf5af2",
+  "#ff453a", "#40c8e0", "#ffd60a", "#63e6e2", "#8e8e93", "#1c1c1e",
+];
 
 const KEY_PRESETS: [string, string][] = [
   ["볼륨 +", "volumeup"],
@@ -158,11 +162,20 @@ function ActionFields({
       );
     case "text":
       return (
-        <label>
-          입력할 텍스트
-          <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+        <>
+          <label>
+            입력할 텍스트
+            <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={!!a.typing} onChange={(e) => set({ typing: e.target.checked })} />
+            한 글자씩 입력하기 (붙여넣기가 막힌 프로그램용)
+          </label>
+          <p className="hint">
+            기본은 붙여넣기 방식이라 한글·긴 글도 깨지지 않아요. 원래 복사해 둔 내용은 입력 후 그대로 돌려놓습니다.
+          </p>
           <TargetAppField value={a.app} inherited={inherited} onChange={(app) => set({ app })} />
-        </label>
+        </>
       );
     case "script":
       return (
@@ -475,6 +488,8 @@ interface ButtonEditorProps {
   button: DeckButton;
   onChange: (b: DeckButton) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
+  onCopy: () => void;
   onTest: () => void;
   onOpenFolder: () => void;
   /** 옮길 수 있는 폴더 목록 (현재 위치 포함) */
@@ -489,6 +504,8 @@ export function ButtonEditor({
   button,
   onChange,
   onDelete,
+  onDuplicate,
+  onCopy,
   onTest,
   onOpenFolder,
   folders,
@@ -590,6 +607,13 @@ export function ButtonEditor({
       <div className="row end">
         <button type="button" className="danger" onClick={onDelete}>
           삭제
+        </button>
+        <span className="grow" />
+        <button type="button" onClick={onCopy} title="복사해서 다른 폴더에 붙여넣기 (Ctrl+C)">
+          복사
+        </button>
+        <button type="button" onClick={onDuplicate} title="바로 옆에 복사본 만들기 (Ctrl+D)">
+          복제
         </button>
         {a.type !== "folder" && (
           <button type="button" onClick={onTest} title="지금 설정으로 한 번 실행해 봅니다">
@@ -705,9 +729,31 @@ interface SettingsProps {
   onChange: (c: Config) => void;
   /** 프로그램 프리셋을 지금 화면에 폴더로 추가 */
   onAddPreset: (p: AppPreset) => void;
+  /** 알림 띄우기 */
+  onNotice: (text: string, kind?: "error" | "info") => void;
 }
 
-export function SettingsEditor({ config, onChange, onAddPreset }: SettingsProps) {
+export function SettingsEditor({ config, onChange, onAddPreset, onNotice }: SettingsProps) {
+  async function exportConfig() {
+    try {
+      const path = await invoke<string | null>("export_config", { cfg: config });
+      if (path) onNotice(`내보냈어요: ${path}`, "info");
+    } catch (e) {
+      onNotice(String(e));
+    }
+  }
+
+  async function importConfig() {
+    try {
+      const cfg = await invoke<Config | null>("import_config");
+      if (!cfg) return;
+      onChange(cfg);
+      onNotice("설정을 불러왔어요. 확인하고 위의 '저장'을 누르면 적용돼요 (취소하면 원래대로)", "info");
+    } catch (e) {
+      onNotice(String(e));
+    }
+  }
+
   return (
     <div className="editor">
       <p className="hint">
@@ -743,6 +789,20 @@ export function SettingsEditor({ config, onChange, onAddPreset }: SettingsProps)
             {p.name}
           </button>
         ))}
+      </div>
+
+      <label>설정 백업</label>
+      <p className="hint">저장할 때마다 이전 설정이 자동으로 백업돼요 (최근 30개). 다른 PC로 옮길 때는 내보내기를 쓰세요.</p>
+      <div className="row">
+        <button type="button" className="small" onClick={exportConfig}>
+          내보내기
+        </button>
+        <button type="button" className="small" onClick={importConfig}>
+          가져오기 / 백업에서 복원
+        </button>
+        <button type="button" className="small ghost" onClick={() => invoke("open_backup_folder")}>
+          백업 폴더 열기
+        </button>
       </div>
     </div>
   );
