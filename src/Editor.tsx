@@ -774,6 +774,89 @@ function FolderAppFields({
   );
 }
 
+// ---------------- 휴대폰 리모컨 ----------------
+
+interface RemoteStatus {
+  enabled: boolean;
+  running: boolean;
+  url: string;
+  qrSvg: string;
+  error: string | null;
+}
+
+/** 휴대폰 리모컨 켜기/끄기와 QR 코드. 저장(완료)과 상관없이 바로 적용된다. */
+function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" | "info") => void }) {
+  const [st, setSt] = useState<RemoteStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    invoke<RemoteStatus>("remote_status").then(setSt).catch(() => {});
+  }, []);
+
+  async function toggle(on: boolean) {
+    setBusy(true);
+    try {
+      const next = await invoke<RemoteStatus>("set_remote", { enabled: on });
+      setSt(next);
+      if (next.error) onNotice(next.error);
+      else if (on) onNotice("휴대폰 카메라로 QR 코드를 찍어 보세요. 처음엔 Windows 방화벽 허용 창이 뜰 수 있어요", "info");
+    } catch (e) {
+      onNotice(String(e));
+    }
+    setBusy(false);
+  }
+
+  async function regenerate() {
+    if (!window.confirm("열쇠를 새로 만들면 지금까지 연결한 휴대폰은 더 이상 조작할 수 없어요. 새 QR 코드를 다시 찍어야 합니다. 계속할까요?")) return;
+    setSt(await invoke<RemoteStatus>("regenerate_remote_key"));
+    onNotice("새 열쇠를 만들었어요. QR 코드를 다시 찍어 주세요", "info");
+  }
+
+  if (!st) return null;
+  return (
+    <>
+      <label>휴대폰 리모컨</label>
+      <div className="remote-box">
+        <label className="check">
+          <input type="checkbox" checked={st.enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
+          휴대폰에서 버튼 누르기
+        </label>
+        {st.running && st.qrSvg ? (
+          <div className="remote-qr">
+            <div className="qr" dangerouslySetInnerHTML={{ __html: st.qrSvg }} />
+            <div className="remote-info">
+              <p>
+                휴대폰 <b>카메라로 QR 코드</b>를 찍으면 브라우저에 버튼판이 열려요. 앱 설치는 필요 없어요.
+              </p>
+              <p className="hint">
+                PC 와 휴대폰이 <b>같은 와이파이</b>에 있어야 해요. 브라우저 메뉴의 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수
+                있어요.
+              </p>
+              <div className="row">
+                <button
+                  type="button"
+                  className="small"
+                  onClick={() => navigator.clipboard.writeText(st.url).then(() => onNotice("주소를 복사했어요", "info"))}
+                >
+                  주소 복사
+                </button>
+                <button type="button" className="small ghost" onClick={regenerate}>
+                  열쇠 새로 만들기
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="hint">
+            켜면 QR 코드가 나타나요. 같은 와이파이의 휴대폰에서만, QR 코드 속 비밀 열쇠가 있어야 조작할 수 있어요.
+          </p>
+        )}
+        {st.error && <span className="keycap-hint warn">{st.error}</span>}
+      </div>
+    </>
+  );
+}
+
 // ---------------- 테마 고르기 ----------------
 
 /** 테마 고르기 카드: 미리보기 색(바 / 바탕 / 포인트 / 아이콘)과 설명 */
@@ -798,9 +881,18 @@ interface SettingsProps {
   onNotice: (text: string, kind?: "error" | "info") => void;
   /** 모든 버튼에 프로그램·사이트 아이콘 넣기 */
   onApplyAllIcons: () => Promise<void>;
+  /** 투명도 슬라이더를 움직이는 동안 미리 보기 (null = 미리 보기 끝) */
+  onPreviewOpacity: (v: number | null) => void;
 }
 
-export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onApplyAllIcons }: SettingsProps) {
+export function SettingsEditor({
+  config,
+  onChange,
+  onAddPreset,
+  onNotice,
+  onApplyAllIcons,
+  onPreviewOpacity,
+}: SettingsProps) {
   const [applying, setApplying] = useState(false);
   async function exportConfig() {
     try {
@@ -856,6 +948,37 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onAppl
       </div>
       <p className="hint">{THEME_CARDS.find((c) => c.value === (config.theme ?? "auto"))?.desc}</p>
 
+      <label>
+        창 투명도: {config.opacity ?? 100}%
+        <input
+          type="range"
+          min={20}
+          max={100}
+          step={5}
+          value={config.opacity ?? 100}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onChange({ ...config, opacity: v });
+            onPreviewOpacity(v);
+          }}
+          onPointerUp={() => onPreviewOpacity(null)}
+          onKeyUp={() => onPreviewOpacity(null)}
+          onBlur={() => onPreviewOpacity(null)}
+        />
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={!!config.clearOnHover}
+          onChange={(e) => onChange({ ...config, clearOnHover: e.target.checked })}
+        />
+        마우스를 올리면 선명하게
+      </label>
+      <p className="hint">
+        슬라이더를 움직이는 동안 미리 보여요. 편집하는 동안은 항상 선명하게 보입니다. ‘마우스를 올리면 선명하게’를 켜면
+        평소엔 흐릿하다가 마우스를 올리는 순간 또렷해져요.
+      </p>
+
       <label>창 보이기 / 숨기기 단축키</label>
       <HotkeyInput
         mode="global"
@@ -906,6 +1029,8 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onAppl
           {applying ? "가져오는 중…" : "✨ 모든 버튼에 아이콘 넣기"}
         </button>
       </div>
+
+      <RemoteSection onNotice={onNotice} />
 
       <label>설정 백업</label>
       <p className="hint">저장할 때마다 이전 설정이 자동으로 백업돼요 (최근 30개). 다른 PC로 옮길 때는 내보내기를 쓰세요.</p>

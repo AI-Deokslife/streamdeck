@@ -129,6 +129,16 @@ pub struct Config {
     /// 화면 테마: "auto"(Windows 설정 따라감) / "light" / "dark"
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// 창 투명도 (20~100, 100 = 불투명)
+    #[serde(default = "default_opacity")]
+    pub opacity: u32,
+    /// true 면 마우스를 올렸을 때만 선명하게(100%), 벗어나면 opacity 로
+    #[serde(default)]
+    pub clear_on_hover: bool,
+}
+
+fn default_opacity() -> u32 {
+    100
 }
 
 fn default_theme() -> String {
@@ -159,6 +169,8 @@ impl Default for Config {
             toggle_hotkey: "Ctrl+Shift+F12".into(),
             columns: 4,
             theme: default_theme(),
+            opacity: default_opacity(),
+            clear_on_hover: false,
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),
@@ -261,6 +273,7 @@ fn read_with_retry(path: &std::path::Path) -> std::io::Result<String> {
 pub fn parse(text: &str) -> Result<Config, String> {
     let mut cfg: Config = serde_json::from_str(text).map_err(|e| format!("QuickDeck 설정 형식이 아니에요: {e}"))?;
     cfg.columns = cfg.columns.clamp(1, 12);
+    cfg.opacity = cfg.opacity.clamp(20, 100);
     Ok(cfg)
 }
 

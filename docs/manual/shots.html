@@ -10,6 +10,8 @@
       const view = qs.get("view") || "home";
       const w = qs.get("w") || 420, h = qs.get("h") || 330;
       document.write(`<style>html,body,#root{width:${w}px !important;height:${h}px !important}</style>`);
+      // ?bg=check : 투명도 확인용 뒤 배경 (바둑판 + 글씨)
+      if (qs.get("bg") === "check") document.write(`<style>html{background:repeating-conic-gradient(#d0d4da 0 25%,#ffffff 0 50%) 0 0/24px 24px !important}body::before{content:"뒤에 있는 문서가 비쳐 보여요 — 투명도 확인";position:fixed;left:16px;top:120px;font:700 30px sans-serif;color:#e0245e;z-index:-1}</style>`);
 
       const toUrl = (p) => fetch(p).then((r) => r.blob()).then((b) => new Promise((ok) => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b); }));
       const k = (id, label, icon, color, keys) => ({ id, label, icon, color, hotkey: "", action: { type: "keys", keys, app: "" } });
@@ -18,6 +20,8 @@
         toggleHotkey: "Ctrl+Shift+Space",
         columns: 4,
         theme: qs.get("theme") || "dark",
+        opacity: Number(qs.get("op") || 100),
+        clearOnHover: false,
         buttons: [
           { id: "hwp", label: "한글", icon: "한", image: hwp, imageAuto: true, color: "#1c1c1e", hotkey: "Ctrl+Alt+KeyH",
             action: { type: "folder", apps: ["Hwp.exe"], launch: "C:\\Program Files (x86)\\Hnc\\Office 2020\\HOffice110\\Bin\\Hwp.exe", buttons: [
@@ -42,6 +46,16 @@
         ],
       }));
 
+      // 설명서 사진용 QR 모양 (실제 앱은 Rust 가 진짜 QR 코드를 만든다)
+      const QR_SAMPLE = (() => {
+        let r = "";
+        for (let y = 0; y < 25; y++) for (let x = 0; x < 25; x++) {
+          const finder = (x < 7 && y < 7) || (x > 17 && y < 7) || (x < 7 && y > 17);
+          const on = finder ? (x % 6 === 0 || y % 6 === 0 || (x % 6 > 1 && x % 6 < 5 && y % 6 > 1 && y % 6 < 5) || x === 18 || x === 24 || y === 18 || y === 24) : ((x * 7 + y * 13 + x * y) % 3 === 0);
+          if (on) r += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 29 29"><rect x="-2" y="-2" width="29" height="29" fill="#fff"/><g fill="#111">${r}</g></svg>`;
+      })();
       const L = {};
       window.__TAURI_INTERNALS__ = {
         transformCallback: (cb) => { const id = Math.floor(Math.random() * 1e9); window["_" + id] = cb; return id; },
@@ -51,6 +65,7 @@
           if (cmd === "take_startup_notices") return [];
           if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
           if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
+          if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, error: null };
           if (cmd === "plugin:event|listen") { (L[a.event] ||= []).push(a.handler); return a.handler; }
           return null;
         },
@@ -75,6 +90,7 @@
         if (view === "edit-multi") { edit(); await wait(150); tile("아침 루틴")?.click(); await wait(150); q(".step-head")[1]?.click(); await wait(100); scrollPanelTo(document.querySelector(".steps")); }
         if (view === "settings") { edit(); await wait(250); scrollPanelTo(label("화면 테마")); }
         if (view === "settings-2") { edit(); await wait(250); scrollPanelTo(label("프로그램 프리셋")); }
+        if (view === "settings-remote") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
         await wait(300);
         document.title = "READY";
       })();

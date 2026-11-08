@@ -4,6 +4,7 @@ mod capture;
 mod config;
 mod favicon;
 mod icon;
+mod remote;
 mod winutil;
 
 use config::{Action, Config};
@@ -154,7 +155,36 @@ fn take_startup_notices(state: State<AppState>) -> Vec<String> {
 fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Vec<String>, String> {
     config::save(&app, &cfg)?;
     *state.config.lock().unwrap() = cfg.clone();
+    remote::bump_version(&app); // 휴대폰 리모컨 화면도 새로 받게
     Ok(register_hotkeys(&app, &cfg))
+}
+
+/// 휴대폰 리모컨에서 버튼을 눌렀을 때 (PC 의 버튼 클릭과 같은 동작)
+fn press_from_remote(app: &AppHandle, id: &str) -> Result<(), String> {
+    let (action, inherited) = find_action(app, id).ok_or("버튼을 찾을 수 없어요")?;
+    match &action {
+        // 폴더 이동은 휴대폰 화면이 처리하고, 연결 프로그램이 있으면 PC 에서 실행/활성화
+        Action::Folder { apps, launch, .. } if !launch.trim().is_empty() || !apps.is_empty() => {
+            actions::activate_or_launch(app, apps, launch).map(|_| ())
+        }
+        Action::Folder { .. } => Ok(()),
+        _ => actions::run(app, &action, false, &inherited),
+    }
+}
+
+#[tauri::command]
+fn remote_status(app: AppHandle) -> remote::RemoteStatus {
+    remote::status(&app)
+}
+
+#[tauri::command]
+fn set_remote(app: AppHandle, enabled: bool) -> remote::RemoteStatus {
+    remote::set_enabled(&app, enabled)
+}
+
+#[tauri::command]
+fn regenerate_remote_key(app: AppHandle) -> remote::RemoteStatus {
+    remote::regenerate(&app)
 }
 
 #[tauri::command]
@@ -417,6 +447,7 @@ pub fn run() {
                 .build(),
         )
         .manage(AppState::default())
+        .manage(remote::RemoteState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             let (mut cfg, load_notice) = config::load(&handle);
@@ -447,6 +478,7 @@ pub fn run() {
             *state.config.lock().unwrap() = cfg;
             *state.startup_notices.lock().unwrap() = notices;
             build_tray(&handle)?;
+            remote::start_if_enabled(&handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -466,6 +498,9 @@ pub fn run() {
             export_config,
             import_config,
             open_backup_folder,
+            remote_status,
+            set_remote,
+            regenerate_remote_key,
             hide_window,
             set_edit_mode
         ])

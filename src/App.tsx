@@ -148,6 +148,21 @@ export default function App() {
   const view = editing && draft ? draft : config;
   const current = view ? buttonsAt(view.buttons, path) : null;
 
+  // 투명도: 마우스가 창 위에 있는지, 설정에서 슬라이더를 끄는 중인지(미리보기)
+  const [hovered, setHovered] = useState(false);
+  const [previewOpacity, setPreviewOpacity] = useState<number | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const enter = () => setHovered(true);
+    const leave = () => setHovered(false);
+    root.addEventListener("mouseenter", enter);
+    root.addEventListener("mouseleave", leave);
+    return () => {
+      root.removeEventListener("mouseenter", enter);
+      root.removeEventListener("mouseleave", leave);
+    };
+  }, []);
+
   // 테마: 편집 중에는 고르는 즉시 미리 보이게 draft 기준. 자동이면 Windows 설정이 바뀔 때도 따라간다
   const theme = view?.theme ?? "auto";
   useEffect(() => {
@@ -220,6 +235,16 @@ export default function App() {
   const buttons = current ?? view.buttons;
   const selected = editing ? buttons.find((b) => b.id === selectedId) ?? null : null;
   const crumbs = folderLabels(view.buttons, path);
+
+  // 실제로 적용할 투명도: 편집 중엔 항상 선명(슬라이더 미리보기만 예외), 평소엔 설정값,
+  // '마우스를 올리면 선명하게'가 켜져 있으면 마우스가 올라와 있을 때 100%
+  const baseOpacity = Math.min(100, Math.max(20, view.opacity ?? 100)) / 100;
+  const appOpacity =
+    previewOpacity !== null
+      ? previewOpacity / 100
+      : editing || (view.clearOnHover && hovered)
+        ? 1
+        : baseOpacity;
 
   editKeys.current = (e) => {
     if (!editing || !e.ctrlKey || e.altKey || e.shiftKey) return;
@@ -434,7 +459,7 @@ export default function App() {
   }
 
   return (
-    <div className={"app" + (editing ? " editing" : "")}>
+    <div className={"app" + (editing ? " editing" : "")} style={{ opacity: appOpacity }}>
       {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
       <header className="navbar" data-tauri-drag-region>
         <div className="nav-side left" data-tauri-drag-region>
@@ -617,6 +642,7 @@ export default function App() {
               onAddPreset={addPreset}
               onNotice={(t, k) => showToast(t, k ?? "error", 5000)}
               onApplyAllIcons={applyAllIcons}
+              onPreviewOpacity={setPreviewOpacity}
             />
           )}
         </section>

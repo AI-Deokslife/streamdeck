@@ -37,6 +37,10 @@ export interface Config {
   buttons: DeckButton[];
   /** 화면 테마: auto = Windows 설정을 따라감 */
   theme?: Theme;
+  /** 창 투명도 20~100 (100 = 불투명) */
+  opacity?: number;
+  /** 마우스를 올렸을 때만 선명하게 */
+  clearOnHover?: boolean;
 }
 
 export type Theme = "auto" | "light" | "dark" | "baemin" | "kakao" | "toss" | "line";

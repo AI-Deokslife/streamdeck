@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="QuickDeck" />
+<meta name="theme-color" content="#000000" />
+<link rel="apple-touch-icon" href="/icon.png" />
+<title>QuickDeck 리모컨</title>
+<style>
+  /* QuickDeck 휴대폰 리모컨 — PC 의 버튼판을 휴대폰 화면에 그대로 보여준다 */
+  :root {
+    --bar: rgba(22, 22, 24, 0.9);
+    --bar-text: #ffffff;
+    --bg: radial-gradient(120% 80% at 10% 0%, #1b2a4a 0%, transparent 60%), radial-gradient(120% 90% at 100% 100%, #3a1d4a 0%, transparent 55%), #050507;
+    --label: #ffffff;
+    --accent: #0a84ff;
+    --glass: rgba(255, 255, 255, 0.16);
+    --radius: 22.5%;
+    --toast-bg: rgba(40, 40, 44, 0.95);
+    --toast-text: #fff;
+    --cols: 4;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    background-attachment: fixed;
+    color: var(--label);
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px 10px;
+    background: var(--bar);
+    color: var(--bar-text);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  header h1 { margin: 0; font-size: 17px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55vw; }
+  .back {
+    justify-self: start;
+    border: 0;
+    background: none;
+    color: var(--bar-text);
+    font: inherit;
+    font-size: 16px;
+    padding: 6px 4px;
+    display: none;
+  }
+  .back.show { display: inline-flex; align-items: center; gap: 2px; }
+  .back b { font-size: 26px; font-weight: 300; line-height: 16px; margin-top: -3px; }
+  .dot { justify-self: end; width: 9px; height: 9px; border-radius: 50%; background: #30d158; box-shadow: 0 0 0 3px rgba(48, 209, 88, 0.25); }
+  .dot.off { background: #ff453a; box-shadow: 0 0 0 3px rgba(255, 69, 58, 0.25); }
+
+  main {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    gap: 18px 10px;
+    padding: 20px 14px calc(env(safe-area-inset-bottom) + 24px);
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--label);
+    font: inherit;
+    min-width: 0;
+  }
+  .icon {
+    position: relative;
+    width: 100%;
+    max-width: 92px;
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  .tile:active .icon, .tile.pressed .icon { transform: scale(0.88); filter: brightness(0.8); }
+  .icon .glyph { font-size: min(10vw, 40px); line-height: 1; color: #fff; font-weight: 700; }
+  .icon img.fit { width: 62%; height: 62%; object-fit: contain; }
+  .icon img.full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .icon.glass { background: var(--glass); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+  .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7%; width: 70%; aspect-ratio: 1; align-content: start; }
+  .mini span { aspect-ratio: 1; border-radius: 24%; display: grid; place-items: center; overflow: hidden; font-size: 2.4vw; }
+  .mini img { width: 100%; height: 100%; object-fit: cover; }
+  .label { font-size: 12.5px; font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+  .badge { position: absolute; top: 6%; right: 7%; font-size: 9px; padding: 0 4px; border-radius: 6px; background: rgba(0, 0, 0, 0.35); color: #fff; }
+  /* 누른 결과 표시 */
+  .tile.ok .icon::after, .tile.fail .icon::after {
+    content: "✓";
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 38px; font-weight: 800; color: #fff;
+    background: rgba(48, 209, 88, 0.75);
+  }
+  .tile.fail .icon::after { content: "✕"; background: rgba(255, 69, 58, 0.8); }
+
+  .empty, .msg { grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateX(-50%) translateY(20px);
+    max-width: calc(100% - 32px);
+    padding: 11px 18px; border-radius: 16px;
+    background: var(--toast-bg); color: var(--toast-text);
+    font-size: 14px; line-height: 1.4;
+    opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* PC 테마에 맞춘 색 (밝은 계열) */
+  body.light { --label: #191f28; }
+  body.light .label { text-shadow: none; }
+  body.light .empty, body.light .msg { color: rgba(0, 0, 0, 0.55); }
+  body.light .icon { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+  body.light .icon.glass { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+</style>
+</head>
+<body>
+<header>
+  <button class="back" id="back"><b>‹</b><span id="backText">뒤로</span></button>
+  <h1 id="title">QuickDeck</h1>
+  <span class="dot" id="dot" title="PC 연결 상태"></span>
+</header>
+<main id="grid"><div class="msg">PC 에 연결하는 중…</div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get("t") || "";
+  const grid = document.getElementById("grid");
+  const title = document.getElementById("title");
+  const back = document.getElementById("back");
+  const backText = document.getElementById("backText");
+  const dot = document.getElementById("dot");
+  const toastEl = document.getElementById("toast");
+
+  // 홈 화면에 추가했을 때도 열쇠가 들어간 주소로 열리게
+  const mf = document.createElement("link");
+  mf.rel = "manifest";
+  mf.href = "/manifest.json?t=" + encodeURIComponent(token);
+  document.head.appendChild(mf);
+
+  let deck = null;
+  let version = -1;
+  let path = []; // 열려 있는 폴더 id 목록
+
+  const THEMES = {
+    light:  { bar: "rgba(249,249,249,0.92)", text: "#000", bg: "#eef1f7", accent: "#007aff", light: true },
+    dark:   {},
+    auto:   {},
+    baemin: { bar: "#2ac1bc", text: "#fff", bg: "#ffffff", accent: "#12a8a3", light: true, radius: "28%" },
+    kakao:  { bar: "#fee500", text: "#3c1e1e", bg: "#b2c7da", accent: "#3c1e1e", light: true, radius: "36%" },
+    toss:   { bar: "#ffffff", text: "#191f28", bg: "#f2f4f6", accent: "#3182f6", light: true, radius: "30%" },
+    line:   { bar: "#06c755", text: "#fff", bg: "#ffffff", accent: "#04a846", light: true, radius: "26%" },
+  };
+
+  function applyTheme(name) {
+    const t = THEMES[name] || {};
+    const r = document.documentElement.style;
+    const auto = name === "auto" && window.matchMedia("(prefers-color-scheme: light)").matches;
+    const use = auto ? THEMES.light : t;
+    r.setProperty("--bar", use.bar || "rgba(22,22,24,0.9)");
+    r.setProperty("--bar-text", use.text || "#fff");
+    if (use.bg) r.setProperty("--bg", use.bg); else r.removeProperty("--bg");
+    r.setProperty("--accent", use.accent || "#0a84ff");
+    r.setProperty("--radius", use.radius || "22.5%");
+    document.body.classList.toggle("light", !!use.light);
+    document.querySelector('meta[name="theme-color"]').content = use.bar && !use.bar.startsWith("rgba") ? use.bar : (use.light ? "#f9f9f9" : "#000000");
+  }
+
+  function toast(text, ms = 2200) {
+    toastEl.textContent = text;
+    toastEl.classList.add("show");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => toastEl.classList.remove("show"), ms);
+  }
+
+  function current() {
+    let list = deck.buttons;
+    const names = [];
+    for (const id of path) {
+      const f = list.find((b) => b.id === id && b.kind === "folder");
+      if (!f) { path = []; return { list: deck.buttons, names: [] }; }
+      names.push(f.label);
+      list = f.children;
+    }
+    return { list, names };
+  }
+
+  function iconHtml(b) {
+    if (b.kind === "folder" && !b.image && b.children.length) {
+      const minis = b.children.slice(0, 9).map((c) =>
+        `<span style="background:${c.image && c.imageFull ? "transparent" : esc(c.color)}">${c.image ? `<img src="${c.image}">` : esc(c.icon)}</span>`).join("");
+      return `<span class="icon glass"><span class="mini">${minis}</span></span>`;
+    }
+    const full = b.image && b.imageFull;
+    const bg = full ? "" : `background:${esc(b.color)}`;
+    const inner = b.image ? `<img class="${full ? "full" : "fit"}" src="${b.image}">` : `<span class="glyph">${esc(b.icon || (b.kind === "folder" ? "📁" : ""))}</span>`;
+    const badge = b.kind === "multi" ? '<span class="badge">⛓</span>' : (b.kind === "folder" && b.image ? '<span class="badge">▦</span>' : "");
+    return `<span class="icon${b.kind === "folder" && !b.image ? " glass" : ""}" style="${bg}">${inner}${badge}</span>`;
+  }
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function render() {
+    if (!deck) return;
+    const { list, names } = current();
+    document.documentElement.style.setProperty("--cols", Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6));
+    title.textContent = names.length ? names[names.length - 1] : "QuickDeck";
+    back.classList.toggle("show", path.length > 0);
+    backText.textContent = names.length > 1 ? names[names.length - 2] : "홈";
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty">이 화면에는 버튼이 없어요.<br>PC 의 QuickDeck 에서 버튼을 추가해 보세요.</div>';
+      return;
+    }
+    grid.innerHTML = list.map((b) =>
+      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}">${iconHtml(b)}<span class="label">${esc(b.label)}</span></button>`).join("");
+  }
+
+  async function press(tile) {
+    const id = tile.dataset.id;
+    const kind = tile.dataset.kind;
+    if (navigator.vibrate) navigator.vibrate(12);
+    tile.classList.add("pressed");
+    setTimeout(() => tile.classList.remove("pressed"), 150);
+    if (kind === "folder") {
+      path.push(id);
+      render();
+      window.scrollTo(0, 0);
+    }
+    try {
+      const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`, { method: "POST" });
+      const j = await r.json();
+      if (kind === "folder") { if (!j.ok) toast(j.error); return; }
+      flash(id, j.ok);
+      if (!j.ok) toast(j.error || "실행하지 못했어요", 3500);
+    } catch {
+      setOnline(false);
+      toast("PC 에 연결할 수 없어요. 같은 와이파이인지 확인해 주세요", 3500);
+    }
+  }
+
+  function flash(id, ok) {
+    const el = grid.querySelector(`.tile[data-id="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.classList.add(ok ? "ok" : "fail");
+    setTimeout(() => el.classList.remove("ok", "fail"), 700);
+  }
+
+  function setOnline(on) { dot.classList.toggle("off", !on); }
+
+  async function poll() {
+    if (document.hidden) return;
+    try {
+      const r = await fetch(`/api/deck?t=${encodeURIComponent(token)}&v=${version}`, { cache: "no-store" });
+      const j = await r.json();
+      if (r.status === 403) {
+        grid.innerHTML = `<div class="msg">${esc(j.error)}</div>`;
+        setOnline(false);
+        return;
+      }
+      setOnline(true);
+      if (j.changed) {
+        deck = j;
+        version = j.version;
+        applyTheme(j.theme || "dark");
+        render();
+      }
+    } catch {
+      setOnline(false);
+    }
+  }
+
+  grid.addEventListener("click", (e) => {
+    const tile = e.target.closest(".tile");
+    if (tile) press(tile);
+  });
+  back.addEventListener("click", () => { path.pop(); render(); });
+  document.addEventListener("visibilitychange", poll);
+  window.addEventListener("resize", render);
+
+  if (!token) {
+    grid.innerHTML = '<div class="msg">PC 의 QuickDeck 설정에서<br><b>휴대폰 리모컨</b>을 켜고 QR 코드를 찍어 주세요.</div>';
+    setOnline(false);
+    return;
+  }
+  poll();
+  setInterval(poll, 1500);
+})();
+</script>
+</body>
+</html>
