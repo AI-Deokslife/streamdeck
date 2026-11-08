@@ -1708,3 +1708,12 @@ kbd {
   cursor: pointer;
   padding: 4px 6px;
 }
+
+/* ---------- 프리셋 분류 ---------- */
+.preset-group { margin-bottom: 8px; }
+.preset-group-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--label-2, #8e8e93);
+  margin: 6px 2px 4px;
+}

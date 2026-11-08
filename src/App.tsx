@@ -482,13 +482,14 @@ export default function App() {
     const folder = presetFolder(p, launch, image);
     editHere((list) => [...list, folder]);
     setSelectedId(folder.id);
-    showToast(
-      launch
+    // 연결 프로그램이 없는 프리셋(유튜브·Windows 기본)은 설치 위치를 찾을 필요가 없다
+    const general = p.apps.length === 0;
+    const base = general
+      ? `'${p.name}' 폴더를 만들었어요.`
+      : launch
         ? `'${p.name}' 폴더를 만들었어요. 누르면 ${p.name}이(가) 실행돼요.`
-        : `'${p.name}' 폴더를 만들었어요. 설치 위치를 못 찾았으니 '폴더를 누르면 실행할 프로그램'에 경로를 넣어 주세요.`,
-      launch ? "info" : "error",
-      5000,
-    );
+        : `'${p.name}' 폴더를 만들었어요. 설치 위치를 못 찾았으니 '폴더를 누르면 실행할 프로그램'에 경로를 넣어 주세요.`;
+    showToast(p.note ? `${base}\n${p.note}` : base, general || launch ? "info" : "error", p.note ? 9000 : 5000);
   }
 
   /** 현재 폴더의 버튼 목록을 바꾼다 */

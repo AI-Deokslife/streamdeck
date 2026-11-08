@@ -3,7 +3,7 @@ import { firstImage, imageToDataUrl } from "./image";
 import { IconPatch, IconSource, canAutoIcon, fetchIcon, iconSource, sourceKey } from "./icons";
 import { invoke } from "@tauri-apps/api/core";
 import HotkeyInput from "./HotkeyInput";
-import { APP_PRESETS, AppPreset } from "./presets";
+import { APP_PRESETS, AppPreset, PRESET_GROUPS } from "./presets";
 import { FolderOption, Path, countDeep } from "./tree";
 import {
   ACTION_ICONS,
@@ -1150,16 +1150,21 @@ export function SettingsEditor({
       <p className="hint">
         고르면 그 프로그램에서 자주 쓰는 명령이 담긴 폴더가 이 화면에 만들어지고, 그 프로그램이 앞에 오면 자동으로 열려요.
       </p>
-      <div className="chips">
-        {APP_PRESETS.map((p) => (
-          <button key={p.id} type="button" className="chip preset" onClick={() => onAddPreset(p)}>
-            <span className="preset-icon" style={{ background: p.color }}>
-              {p.icon}
-            </span>
-            {p.name}
-          </button>
-        ))}
-      </div>
+      {PRESET_GROUPS.map((g) => (
+        <div key={g} className="preset-group">
+          <div className="preset-group-name">{g}</div>
+          <div className="chips">
+            {APP_PRESETS.filter((p) => p.group === g).map((p) => (
+              <button key={p.id} type="button" className="chip preset" onClick={() => onAddPreset(p)}>
+                <span className="preset-icon" style={{ background: p.color }}>
+                  {p.icon}
+                </span>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
 
       <label>아이콘</label>
       <p className="hint">

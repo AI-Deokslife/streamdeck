@@ -2,15 +2,22 @@
 // 단축키 형식: "ctrl+s", 공백으로 구분하면 순서대로 (한글의 겹글쇠 Ctrl+N,T → "ctrl+n t")
 import { DeckButton } from "./types";
 
-type Item = [label: string, icon: string, keys: string];
+/** [이름, 아이콘, 보낼 키] — 키 대신 { url } 이면 웹사이트 열기 */
+type Item = [label: string, icon: string, keys: string | { url: string }];
+
+export type PresetGroup = "문서·업무" | "회의·소통" | "웹·영상" | "디자인·방송" | "개발·시스템";
+export const PRESET_GROUPS: PresetGroup[] = ["문서·업무", "회의·소통", "웹·영상", "디자인·방송", "개발·시스템"];
 
 export interface AppPreset {
   id: string;
   name: string;
   icon: string;
   color: string;
-  /** 연결할 실행 파일 이름 */
+  group: PresetGroup;
+  /** 연결할 실행 파일 이름 (비우면 어느 프로그램에서나 쓰는 일반 폴더) */
   apps: string[];
+  /** 추가할 때 함께 보여 줄 안내 */
+  note?: string;
   items: Item[];
   /** 하위 폴더로 묶을 명령들 */
   subfolders?: { name: string; icon: string; items: Item[] }[];
@@ -19,6 +26,7 @@ export interface AppPreset {
 export const APP_PRESETS: AppPreset[] = [
   {
     id: "hwp",
+    group: "문서·업무",
     name: "한글",
     icon: "한",
     color: "#2b6cb0",
@@ -64,6 +72,7 @@ export const APP_PRESETS: AppPreset[] = [
   },
   {
     id: "word",
+    group: "문서·업무",
     name: "Word",
     icon: "W",
     color: "#2b579a",
@@ -87,6 +96,7 @@ export const APP_PRESETS: AppPreset[] = [
   },
   {
     id: "excel",
+    group: "문서·업무",
     name: "Excel",
     icon: "X",
     color: "#217346",
@@ -108,6 +118,7 @@ export const APP_PRESETS: AppPreset[] = [
   },
   {
     id: "ppt",
+    group: "문서·업무",
     name: "PowerPoint",
     icon: "P",
     color: "#c43e1c",
@@ -122,9 +133,27 @@ export const APP_PRESETS: AppPreset[] = [
       ["저장", "💾", "ctrl+s"],
       ["실행 취소", "↩️", "ctrl+z"],
     ],
+    subfolders: [
+      {
+        name: "발표 중",
+        icon: "🎤",
+        items: [
+          ["다음", "▶️", "right"],
+          ["이전", "◀️", "left"],
+          ["화면 검게", "⬛", "b"],
+          ["화면 하얗게", "⬜", "w"],
+          ["펜", "🖊️", "ctrl+p"],
+          ["레이저 포인터", "🔴", "ctrl+l"],
+          ["화살표로", "🖱️", "ctrl+a"],
+          ["잉크 지우기", "🧽", "e"],
+          ["쇼 끝내기", "⏹️", "esc"],
+        ],
+      },
+    ],
   },
   {
     id: "browser",
+    group: "웹·영상",
     name: "웹 브라우저",
     icon: "🌐",
     color: "#2c7a7b",
@@ -146,6 +175,7 @@ export const APP_PRESETS: AppPreset[] = [
   },
   {
     id: "vscode",
+    group: "개발·시스템",
     name: "VS Code",
     icon: "💻",
     color: "#0078d4",
@@ -163,6 +193,250 @@ export const APP_PRESETS: AppPreset[] = [
       ["줄 복제", "📑", "shift+alt+down"],
     ],
   },
+  // ---------------- 새로 추가한 프리셋 ----------------
+  {
+    id: "notepad",
+    group: "문서·업무",
+    name: "메모장",
+    icon: "📝",
+    color: "#3a7bd5",
+    apps: ["notepad.exe"],
+    items: [
+      ["새 탭", "➕", "ctrl+t"],
+      ["새 창", "🗗", "ctrl+n"],
+      ["열기", "📂", "ctrl+o"],
+      ["저장", "💾", "ctrl+s"],
+      ["찾기", "🔍", "ctrl+f"],
+      ["바꾸기", "🔁", "ctrl+h"],
+      ["줄로 이동", "↧", "ctrl+g"],
+      ["날짜·시간 넣기", "🕒", "f5"],
+      ["확대", "🔎", "ctrl+equal"],
+      ["축소", "➖", "ctrl+minus"],
+      ["원래 크기", "1️⃣", "ctrl+0"],
+    ],
+  },
+  {
+    id: "explorer",
+    group: "문서·업무",
+    name: "파일 탐색기",
+    icon: "🗂️",
+    color: "#e0a526",
+    apps: ["explorer.exe"],
+    note: "바탕화면을 클릭해도 탐색기로 인식되어 이 폴더가 열릴 수 있어요. 싫으면 폴더 설정에서 연결 프로그램을 지우세요.",
+    items: [
+      ["새 폴더", "📁", "ctrl+shift+n"],
+      ["이름 바꾸기", "✏️", "f2"],
+      ["경로 복사", "📋", "ctrl+shift+c"],
+      ["뒤로", "◀️", "alt+left"],
+      ["상위 폴더", "⤴️", "alt+up"],
+      ["주소창", "🔗", "alt+d"],
+      ["검색", "🔍", "ctrl+e"],
+      ["새 탭", "➕", "ctrl+t"],
+      ["새 창", "🗗", "ctrl+n"],
+      ["속성", "ℹ️", "alt+enter"],
+      ["미리 보기 창", "👁️", "alt+p"],
+    ],
+  },
+  {
+    id: "zoom",
+    group: "회의·소통",
+    name: "Zoom",
+    icon: "📹",
+    color: "#2d8cff",
+    apps: ["Zoom.exe"],
+    // 출처: Zoom 고객지원 '단축키' (Windows 회의 중 기본 단축키)
+    items: [
+      ["마이크 켜기/끄기", "🎙️", "alt+a"],
+      ["카메라 켜기/끄기", "📷", "alt+v"],
+      ["화면 공유", "🖥️", "alt+s"],
+      ["손들기/내리기", "✋", "alt+y"],
+      ["채팅", "💬", "alt+h"],
+      ["참가자", "👥", "alt+u"],
+      ["녹화", "⏺️", "alt+r"],
+      ["전체 화면", "⛶", "alt+f"],
+      ["회의 나가기", "🚪", "alt+q"],
+    ],
+  },
+  {
+    id: "teams",
+    group: "회의·소통",
+    name: "Teams",
+    icon: "👥",
+    color: "#5b5fc7",
+    apps: ["ms-teams.exe", "Teams.exe"],
+    // 출처: Microsoft Teams 바로 가기 키 (Windows)
+    items: [
+      ["마이크 켜기/끄기", "🎙️", "ctrl+shift+m"],
+      ["카메라 켜기/끄기", "📷", "ctrl+shift+o"],
+      ["화면 공유", "🖥️", "ctrl+shift+e"],
+      ["손들기/내리기", "✋", "ctrl+shift+k"],
+      ["통화 끊기", "📞", "ctrl+shift+h"],
+      ["활동", "🔔", "ctrl+1"],
+      ["채팅", "💬", "ctrl+2"],
+      ["검색", "🔍", "ctrl+e"],
+    ],
+  },
+  {
+    id: "kakaotalk",
+    group: "회의·소통",
+    name: "카카오톡",
+    icon: "💬",
+    color: "#3c1e1e",
+    apps: ["KakaoTalk.exe"],
+    items: [
+      ["친구", "👤", "ctrl+1"],
+      ["채팅", "💬", "ctrl+2"],
+      ["검색", "🔍", "ctrl+f"],
+      ["잠금", "🔒", "ctrl+l"],
+      ["창 닫기", "✖️", "esc"],
+    ],
+  },
+  {
+    id: "youtube",
+    group: "웹·영상",
+    name: "유튜브",
+    icon: "▶️",
+    color: "#e62117",
+    apps: [],
+    note: "유튜브 영상이 열린 브라우저 창을 클릭해 둔 뒤 버튼을 누르세요.",
+    // 출처: YouTube 고객센터 '키보드 단축키'
+    items: [
+      ["유튜브 열기", "🌐", { url: "https://www.youtube.com" }],
+      ["재생/정지", "⏯️", "k"],
+      ["10초 뒤로", "⏪", "j"],
+      ["10초 앞으로", "⏩", "l"],
+      ["전체 화면", "⛶", "f"],
+      ["자막", "💬", "c"],
+      ["음소거", "🔇", "m"],
+      ["빠르게", "⏫", "shift+period"],
+      ["느리게", "⏬", "shift+comma"],
+      ["다음 영상", "⏭️", "shift+n"],
+      ["미니 플레이어", "🗔", "i"],
+    ],
+  },
+  {
+    id: "player",
+    group: "웹·영상",
+    name: "곰·팟플레이어",
+    icon: "🎬",
+    color: "#2f9e44",
+    apps: ["GOM.exe", "PotPlayerMini64.exe", "PotPlayerMini.exe", "PotPlayer64.exe"],
+    items: [
+      ["재생/정지", "⏯️", "space"],
+      ["뒤로", "⏪", "left"],
+      ["앞으로", "⏩", "right"],
+      ["빠르게", "⏫", "c"],
+      ["느리게", "⏬", "x"],
+      ["원래 속도", "1️⃣", "z"],
+      ["전체 화면", "⛶", "enter"],
+      ["소리 크게", "🔊", "up"],
+      ["소리 작게", "🔉", "down"],
+      ["음소거", "🔇", "m"],
+    ],
+  },
+  {
+    id: "photoshop",
+    group: "디자인·방송",
+    name: "Photoshop",
+    icon: "Ps",
+    color: "#001e36",
+    apps: ["Photoshop.exe"],
+    // 출처: Adobe Photoshop 기본 바로 가기 키 (Windows)
+    items: [
+      ["이동", "✥", "v"],
+      ["브러시", "🖌️", "b"],
+      ["지우개", "🧽", "e"],
+      ["사각 선택", "⬚", "m"],
+      ["문자", "T", "t"],
+      ["색 바꾸기", "🔄", "x"],
+      ["브러시 작게", "➖", "["],
+      ["브러시 크게", "➕", "]"],
+      ["새 레이어", "🗒️", "ctrl+shift+n"],
+      ["레이어 복제", "📑", "ctrl+j"],
+      ["자유 변형", "↔️", "ctrl+t"],
+      ["실행 취소", "↩️", "ctrl+z"],
+      ["화면에 맞추기", "🔲", "ctrl+0"],
+    ],
+  },
+  {
+    id: "figma",
+    group: "디자인·방송",
+    name: "Figma",
+    icon: "◐",
+    color: "#a259ff",
+    apps: ["Figma.exe"],
+    items: [
+      ["프레임", "#", "f"],
+      ["사각형", "▭", "r"],
+      ["원", "◯", "o"],
+      ["선", "／", "l"],
+      ["펜", "🖊️", "p"],
+      ["텍스트", "T", "t"],
+      ["그룹", "🔗", "ctrl+g"],
+      ["그룹 해제", "⛓️", "ctrl+shift+g"],
+      ["복제", "📑", "ctrl+d"],
+      ["오토 레이아웃", "▤", "shift+a"],
+      ["전체 보기", "🔲", "shift+1"],
+      ["빠른 작업", "⚡", "ctrl+slash"],
+    ],
+  },
+  {
+    id: "canva",
+    group: "디자인·방송",
+    name: "Canva",
+    icon: "C",
+    color: "#00c4cc",
+    apps: ["Canva.exe"],
+    items: [
+      ["텍스트", "T", "t"],
+      ["사각형", "▭", "r"],
+      ["원", "◯", "c"],
+      ["선", "／", "l"],
+      ["그룹", "🔗", "ctrl+g"],
+      ["그룹 해제", "⛓️", "ctrl+shift+g"],
+      ["복제", "📑", "ctrl+d"],
+      ["실행 취소", "↩️", "ctrl+z"],
+    ],
+  },
+  {
+    id: "obs",
+    group: "디자인·방송",
+    name: "OBS Studio",
+    icon: "⏺️",
+    color: "#302e31",
+    apps: ["obs64.exe"],
+    note: "OBS는 기본 단축키가 없어요. OBS 설정 → 단축키에서 각 버튼의 키(Ctrl+Alt+1~6)를 똑같이 지정해 주세요.",
+    items: [
+      ["방송 시작/중지", "📡", "ctrl+alt+1"],
+      ["녹화 시작/중지", "⏺️", "ctrl+alt+2"],
+      ["녹화 일시정지", "⏸️", "ctrl+alt+3"],
+      ["장면 1", "1️⃣", "ctrl+alt+4"],
+      ["장면 2", "2️⃣", "ctrl+alt+5"],
+      ["마이크 음소거", "🎙️", "ctrl+alt+6"],
+    ],
+  },
+  {
+    id: "windows",
+    group: "개발·시스템",
+    name: "Windows 기본",
+    icon: "⊞",
+    color: "#0067c0",
+    apps: [],
+    items: [
+      ["화면 캡처", "✂️", "win+shift+s"],
+      ["바탕화면", "🖥️", "win+d"],
+      ["작업 보기", "🗂️", "win+tab"],
+      ["클립보드 기록", "📋", "win+v"],
+      ["이모지", "😀", "win+period"],
+      ["파일 탐색기", "📁", "win+e"],
+      ["설정", "⚙️", "win+i"],
+      ["실행", "▶️", "win+r"],
+      ["작업 관리자", "📊", "ctrl+shift+esc"],
+      ["화면 녹화", "⏺️", "win+alt+r"],
+      ["새 가상 데스크톱", "➕", "win+ctrl+d"],
+      ["화면 잠금", "🔒", "win+l"],
+    ],
+  },
 ];
 
 function keyButton([label, icon, keys]: Item, color: string): DeckButton {
@@ -172,7 +446,7 @@ function keyButton([label, icon, keys]: Item, color: string): DeckButton {
     icon,
     color,
     hotkey: "",
-    action: { type: "keys", keys, app: "" },
+    action: typeof keys === "string" ? { type: "keys", keys, app: "" } : { type: "url", url: keys.url },
   };
 }
 
