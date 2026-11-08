@@ -20,7 +20,7 @@ import {
   updateAt,
   updateById,
 } from "./tree";
-import { AppFocus, Config, DeckButton, newButton } from "./types";
+import { AppFocus, Config, DeckButton, STYLE_THEMES, newButton } from "./types";
 import "./App.css";
 
 /** 아이콘 아래 이름 줄 + 간격 */
@@ -153,8 +153,8 @@ export default function App() {
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
-      if (theme === "baemin") {
-        document.documentElement.dataset.theme = "baemin";
+      if (STYLE_THEMES.includes(theme)) {
+        document.documentElement.dataset.theme = theme;
         return;
       }
       const light = theme === "light" || (theme === "auto" && media.matches);

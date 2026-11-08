@@ -774,6 +774,19 @@ function FolderAppFields({
   );
 }
 
+// ---------------- 테마 고르기 ----------------
+
+/** 테마 고르기 카드: 미리보기 색(바 / 바탕 / 포인트 / 아이콘)과 설명 */
+const THEME_CARDS: { value: Theme; name: string; bar: string; bg: string; accent: string; tile: string; desc: string }[] = [
+  { value: "auto", name: "자동", bar: "linear-gradient(90deg,#f9f9f9 50%,#1c1c1e 50%)", bg: "linear-gradient(90deg,#eef1f7 50%,#050507 50%)", accent: "#0a84ff", tile: "#8e8e93", desc: "Windows의 밝게/어둡게 설정을 따라가요." },
+  { value: "light", name: "밝게", bar: "#f9f9f9", bg: "#eef1f7", accent: "#007aff", tile: "#c7c7cc", desc: "Apple 스타일의 밝은 화면이에요." },
+  { value: "dark", name: "어둡게", bar: "#1c1c1e", bg: "#050507", accent: "#0a84ff", tile: "#3a3a3c", desc: "Apple 스타일의 어두운 화면이에요." },
+  { value: "baemin", name: "배민", bar: "#2ac1bc", bg: "#ffffff", accent: "#2ac1bc", tile: "#e4f7f6", desc: "민트색과 손글씨 글꼴(주아체·도현체), 재치 있는 말투의 테마예요." },
+  { value: "kakao", name: "카톡", bar: "#fee500", bg: "#b2c7da", accent: "#3c1e1e", tile: "#ffffff", desc: "노란 바와 하늘색 대화방 바탕의 테마예요." },
+  { value: "toss", name: "토스", bar: "#ffffff", bg: "#f2f4f6", accent: "#3182f6", tile: "#ffffff", desc: "파란 포인트와 흰 카드로 깔끔한 테마예요." },
+  { value: "line", name: "라인", bar: "#06c755", bg: "#ffffff", accent: "#06c755", tile: "#e7f8ee", desc: "초록 바와 흰 바탕의 산뜻한 테마예요." },
+];
+
 // ---------------- 전체 설정 ----------------
 
 interface SettingsProps {
@@ -815,28 +828,33 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onAppl
         버튼을 클릭하면 편집하고, 끌어서 순서를 바꿀 수 있어요. 폴더는 더블클릭하면 안으로 들어갑니다.
       </p>
       <label>화면 테마</label>
-      <div className="segmented" role="radiogroup" aria-label="화면 테마">
-        {(
-          [
-            ["auto", "자동"],
-            ["light", "밝게"],
-            ["dark", "어둡게"],
-            ["baemin", "배민"],
-          ] as [Theme, string][]
-        ).map(([value, name]) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={(config.theme ?? "auto") === value}
-            className={(config.theme ?? "auto") === value ? "on" : ""}
-            onClick={() => onChange({ ...config, theme: value })}
-          >
-            {name}
-          </button>
-        ))}
+      <div className="theme-grid" role="radiogroup" aria-label="화면 테마">
+        {THEME_CARDS.map((c) => {
+          const on = (config.theme ?? "auto") === c.value;
+          return (
+            <button
+              key={c.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className={"theme-card" + (on ? " on" : "")}
+              onClick={() => onChange({ ...config, theme: c.value })}
+              title={c.desc}
+            >
+              <span className="theme-preview" style={{ background: c.bg }}>
+                <span className="tp-bar" style={{ background: c.bar }} />
+                <span className="tp-dots">
+                  <i style={{ background: c.accent }} />
+                  <i style={{ background: c.tile }} />
+                  <i style={{ background: c.tile }} />
+                </span>
+              </span>
+              <span className="theme-name">{c.name}</span>
+            </button>
+          );
+        })}
       </div>
-      <p className="hint">자동은 Windows의 밝게/어둡게 설정을 따라가요. 배민은 민트색과 손글씨 글꼴(주아체·도현체), 재치 있는 말투의 테마예요.</p>
+      <p className="hint">{THEME_CARDS.find((c) => c.value === (config.theme ?? "auto"))?.desc}</p>
 
       <label>창 보이기 / 숨기기 단축키</label>
       <HotkeyInput

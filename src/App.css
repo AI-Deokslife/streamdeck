@@ -1214,3 +1214,352 @@ kbd {
   content: "앗! ";
   color: #fff;
 }
+
+/* ---------- 테마 고르기 카드 ---------- */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 4px 7px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 0.5px var(--separator);
+  color: var(--label);
+}
+.theme-card.on {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+.theme-card.on .theme-name {
+  color: var(--blue);
+  font-weight: 700;
+}
+.theme-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.5;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+}
+.tp-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 26%;
+  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.12);
+}
+.tp-dots {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 16%;
+  display: flex;
+  justify-content: space-between;
+}
+.tp-dots i {
+  width: 24%;
+  aspect-ratio: 1;
+  border-radius: 28%;
+  box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.2);
+}
+.theme-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* =====================================================================
+   스타일 테마 공통(카톡·토스·라인): 글꼴은 가독성 좋은 Pretendard, 밝은 바탕 고정
+   ===================================================================== */
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) {
+  --bg-elevated: #ffffff;
+  --label: #191f28;
+  --label-2: rgba(25, 31, 40, 0.56);
+  --label-3: rgba(25, 31, 40, 0.3);
+  --fill: rgba(0, 0, 0, 0.08);
+  --fill-2: rgba(0, 0, 0, 0.05);
+  --fill-3: rgba(0, 0, 0, 0.035);
+  --red: #f04452;
+  --orange: #ff8a00;
+  --tinted-red: rgba(240, 68, 82, 0.1);
+  --shadow-icon: 0 1px 2px rgba(0, 0, 0, 0.08), 0 3px 8px rgba(0, 0, 0, 0.07);
+  color-scheme: light;
+}
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) .app-icon {
+  background-image: none;
+}
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) .app-icon.glass {
+  backdrop-filter: none;
+}
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) .tile-label {
+  text-shadow: none;
+  font-weight: 600;
+}
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) .navbar {
+  backdrop-filter: none;
+}
+:root:is([data-theme="kakao"], [data-theme="toss"], [data-theme="line"]) .nav-title-text {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* ---------- 카톡 스타일: 노란 바 + 하늘색 대화방 바탕 + 말풍선 알림 ---------- */
+:root[data-theme="kakao"] {
+  --yellow: #fee500;
+  --brown: #3c1e1e;
+  --bg: #ffffff;
+  --bg-elevated-2: #f6f6f6;
+  --bg-elevated-3: #ececec;
+  --separator: #e5e5e5;
+  --bar: var(--yellow);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --blue: #3c1e1e;
+  --green: #f7cf00;
+  --tinted-blue: rgba(254, 229, 0, 0.45);
+  --wallpaper: #b2c7da;
+}
+:root[data-theme="kakao"] .navbar {
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="kakao"] :is(.nav-title-text, .nav-btn, .nav-back, .nav-home, .nav-icon) {
+  color: var(--brown);
+}
+:root[data-theme="kakao"] .nav-subtitle {
+  color: rgba(60, 30, 30, 0.6);
+}
+:root[data-theme="kakao"] .auto-pill {
+  color: var(--brown);
+}
+:root[data-theme="kakao"] .nav-btn.bold {
+  background: var(--brown);
+  color: var(--yellow);
+}
+:root[data-theme="kakao"] .app-icon {
+  border-radius: 36%;
+}
+:root[data-theme="kakao"] .tile-label {
+  color: #26313b;
+}
+:root[data-theme="kakao"] .app-icon.dashed {
+  border-color: rgba(60, 30, 30, 0.35);
+}
+:root[data-theme="kakao"] button.primary,
+:root[data-theme="kakao"] .segmented button.on {
+  background: var(--yellow);
+  color: var(--brown);
+}
+:root[data-theme="kakao"] .chip {
+  background: #fff7b3;
+  color: var(--brown);
+}
+:root[data-theme="kakao"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 3px var(--yellow), 0 0 0 4px var(--brown), var(--shadow-icon);
+}
+:root[data-theme="kakao"] .editing .tile.selected .tile-label {
+  color: var(--brown);
+}
+/* 노란 말풍선 알림 */
+:root[data-theme="kakao"] .toast {
+  color: var(--brown);
+  background: var(--yellow);
+  backdrop-filter: none;
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+:root[data-theme="kakao"] .toast.info::before {
+  content: "";
+}
+:root[data-theme="kakao"] .toast.error {
+  background: #ffffff;
+  color: #c0392b;
+}
+
+/* ---------- 토스 스타일: 흰 카드 + 파란 포인트 + 넉넉한 여백 ---------- */
+:root[data-theme="toss"] {
+  --toss-blue: #3182f6;
+  --bg: #ffffff;
+  --bg-elevated-2: #f2f4f6;
+  --bg-elevated-3: #e5e8eb;
+  --separator: #e5e8eb;
+  --bar: #ffffff;
+  --glass: #f2f4f6;
+  --glass-border: #e5e8eb;
+  --blue: var(--toss-blue);
+  --green: var(--toss-blue);
+  --tinted-blue: rgba(49, 130, 246, 0.1);
+  --wallpaper: #f2f4f6;
+  --radius-cell: 12px;
+  --radius-sheet: 22px;
+}
+:root[data-theme="toss"] .navbar {
+  border-bottom: none;
+  min-height: 50px;
+}
+:root[data-theme="toss"] .nav-title-text {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+:root[data-theme="toss"] .grid {
+  gap: 12px 8px;
+  padding: 14px 12px;
+}
+/* 아이콘을 흰 카드 위에 올린 느낌 */
+:root[data-theme="toss"] .tile {
+  padding: 8px 2px 7px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="toss"] .tile.add,
+:root[data-theme="toss"] .tile.back {
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-theme="toss"] .app-icon {
+  border-radius: 30%;
+  box-shadow: none;
+}
+:root[data-theme="toss"] .app-icon.glass {
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+:root[data-theme="toss"] .tile-label {
+  color: #333d4b;
+  font-size: 11.5px;
+}
+:root[data-theme="toss"] .editing .tile.selected {
+  box-shadow: 0 0 0 2px var(--toss-blue);
+}
+:root[data-theme="toss"] .editing .tile.selected .app-icon {
+  animation: none;
+  box-shadow: none;
+}
+:root[data-theme="toss"] button {
+  border-radius: 12px;
+  font-weight: 600;
+}
+:root[data-theme="toss"] button.primary,
+:root[data-theme="toss"] .nav-btn.bold {
+  background: var(--toss-blue);
+  color: #fff;
+}
+:root[data-theme="toss"] .segmented button.on {
+  background: #fff;
+  color: var(--toss-blue);
+}
+:root[data-theme="toss"] .editor input,
+:root[data-theme="toss"] .editor select,
+:root[data-theme="toss"] .editor textarea,
+:root[data-theme="toss"] .keycap-box {
+  background: #f2f4f6;
+  box-shadow: none;
+}
+:root[data-theme="toss"] .editor label {
+  color: #4e5968;
+  font-weight: 600;
+}
+:root[data-theme="toss"] .link-box,
+:root[data-theme="toss"] .folder-info,
+:root[data-theme="toss"] .steps,
+:root[data-theme="toss"] .colors {
+  background: #f9fafb;
+  box-shadow: none;
+}
+/* 아래쪽에 뜨는 어두운 알림 */
+:root[data-theme="toss"] .toast {
+  top: auto;
+  bottom: 16px;
+  color: #fff;
+  background: rgba(25, 31, 40, 0.92);
+  backdrop-filter: none;
+  border-radius: 14px;
+  font-weight: 500;
+}
+:root[data-theme="toss"] .toast.info::before {
+  content: "✓ ";
+  color: #64a8ff;
+}
+
+/* ---------- 라인 스타일: 초록 바 + 흰 바탕 ---------- */
+:root[data-theme="line"] {
+  --line-green: #06c755;
+  --line-deep: #04a846;
+  --bg: #ffffff;
+  --bg-elevated-2: #f5f6f7;
+  --bg-elevated-3: #e8eaed;
+  --separator: #e6e8eb;
+  --bar: var(--line-green);
+  --glass: #f2f3f5;
+  --glass-border: #e1e4e8;
+  --blue: var(--line-deep);
+  --green: var(--line-green);
+  --tinted-blue: rgba(6, 199, 85, 0.12);
+  --wallpaper: linear-gradient(180deg, #f4fbf7 0%, #ffffff 40%);
+}
+:root[data-theme="line"] .navbar {
+  border-bottom: none;
+}
+:root[data-theme="line"] :is(.nav-title-text, .nav-btn, .nav-back, .nav-home, .nav-icon) {
+  color: #fff;
+}
+:root[data-theme="line"] .nav-subtitle,
+:root[data-theme="line"] .auto-pill {
+  color: rgba(255, 255, 255, 0.88);
+}
+:root[data-theme="line"] :is(.nav-btn, .nav-back, .nav-home, .nav-icon):hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+:root[data-theme="line"] .nav-btn.bold {
+  background: #fff;
+  color: var(--line-deep);
+}
+:root[data-theme="line"] .app-icon {
+  border-radius: 26%;
+}
+:root[data-theme="line"] .app-icon.glass {
+  box-shadow: inset 0 0 0 1px var(--glass-border), var(--shadow-icon);
+}
+:root[data-theme="line"] .app-icon.dashed {
+  border-color: var(--line-green);
+}
+:root[data-theme="line"] .glyph.plus {
+  color: var(--line-green);
+}
+:root[data-theme="line"] .tile-label {
+  color: #1e2a24;
+}
+:root[data-theme="line"] button.primary,
+:root[data-theme="line"] .segmented button.on {
+  background: var(--line-green);
+  color: #fff;
+}
+:root[data-theme="line"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 3px var(--line-green), var(--shadow-icon);
+}
+:root[data-theme="line"] .link-box,
+:root[data-theme="line"] .folder-info,
+:root[data-theme="line"] .steps {
+  background: #f1fbf5;
+  box-shadow: none;
+}
+:root[data-theme="line"] .toast {
+  color: #fff;
+  background: var(--line-green);
+  backdrop-filter: none;
+  box-shadow: 0 6px 18px rgba(6, 199, 85, 0.3);
+}
+:root[data-theme="line"] .toast.info::before {
+  content: "";
+}
+:root[data-theme="line"] .toast.error {
+  background: var(--red);
+  box-shadow: 0 6px 18px rgba(240, 68, 82, 0.3);
+}

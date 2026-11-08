@@ -39,7 +39,10 @@ export interface Config {
   theme?: Theme;
 }
 
-export type Theme = "auto" | "light" | "dark" | "baemin";
+export type Theme = "auto" | "light" | "dark" | "baemin" | "kakao" | "toss" | "line";
+
+/** 색·모양이 정해진 스타일 테마 (Windows 밝게/어둡게와 상관없이 고정) */
+export const STYLE_THEMES: Theme[] = ["baemin", "kakao", "toss", "line"];
 
 export const ACTION_LABELS: Record<ActionType, string> = {
   launch: "프로그램 / 파일 실행",
