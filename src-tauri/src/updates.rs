@@ -34,13 +34,13 @@ pub fn check_in_background(app: AppHandle, manual: bool, delay: Duration) {
             Ok(None) => {
                 if manual {
                     let v = app.package_info().version.to_string();
-                    let _ = app.emit("update-status", format!("지금 최신 버전이에요 (v{v})"));
+                    status(&app, format!("지금 최신 버전이에요 (v{v})"), "info");
                 }
             }
             Err(e) => {
                 eprintln!("업데이트 확인 실패: {e}");
                 if manual {
-                    let _ = app.emit("update-status", format!("업데이트를 확인하지 못했어요. 인터넷 연결을 확인해 주세요 ({e})"));
+                    status(&app, friendly_error(&e), "error");
                 }
             }
         }
@@ -50,6 +50,29 @@ pub fn check_in_background(app: AppHandle, manual: bool, delay: Duration) {
 async fn tokio_sleep(d: Duration) {
     if !d.is_zero() {
         let _ = tauri::async_runtime::spawn_blocking(move || std::thread::sleep(d)).await;
+    }
+}
+
+/// 트레이 '업데이트 확인' 결과 알림 (kind: info / error)
+#[derive(Serialize, Clone)]
+struct Status {
+    text: String,
+    kind: &'static str,
+}
+
+fn status(app: &AppHandle, text: String, kind: &'static str) {
+    let _ = app.emit("update-status", Status { text, kind });
+}
+
+/// 업데이트 확인 오류를 알기 쉬운 말로
+fn friendly_error(e: &str) -> String {
+    let low = e.to_lowercase();
+    if low.contains("release json") || low.contains("404") || low.contains("not found") {
+        "아직 GitHub에 올라온 업데이트 정보가 없어요. 지금 버전을 그대로 쓰시면 돼요".into()
+    } else if low.contains("dns") || low.contains("connect") || low.contains("timed out") || low.contains("network") {
+        "인터넷에 연결할 수 없어서 업데이트를 확인하지 못했어요".into()
+    } else {
+        format!("업데이트를 확인하지 못했어요 ({e})")
     }
 }
 
@@ -84,4 +107,16 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
     // 숨은 자리 말고 원래 자리를 기억하도록
     crate::autohide::reveal();
     app.restart();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::friendly_error;
+
+    #[test]
+    fn friendly_messages() {
+        assert!(friendly_error("Could not fetch a valid release JSON from the remote").contains("아직 GitHub"));
+        assert!(friendly_error("io: failed to lookup address (dns error)").contains("인터넷"));
+        assert!(friendly_error("something else").contains("something else"));
+    }
 }

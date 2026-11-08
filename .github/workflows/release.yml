@@ -1,0 +1,71 @@
+# 자동 배포: v로 시작하는 태그(예: v0.7.1)를 푸시하면
+# Windows 설치 파일을 빌드·서명하고 GitHub 릴리스에 설치 파일과 latest.json 을 올려 게시한다.
+# (이미 있는 태그를 다시 배포하려면 Actions 탭 → Release → Run workflow 에서 태그 이름 입력)
+#
+# 처음 한 번: 저장소 Settings → Secrets and variables → Actions 에
+#   TAURI_SIGNING_PRIVATE_KEY = %USERPROFILE%\.tauri\quickdeck.key 파일 내용
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "배포할 태그 (예: v0.7.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: 릴리스 설명 (태그 메시지)
+        id: notes
+        shell: bash
+        run: |
+          git fetch --force --tags
+          body="$(git tag -l --format='%(contents)' "$TAG")"
+          [ -z "$body" ] && body="QuickDeck $TAG"
+          {
+            echo "body<<__NOTES__"
+            echo "$body"
+            echo "__NOTES__"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # 키에 암호를 걸지 않았으므로 빈 값
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: QuickDeck ${{ env.TAG }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          args: --bundles nsis

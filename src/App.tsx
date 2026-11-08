@@ -186,7 +186,7 @@ export default function App() {
   useEffect(() => {
     const uns = [
       listen<{ version: string; current: string; notes: string }>("update-available", (e) => setUpdate(e.payload)),
-      listen<string>("update-status", (e) => showToast(e.payload, "info", 4000)),
+      listen<{ text: string; kind: "info" | "error" }>("update-status", (e) => showToast(e.payload.text, e.payload.kind, 5000)),
       listen<{ got: number; total: number | null }>("update-progress", (e) => setUpdating(e.payload)),
     ];
     return () => {
