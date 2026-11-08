@@ -48,7 +48,8 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZBMDZGRUI4RDY1MTFGRTQKUldUa0gxSFd1UDRHYXVGMkp6UGpKcVYyUkNDMGhzN2FMeXg1Z21ZS1JzQ2xmUERJdm1HTm13YlYK",
       "endpoints": [
-        "https://github.com/AI-Deokslife/streamdeck/releases/latest/download/latest.json"
+        "https://github.com/AI-Deokslife/streamdeck/releases/latest/download/latest.json",
+        "https://raw.githubusercontent.com/AI-Deokslife/streamdeck/updates/latest.json"
       ],
       "windows": {
         "installMode": "passive"

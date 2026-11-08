@@ -69,3 +69,33 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: --bundles nsis
+
+      # 1) 버전 번호 없는 고정 이름으로도 올린다 → 릴리스 페이지를 거치지 않는 고정 다운로드 링크
+      #    https://github.com/<저장소>/releases/latest/download/QuickDeck-setup.exe
+      # 2) GitHub 릴리스 경로가 막힐 때를 위한 예비 업데이트 정보:
+      #    updates 브랜치의 latest.json (raw.githubusercontent.com 으로 읽음).
+      #    설치 파일 주소는 다른 경로(api.github.com 의 파일 내려받기)로 바꿔 둔다. 서명은 같은 파일이라 그대로 유효.
+      - name: 고정 다운로드 링크와 예비 업데이트 정보
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          exe=$(ls src-tauri/target/release/bundle/nsis/*_x64-setup.exe | head -1)
+          cp "$exe" QuickDeck-setup.exe
+          gh release upload "$TAG" QuickDeck-setup.exe --clobber --repo "$REPO"
+
+          gh release download "$TAG" -p latest.json -D upd --repo "$REPO" --clobber
+          asset_id=$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets[] | select(.name | test("_x64-setup\\.exe$")) | .id')
+          api_url="https://api.github.com/repos/$REPO/releases/assets/$asset_id"
+          jq --arg u "$api_url" '.platforms |= with_entries(.value.url = $u)' upd/latest.json > upd/latest.tmp
+          mv upd/latest.tmp upd/latest.json
+          cat upd/latest.json
+
+          cd upd
+          git init -q
+          git checkout -q -b updates
+          git add latest.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "latest.json $TAG"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" updates
