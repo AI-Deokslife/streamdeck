@@ -821,6 +821,7 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onAppl
             ["auto", "자동"],
             ["light", "밝게"],
             ["dark", "어둡게"],
+            ["baemin", "배민"],
           ] as [Theme, string][]
         ).map(([value, name]) => (
           <button
@@ -835,7 +836,7 @@ export function SettingsEditor({ config, onChange, onAddPreset, onNotice, onAppl
           </button>
         ))}
       </div>
-      <p className="hint">자동은 Windows의 밝게/어둡게 설정을 따라가요.</p>
+      <p className="hint">자동은 Windows의 밝게/어둡게 설정을 따라가요. 배민은 민트색과 손글씨 글꼴(주아체·도현체), 재치 있는 말투의 테마예요.</p>
 
       <label>창 보이기 / 숨기기 단축키</label>
       <HotkeyInput

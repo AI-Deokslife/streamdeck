@@ -153,6 +153,10 @@ export default function App() {
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
+      if (theme === "baemin") {
+        document.documentElement.dataset.theme = "baemin";
+        return;
+      }
       const light = theme === "light" || (theme === "auto" && media.matches);
       document.documentElement.dataset.theme = light ? "light" : "dark";
     };
@@ -160,6 +164,10 @@ export default function App() {
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [theme]);
+
+  /** 배민 스타일 테마에서는 말투도 재치 있게 바꾼다: t(기본 문구, 배민 문구) */
+  const fun = theme === "baemin";
+  const t = (plain: string, funny: string) => (fun ? funny : plain);
 
   // 폴더가 삭제됐거나 편집 취소로 사라지면 처음 화면으로
   useEffect(() => {
@@ -253,7 +261,7 @@ export default function App() {
       if (launch || apps.length) {
         invoke<"focused" | "launched" | "starting">("activate_app", { apps, launch })
           .then((r) => {
-            if (r === "launched") showToast(`${b.label} 실행 중…`, "info", 2500);
+            if (r === "launched") showToast(t(`${b.label} 실행 중…`, `${b.label} 출동! 🚀`), "info", 2500);
             if (r === "starting") showToast(`${b.label}이(가) 아직 뜨는 중이에요. 잠시만 기다려 주세요`, "info", 2500);
           })
           .catch((e) => showToast(String(e), "error", 8000));
@@ -276,7 +284,7 @@ export default function App() {
         setConfig(draft);
         configRef.current = draft;
         if (warnings.length) showToast(warnings.join("\n"));
-        else showToast("저장했어요", "info");
+        else showToast(t("저장했어요", "저장 완료! 오늘도 한 건 했네요 😎"), "info");
       } catch (e) {
         showToast(String(e));
         return;
@@ -432,7 +440,7 @@ export default function App() {
         <div className="nav-side left" data-tauri-drag-region>
           {editing ? (
             <button className="nav-btn" onClick={() => finishEdit(false)}>
-              취소
+              {t("취소", "안 할래요")}
             </button>
           ) : (
             path.length > 0 && (
@@ -445,11 +453,11 @@ export default function App() {
         </div>
         <div className="nav-title" data-tauri-drag-region>
           <span className="nav-title-text" data-tauri-drag-region>
-            {path.length > 0 ? crumbs[crumbs.length - 1] : editing ? "편집" : "QuickDeck"}
+            {path.length > 0 ? crumbs[crumbs.length - 1] : editing ? t("편집", "꾸미는 중") : "QuickDeck"}
           </span>
           <span className="nav-subtitle" data-tauri-drag-region>
             {editing ? (
-              <span title="편집하는 동안은 프로그램별 자동 전환이 멈춰요">자동 전환 일시정지</span>
+              <span title="편집하는 동안은 프로그램별 자동 전환이 멈춰요">{t("자동 전환 일시정지", "자동 전환은 잠깐 쉬는 중")}</span>
             ) : autoApp ? (
               <span className="auto-pill" title={`${autoApp}에 연결된 폴더 — 다른 프로그램으로 가면 돌아가요`}>
                 ● {autoApp.replace(/\.exe$/i, "")}
@@ -459,14 +467,14 @@ export default function App() {
                 홈으로
               </button>
             ) : (
-              prettyHotkey(config.toggleHotkey)
+              t(prettyHotkey(config.toggleHotkey), `${prettyHotkey(config.toggleHotkey)} 누르면 짠!`)
             )}
           </span>
         </div>
         <div className="nav-side right" data-tauri-drag-region>
           {editing ? (
             <button className="nav-btn bold" onClick={() => finishEdit(true)}>
-              완료
+              {t("완료", "다 했어요")}
             </button>
           ) : (
             <>
@@ -507,7 +515,7 @@ export default function App() {
             <span className="app-icon glass">
               <span className="glyph chevron">‹</span>
             </span>
-            <span className="tile-label">뒤로</span>
+            <span className="tile-label">{t("뒤로", "돌아가기")}</span>
           </button>
         )}
         {buttons.map((b) => {
@@ -566,7 +574,7 @@ export default function App() {
             <span className="app-icon dashed">
               <span className="glyph plus">+</span>
             </span>
-            <span className="tile-label">추가</span>
+            <span className="tile-label">{t("추가", "하나 더!")}</span>
           </button>
         )}
         {editing && copied && (

@@ -1025,3 +1025,192 @@ kbd {
 :root[data-theme="light"] .segmented button.on {
   background: #ffffff;
 }
+
+/* =====================================================================
+   배민 스타일 테마 (data-theme="baemin")
+   민트 한 가지 색 + 손글씨 글꼴(주아체·도현체, SIL OFL 1.1) + 흰 바탕의 단순한 모양
+   글꼴 파일: public/fonts (라이선스 파일 함께 있음)
+   ===================================================================== */
+@font-face {
+  font-family: "BM Jua";
+  src: url("/fonts/Jua-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "BM DoHyeon";
+  src: url("/fonts/DoHyeon-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root[data-theme="baemin"] {
+  --mint: #2ac1bc;
+  --mint-deep: #12a8a3;
+  --mint-soft: #e4f7f6;
+  --bg: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #f5f7f8;
+  --bg-elevated-3: #e9eef0;
+  --label: #232323;
+  --label-2: rgba(35, 35, 35, 0.58);
+  --label-3: rgba(35, 35, 35, 0.32);
+  --separator: #e3e8ea;
+  --fill: rgba(0, 0, 0, 0.09);
+  --fill-2: rgba(0, 0, 0, 0.05);
+  --fill-3: rgba(0, 0, 0, 0.035);
+  --bar: var(--mint);
+  --glass: #f1f5f6;
+  --glass-border: #dfe7e9;
+  --blue: var(--mint-deep);
+  --green: var(--mint);
+  --red: #ff5a4e;
+  --orange: #ff9f2d;
+  --tinted-blue: rgba(42, 193, 188, 0.14);
+  --tinted-red: rgba(255, 90, 78, 0.12);
+  /* 흰 바탕에 민트 점무늬 */
+  --wallpaper: radial-gradient(circle, rgba(42, 193, 188, 0.16) 1.1px, transparent 1.4px) 0 0 / 14px 14px, #ffffff;
+  --shadow-icon: 0 2px 0 rgba(0, 0, 0, 0.06), 0 3px 8px rgba(0, 0, 0, 0.08);
+  --font-fun: "BM Jua", var(--font);
+  --font-title: "BM DoHyeon", "BM Jua", var(--font);
+  color-scheme: light;
+}
+
+/* 내비게이션 바: 민트 띠 + 흰 손글씨 제목 */
+:root[data-theme="baemin"] .navbar {
+  background: var(--mint);
+  backdrop-filter: none;
+  border-bottom: none;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.05);
+}
+:root[data-theme="baemin"] .nav-title-text {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 19px;
+  letter-spacing: 0;
+  color: #fff;
+}
+:root[data-theme="baemin"] .nav-subtitle,
+:root[data-theme="baemin"] .nav-subtitle .auto-pill {
+  font-family: var(--font-fun);
+  color: rgba(255, 255, 255, 0.9);
+}
+:root[data-theme="baemin"] .nav-btn,
+:root[data-theme="baemin"] .nav-back,
+:root[data-theme="baemin"] .nav-home,
+:root[data-theme="baemin"] .nav-icon {
+  font-family: var(--font-fun);
+  color: #fff;
+}
+:root[data-theme="baemin"] .nav-btn:hover,
+:root[data-theme="baemin"] .nav-back:hover,
+:root[data-theme="baemin"] .nav-home:hover,
+:root[data-theme="baemin"] .nav-icon:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+:root[data-theme="baemin"] .nav-btn.bold {
+  background: #fff;
+  color: var(--mint-deep);
+}
+
+/* 아이콘: 광택 없이 평평하게, 이름은 주아체 */
+:root[data-theme="baemin"] .app-icon {
+  background-image: none;
+  border-radius: 28%;
+}
+:root[data-theme="baemin"] .app-icon.glass {
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1.5px var(--glass-border), var(--shadow-icon);
+}
+:root[data-theme="baemin"] .app-icon.dashed {
+  border-color: var(--mint);
+}
+:root[data-theme="baemin"] .glyph.plus {
+  color: var(--mint);
+}
+:root[data-theme="baemin"] .tile-label {
+  font-family: var(--font-fun);
+  font-weight: 400;
+  font-size: 12.5px;
+  text-shadow: none;
+}
+:root[data-theme="baemin"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 3px var(--mint), var(--shadow-icon);
+}
+:root[data-theme="baemin"] .editing .tile.selected .tile-label {
+  color: var(--mint-deep);
+}
+
+/* 버튼: 주아체, 민트 */
+:root[data-theme="baemin"] button {
+  font-family: var(--font-fun);
+  font-weight: 400;
+}
+:root[data-theme="baemin"] button.primary {
+  background: var(--mint);
+}
+:root[data-theme="baemin"] .chip {
+  font-family: var(--font-fun);
+}
+
+/* 편집 시트: 머리말은 도현체 민트색, 입력 칸 글씨는 읽기 쉬운 기본 글꼴 */
+:root[data-theme="baemin"] .panel {
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="baemin"] .panel::before {
+  background: var(--mint);
+  opacity: 0.6;
+}
+:root[data-theme="baemin"] .editor label {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--mint-deep);
+}
+:root[data-theme="baemin"] .editor label.check {
+  font-family: var(--font-fun);
+  color: var(--label);
+}
+:root[data-theme="baemin"] .editor :is(input, select, textarea),
+:root[data-theme="baemin"] .hint,
+:root[data-theme="baemin"] .step-summary,
+:root[data-theme="baemin"] kbd {
+  font-family: var(--font);
+}
+:root[data-theme="baemin"] .editor input:focus,
+:root[data-theme="baemin"] .editor select:focus,
+:root[data-theme="baemin"] .editor textarea:focus {
+  box-shadow: inset 0 0 0 1.5px var(--mint);
+}
+:root[data-theme="baemin"] .segmented button.on {
+  background: var(--mint);
+  color: #fff;
+}
+:root[data-theme="baemin"] .step-no {
+  background: var(--mint);
+}
+:root[data-theme="baemin"] .link-box,
+:root[data-theme="baemin"] .folder-info,
+:root[data-theme="baemin"] .steps {
+  background: var(--mint-soft);
+  box-shadow: none;
+}
+
+/* 알림: 민트 말풍선 */
+:root[data-theme="baemin"] .toast {
+  font-family: var(--font-fun);
+  font-size: 13.5px;
+  color: #fff;
+  background: var(--mint-deep);
+  backdrop-filter: none;
+  box-shadow: 0 6px 18px rgba(18, 168, 163, 0.35);
+}
+:root[data-theme="baemin"] .toast.info::before {
+  content: "";
+}
+:root[data-theme="baemin"] .toast.error {
+  background: #ff5a4e;
+  box-shadow: 0 6px 18px rgba(255, 90, 78, 0.35);
+}
+:root[data-theme="baemin"] .toast.error::before {
+  content: "앗! ";
+  color: #fff;
+}

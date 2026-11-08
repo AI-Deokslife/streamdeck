@@ -39,7 +39,7 @@ export interface Config {
   theme?: Theme;
 }
 
-export type Theme = "auto" | "light" | "dark";
+export type Theme = "auto" | "light" | "dark" | "baemin";
 
 export const ACTION_LABELS: Record<ActionType, string> = {
   launch: "프로그램 / 파일 실행",
