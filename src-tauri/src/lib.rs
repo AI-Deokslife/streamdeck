@@ -430,11 +430,15 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let update = MenuItem::with_id(app, "update", "업데이트 확인", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&toggle, &edit, &sep, &auto, &update, &quit])?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    // 맨 아래: 지금 버전과 만든 사람 (누를 수 없는 안내 줄)
+    let version = app.package_info().version.to_string();
+    let about = MenuItem::with_id(app, "about", format!("QuickDeck v{version} · 제작 Lee EunDeok"), false, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&toggle, &edit, &sep, &auto, &update, &quit, &sep2, &about])?;
 
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().cloned().expect("앱 아이콘 없음"))
-        .tooltip("QuickDeck")
+        .tooltip(format!("QuickDeck v{}", app.package_info().version))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

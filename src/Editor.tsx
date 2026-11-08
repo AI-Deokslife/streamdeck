@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { firstImage, imageToDataUrl } from "./image";
 import { IconPatch, IconSource, canAutoIcon, fetchIcon, iconSource, sourceKey } from "./icons";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import HotkeyInput from "./HotkeyInput";
 import { APP_PRESETS, AppPreset, PRESET_GROUPS } from "./presets";
 import { FolderOption, Path, countDeep } from "./tree";
@@ -1200,6 +1201,22 @@ export function SettingsEditor({
           백업 폴더 열기
         </button>
       </div>
+
+      <AboutLine />
+    </div>
+  );
+}
+
+/** 설정 맨 아래: 지금 버전과 만든 사람 */
+function AboutLine() {
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
+  return (
+    <div className="about">
+      <b>QuickDeck</b> {version && <span className="about-ver">v{version}</span>}
+      <div>제작 · Lee EunDeok</div>
     </div>
   );
 }

@@ -1717,3 +1717,21 @@ kbd {
   color: var(--label-2, #8e8e93);
   margin: 6px 2px 4px;
 }
+
+/* ---------- 버전·제작자 ---------- */
+.about {
+  margin: 22px 0 6px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--label-2);
+}
+.about b { color: var(--label); }
+.about-ver {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  background: var(--fill, rgba(127, 127, 127, 0.15));
+}
