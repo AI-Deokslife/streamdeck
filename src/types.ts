@@ -7,14 +7,31 @@ export type Action =
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
   | { type: "multi"; steps: Action[] }
-  | { type: "folder"; buttons: DeckButton[]; apps: string[]; launch: string };
+  | { type: "folder"; buttons: DeckButton[]; apps: string[]; launch: string }
+  | { type: "toggle"; first: Action; second: Action; altLabel: string; altIcon: string }
+  | { type: "clock" }
+  | { type: "timer"; minutes: number }
+  | { type: "sysInfo" }
+  | { type: "window"; mode: WindowMode };
+
+export type WindowMode = "left" | "right" | "maximize" | "minimize" | "center" | "nextMonitor";
+export const WINDOW_MODES: { mode: WindowMode; label: string; icon: string }[] = [
+  { mode: "left", label: "왼쪽 절반", icon: "◧" },
+  { mode: "right", label: "오른쪽 절반", icon: "◨" },
+  { mode: "maximize", label: "최대화", icon: "⬜" },
+  { mode: "minimize", label: "최소화", icon: "➖" },
+  { mode: "center", label: "가운데로", icon: "⊡" },
+  { mode: "nextMonitor", label: "다음 모니터로", icon: "🖥️" },
+];
 
 export type ActionType = Action["type"];
 
 /** 버튼 하나에 바로 지정할 수 있는 동작 (기다리기는 단독으로 의미가 없음) */
-export const BUTTON_ACTION_TYPES: ActionType[] = ["folder", "launch", "keys", "url", "text", "script", "multi"];
+export const BUTTON_ACTION_TYPES: ActionType[] = ["folder", "launch", "keys", "url", "text", "script", "multi", "toggle", "window", "clock", "timer", "sysInfo"];
+/** 토글의 처음/다시 누를 때, 길게 누르기에 넣을 수 있는 동작 */
+export const PART_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "multi", "window"];
 /** 멀티 액션의 단계로 넣을 수 있는 동작 */
-export const STEP_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "delay"];
+export const STEP_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "delay", "window"];
 
 export interface DeckButton {
   id: string;
@@ -26,6 +43,8 @@ export interface DeckButton {
   imageFull?: boolean;
   /** true면 프로그램·사이트에서 자동으로 가져온 이미지 (대상이 바뀌면 다시 가져옴) */
   imageAuto?: boolean;
+  /** 길게 눌렀을 때 실행할 동작 */
+  longAction?: Action | null;
   color: string;
   hotkey: string;
   action: Action;
@@ -41,6 +60,8 @@ export interface Config {
   opacity?: number;
   /** 마우스를 올렸을 때만 선명하게 */
   clearOnHover?: boolean;
+  /** 화면 가장자리에 붙이면 자동으로 숨기기 */
+  autoHide?: boolean;
 }
 
 export type Theme = "auto" | "light" | "dark" | "baemin" | "kakao" | "toss" | "line";
@@ -57,6 +78,11 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   delay: "기다리기",
   multi: "멀티 액션 (여러 동작 순서대로)",
   folder: "폴더 (안에 버튼 넣기)",
+  toggle: "토글 (누를 때마다 번갈아)",
+  window: "창 배치 (반쪽·최대화·모니터 이동)",
+  clock: "시계",
+  timer: "타이머",
+  sysInfo: "CPU·메모리",
 };
 
 export const ACTION_ICONS: Record<ActionType, string> = {
@@ -68,6 +94,11 @@ export const ACTION_ICONS: Record<ActionType, string> = {
   delay: "⏱️",
   multi: "🔗",
   folder: "📂",
+  toggle: "🔁",
+  window: "🪟",
+  clock: "🕒",
+  timer: "⏱",
+  sysInfo: "📈",
 };
 
 /** 단계 목록에 보여줄 한 줄 요약 */
@@ -89,6 +120,16 @@ export function summarizeAction(a: Action): string {
       return `${a.steps.length}단계`;
     case "folder":
       return `버튼 ${a.buttons.length}개`;
+    case "toggle":
+      return `${summarizeAction(a.first)} ↔ ${summarizeAction(a.second)}`;
+    case "window":
+      return WINDOW_MODES.find((m) => m.mode === a.mode)?.label ?? a.mode;
+    case "clock":
+      return "지금 시각";
+    case "timer":
+      return `${a.minutes}분`;
+    case "sysInfo":
+      return "사용률 표시";
   }
 }
 
@@ -110,6 +151,16 @@ export function emptyAction(type: ActionType): Action {
       return { type, steps: [] };
     case "folder":
       return { type, buttons: [], apps: [], launch: "" };
+    case "toggle":
+      return { type, first: emptyAction("keys"), second: emptyAction("keys"), altLabel: "", altIcon: "" };
+    case "window":
+      return { type, mode: "left" };
+    case "clock":
+      return { type };
+    case "timer":
+      return { type, minutes: 5 };
+    case "sysInfo":
+      return { type };
   }
 }
 

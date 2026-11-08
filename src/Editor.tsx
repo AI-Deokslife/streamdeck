@@ -13,9 +13,11 @@ import {
   BUTTON_ACTION_TYPES,
   Config,
   DeckButton,
+  PART_ACTION_TYPES,
   RunningApp,
   Theme,
   STEP_ACTION_TYPES,
+  WINDOW_MODES,
   emptyAction,
   summarizeAction,
 } from "./types";
@@ -222,6 +224,58 @@ function ActionFields({
       return <StepList steps={a.steps} inherited={inherited} onChange={(steps) => set({ steps })} />;
     case "folder":
       return null; // 폴더는 ButtonEditor에서 따로 표시
+    case "toggle":
+      return <ToggleFields action={a} inherited={inherited} onChange={onChange} />;
+    case "window":
+      return (
+        <>
+          <label>창을 어떻게 놓을까요?</label>
+          <div className="chips">
+            {WINDOW_MODES.map((m) => (
+              <button
+                key={m.mode}
+                type="button"
+                className={"chip" + (a.mode === m.mode ? " on" : "")}
+                onClick={() => set({ mode: m.mode })}
+              >
+                {m.icon} {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="hint">지금 앞에 있는 창(이 프로그램 바로 전에 쓰던 창)을 옮겨요.</p>
+        </>
+      );
+    case "clock":
+      return <p className="hint">버튼에 지금 시각이 크게 보이고, 이름 자리에 날짜가 나와요.</p>;
+    case "sysInfo":
+      return <p className="hint">버튼에 CPU와 메모리 사용률이 1초마다 바뀌어 보여요.</p>;
+    case "timer":
+      return (
+        <>
+          <label>
+            시간 (분)
+            <div className="row">
+              <input
+                type="number"
+                style={{ width: 90 }}
+                min={1}
+                max={1440}
+                value={a.minutes}
+                onChange={(e) => set({ minutes: Math.max(1, Math.min(1440, Number(e.target.value) || 1)) })}
+              />
+              <span className="unit">분</span>
+            </div>
+          </label>
+          <div className="chips">
+            {[1, 3, 5, 10, 25, 50].map((m) => (
+              <button key={m} type="button" className={"chip" + (a.minutes === m ? " on" : "")} onClick={() => set({ minutes: m })}>
+                {m}분
+              </button>
+            ))}
+          </div>
+          <p className="hint">누르면 시작·일시정지, 길게 누르면 처음으로 돌아가요. 끝나면 소리와 알림이 나와요.</p>
+        </>
+      );
   }
 }
 
@@ -242,6 +296,87 @@ function TypeSelect({
         </option>
       ))}
     </select>
+  );
+}
+
+// ---------------- 토글: 처음 누를 때 / 다시 누를 때 ----------------
+
+function ToggleFields({
+  action: a,
+  onChange,
+  inherited,
+}: {
+  action: Extract<Action, { type: "toggle" }>;
+  onChange: (a: Action) => void;
+  inherited?: string[];
+}) {
+  const part = (key: "first" | "second", title: string) => (
+    <div className="steps">
+      <label>{title}</label>
+      <TypeSelect
+        value={a[key].type}
+        types={PART_ACTION_TYPES}
+        onChange={(t) => onChange({ ...a, [key]: emptyAction(t) })}
+      />
+      <ActionFields action={a[key]} inherited={inherited} onChange={(x) => onChange({ ...a, [key]: x })} />
+    </div>
+  );
+  return (
+    <>
+      {part("first", "① 처음 누를 때 (꺼짐 → 켜짐)")}
+      {part("second", "② 다시 누를 때 (켜짐 → 꺼짐)")}
+      <div className="row">
+        <label className="grow">
+          켜진 상태 이름
+          <input value={a.altLabel} placeholder="예: 마이크 켜기" onChange={(e) => onChange({ ...a, altLabel: e.target.value })} />
+        </label>
+        <label style={{ width: 90 }}>
+          켜진 아이콘
+          <input className="center" value={a.altIcon} placeholder="🎙" onChange={(e) => onChange({ ...a, altIcon: e.target.value })} />
+        </label>
+      </div>
+      <p className="hint">누를 때마다 ①과 ②를 번갈아 실행하고, 켜진 동안은 위 이름과 아이콘으로 바뀌어요.</p>
+    </>
+  );
+}
+
+// ---------------- 길게 누르기 ----------------
+
+function LongPressFields({
+  button,
+  onChange,
+  inherited,
+}: {
+  button: DeckButton;
+  onChange: (p: Partial<DeckButton>) => void;
+  inherited: string[];
+}) {
+  const la = button.longAction ?? null;
+  return (
+    <>
+      <label>
+        길게 누르면 (선택)
+        <select
+          value={la?.type ?? ""}
+          onChange={(e) =>
+            onChange({ longAction: e.target.value ? emptyAction(e.target.value as ActionType) : null })
+          }
+        >
+          <option value="">없음</option>
+          {PART_ACTION_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {ACTION_ICONS[t]} {ACTION_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {la && (
+        <div className="steps">
+          <ActionFields action={la} inherited={inherited} onChange={(x) => onChange({ longAction: x })} />
+          <p className="hint">버튼을 0.5초 이상 누르고 있으면 실행돼요. 휴대폰 리모컨에서도 똑같이 돼요.</p>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -624,6 +759,8 @@ export function ButtonEditor({
         <ActionFields action={a} inherited={inherited} onChange={(action) => set({ action })} />
       )}
 
+      <LongPressFields button={button} onChange={set} inherited={inherited} />
+
       {a.type === "folder" && (
         <FolderAppFields
           apps={a.apps}
@@ -977,6 +1114,19 @@ export function SettingsEditor({
       <p className="hint">
         슬라이더를 움직이는 동안 미리 보여요. 편집하는 동안은 항상 선명하게 보입니다. ‘마우스를 올리면 선명하게’를 켜면
         평소엔 흐릿하다가 마우스를 올리는 순간 또렷해져요.
+      </p>
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={!!config.autoHide}
+          onChange={(e) => onChange({ ...config, autoHide: e.target.checked })}
+        />
+        화면 가장자리에 붙이면 자동으로 숨기기
+      </label>
+      <p className="hint">
+        창을 화면 왼쪽·오른쪽·위 끝으로 끌어다 붙이면, 마우스가 떠날 때 가장자리로 쏙 들어가요. 마우스를 그 끝에 갖다 대면
+        다시 나와요. 편집하는 동안은 숨지 않아요.
       </p>
 
       <label>창 보이기 / 숨기기 단축키</label>

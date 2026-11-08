@@ -21,11 +21,16 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_apps: 
         }
         // 폴더 이동은 화면(UI)이 처리한다
         Action::Folder { .. } => Ok(()),
+        // 표시만 하는 위젯 (타이머는 lib::execute 가 버튼 id 로 처리)
+        Action::Clock {} | Action::SysInfo {} | Action::Timer { .. } => Ok(()),
+        Action::Window { mode } => winutil::arrange_window(mode),
+        // 토글의 켜짐/꺼짐 상태는 lib::execute 가 관리한다. 여기로 오면(테스트 실행 등) 첫 번째 동작
+        Action::Toggle { first, .. } => run(app, first, from_hotkey, inherited_apps),
         Action::Multi { steps } => {
             // 수정키 해제 대기는 첫 단계에서 한 번이면 충분
             let mut wait_mods = from_hotkey;
             for (i, step) in steps.iter().enumerate() {
-                if matches!(step, Action::Multi { .. } | Action::Folder { .. }) {
+                if matches!(step, Action::Multi { .. } | Action::Folder { .. } | Action::Toggle { .. }) {
                     return Err(format!("{}번째 단계: 멀티 액션/폴더는 단계로 넣을 수 없습니다", i + 1));
                 }
                 run(app, step, wait_mods, inherited_apps).map_err(|e| format!("{}번째 단계 실패: {e}", i + 1))?;
@@ -291,6 +296,42 @@ fn run_exe(app: &AppHandle, path: &str, args: &str) -> Result<(), String> {
 
 fn new_enigo() -> Result<Enigo, String> {
     Enigo::new(&Settings::default()).map_err(|e| format!("입력 장치 초기화 실패: {e}"))
+}
+
+// ---------------- 휴대폰 트랙패드·키보드 ----------------
+
+/// 마우스를 현재 위치에서 (dx, dy) 만큼 움직인다
+pub fn mouse_move(dx: i32, dy: i32) -> Result<(), String> {
+    use enigo::{Coordinate, Mouse};
+    new_enigo()?.move_mouse(dx, dy, Coordinate::Rel).map_err(|e| format!("마우스 이동 실패: {e}"))
+}
+
+/// "left" / "right" / "middle" / "double"(왼쪽 두 번)
+pub fn mouse_click(button: &str) -> Result<(), String> {
+    use enigo::{Button, Mouse};
+    let mut e = new_enigo()?;
+    let (b, times) = match button {
+        "right" => (Button::Right, 1),
+        "middle" => (Button::Middle, 1),
+        "double" => (Button::Left, 2),
+        _ => (Button::Left, 1),
+    };
+    for _ in 0..times {
+        e.button(b, Direction::Click).map_err(|e| format!("클릭 실패: {e}"))?;
+    }
+    Ok(())
+}
+
+/// 휠 굴리기 (양수 = 아래로)
+pub fn mouse_scroll(dy: i32) -> Result<(), String> {
+    use enigo::{Axis, Mouse};
+    new_enigo()?.scroll(dy, Axis::Vertical).map_err(|e| format!("스크롤 실패: {e}"))
+}
+
+/// 휴대폰 키보드로 친 글을 지금 앞에 있는 창에 붙여넣는다 (한글도 그대로)
+pub fn type_from_remote(text: &str) -> Result<(), String> {
+    winutil::restore_foreign_focus();
+    paste_text(text)
 }
 
 /// "ctrl+shift+esc" 형식 문자열을 키 입력으로 보낸다.

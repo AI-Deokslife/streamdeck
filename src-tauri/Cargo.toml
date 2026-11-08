@@ -1,6 +1,6 @@
 [package]
 name = "quickdeck"
-version = "0.6.0"
+version = "0.7.0"
 description = "QuickDeck - desktop stream deck"
 authors = ["you"]
 edition = "2024"
@@ -27,16 +27,17 @@ tauri-plugin-autostart = "2.7.0"
 tauri-plugin-single-instance = "2.5.5"
 tauri-plugin-window-state = "2.5.0"
 enigo = "0.6.1"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_Registry", "Win32_Graphics_Gdi", "Win32_UI_Shell", "Win32_System_DataExchange", "Win32_System_SystemInformation", "Win32_Security_Cryptography"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_Registry", "Win32_Graphics_Gdi", "Win32_UI_Shell", "Win32_System_DataExchange", "Win32_System_SystemInformation", "Win32_Security_Cryptography", "Win32_System_Diagnostics_Debug", "Win32_Graphics_Dwm"] }
 png = "0.18.1"
 base64 = "0.23.1"
 arboard = { version = "3.7.0", default-features = false, features = ["image-data"] }
 tauri-plugin-dialog = "2.8.4"
 ureq = "3.5.1"
 url = "2.5.8"
-windows = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell_Common"] }
+windows = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell_Common", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Media_Control", "Foundation", "Foundation_Collections", "Storage_Streams"] }
 tiny_http = "0.12.0"
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
+tauri-plugin-updater = "2.14.1"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

@@ -103,6 +103,14 @@
   .mini span { aspect-ratio: 1; border-radius: 24%; display: grid; place-items: center; overflow: hidden; font-size: 2.4vw; }
   .mini img { width: 100%; height: 100%; object-fit: cover; }
   .label { font-size: 12.5px; font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+  /* 위젯 (시계·타이머·CPU) */
+  .icon.wf { flex-direction: column; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .wl { display: flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: min(calc(88vw / var(--cols, 4) * 0.25), 23px); }
+  .wl.n2 { font-size: min(calc(88vw / var(--cols, 4) * 0.16), 15px); }
+  .wbar { position: absolute; left: 16%; right: 16%; bottom: 12%; height: 5%; min-height: 3px; border-radius: 99px; background: rgba(255,255,255,.3); overflow: hidden; }
+  .wbar i { display: block; height: 100%; width: 0; background: #fff; border-radius: inherit; transition: width .9s linear; }
+  .tile.wdone .icon { animation: wblink 1s ease-in-out infinite; }
+  @keyframes wblink { 50% { filter: brightness(1.4); } }
   .badge { position: absolute; top: 6%; right: 7%; font-size: 9px; padding: 0 4px; border-radius: 6px; background: rgba(0, 0, 0, 0.35); color: #fff; }
   /* 누른 결과 표시 */
   .tile.ok .icon::after, .tile.fail .icon::after {
@@ -132,15 +140,182 @@
   body.light .empty, body.light .msg { color: rgba(0, 0, 0, 0.55); }
   body.light .icon { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
   body.light .icon.glass { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+
+  /* ---------- 오른쪽 위: 연결 점 + 설정 ---------- */
+  .hright { justify-self: end; display: flex; align-items: center; gap: 12px; }
+  .hright .dot { justify-self: auto; }
+  .gear { border: 0; background: none; color: var(--bar-text); font-size: 20px; padding: 2px 4px; line-height: 1; }
+
+  /* ---------- 아래 탭 ---------- */
+  body { padding-bottom: calc(env(safe-area-inset-bottom) + 64px); }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px);
+    background: var(--bar); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .tabbar button {
+    border: 0; background: none; color: var(--bar-text); opacity: 0.55;
+    font: inherit; font-size: 11px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0;
+  }
+  .tabbar button b { font-size: 20px; line-height: 1.1; }
+  .tabbar button.on { opacity: 1; }
+  .pane { display: none; }
+  .pane.on { display: block; }
+  main.pane.on { display: grid; }
+
+  /* ---------- 트랙패드 ---------- */
+  #pad { padding: 14px; }
+  .touch {
+    height: calc(100vh - 230px); min-height: 220px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    display: grid; place-items: center;
+    color: rgba(255, 255, 255, 0.45); font-size: 14px; text-align: center; line-height: 1.7;
+    touch-action: none;
+  }
+  body.light .touch { background: rgba(0, 0, 0, 0.05); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); color: rgba(0, 0, 0, 0.4); }
+  .mbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .mbtns button, .qkeys button, .send, .sheet button.act {
+    border: 0; border-radius: 14px; padding: 14px 0;
+    font: inherit; font-size: 15px; font-weight: 700;
+    background: rgba(255, 255, 255, 0.12); color: var(--label);
+  }
+  body.light .mbtns button, body.light .qkeys button, body.light .sheet button.act { background: rgba(0, 0, 0, 0.06); }
+  .mbtns button:active, .qkeys button:active, .send:active { filter: brightness(1.3); transform: scale(0.97); }
+  .speed { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; opacity: 0.8; }
+  .speed input { flex: 1; accent-color: var(--accent); }
+
+  /* ---------- 키보드 ---------- */
+  #keys { padding: 14px; }
+  #keys textarea {
+    width: 100%; height: 130px; resize: none;
+    border: 0; border-radius: 16px; padding: 14px;
+    font: inherit; font-size: 16px; line-height: 1.5;
+    background: rgba(255, 255, 255, 0.1); color: var(--label); outline: none;
+  }
+  body.light #keys textarea { background: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+  .send { width: 100%; margin-top: 10px; background: var(--accent); color: #fff; }
+  .qkeys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+  .qkeys button { padding: 12px 0; font-size: 13px; }
+  .hintline { margin: 10px 2px 0; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
+
+  /* ---------- 음악 ---------- */
+  #music { padding: 18px 20px; text-align: center; }
+  .art {
+    width: min(70vw, 300px); aspect-ratio: 1; margin: 6px auto 16px;
+    border-radius: 18px; overflow: hidden;
+    background: rgba(128, 128, 128, 0.25); display: grid; place-items: center;
+    font-size: 64px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  .art img { width: 100%; height: 100%; object-fit: cover; }
+  .song { font-size: 19px; font-weight: 800; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .singer { font-size: 14px; opacity: 0.65; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .transport { display: flex; justify-content: center; align-items: center; gap: 26px; margin: 22px 0; }
+  .transport button { border: 0; background: none; color: var(--label); font-size: 30px; padding: 6px; }
+  .transport .play { width: 72px; height: 72px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 30px; }
+  .transport button:active { transform: scale(0.92); }
+  .vol { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+  .vol input { flex: 1; height: 30px; accent-color: var(--accent); }
+  .vol button { border: 0; background: none; font-size: 24px; color: var(--label); }
+  .vol b { min-width: 34px; font-size: 14px; opacity: 0.75; }
+
+  /* 토글 켜짐 표시 */
+  .ondot { position: absolute; left: 50%; bottom: 7%; width: 18%; height: 6%; min-height: 4px; transform: translateX(-50%); border-radius: 99px; background: #30d158; box-shadow: 0 0 6px rgba(48, 209, 88, 0.8); }
+
+  /* ---------- 설정 시트 ---------- */
+  .sheet-bg { position: fixed; inset: 0; z-index: 5; background: rgba(0, 0, 0, 0.45); display: none; }
+  .sheet-bg.on { display: block; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    padding: 10px 16px calc(env(safe-area-inset-bottom) + 18px);
+    border-radius: 20px 20px 0 0;
+    background: #1c1c1e; color: #fff;
+    transform: translateY(105%); transition: transform 0.25s ease;
+  }
+  body.light .sheet { background: #fff; color: #191f28; }
+  .sheet.on { transform: translateY(0); }
+  .sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: rgba(128, 128, 128, 0.5); margin: 0 auto 12px; }
+  .sheet h2 { margin: 0 0 10px; font-size: 17px; }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.2); font-size: 15px; }
+  .srow small { display: block; font-size: 12px; opacity: 0.6; margin-top: 2px; }
+  .switch { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 50px; height: 30px; border-radius: 15px; background: rgba(128, 128, 128, 0.4); position: relative; transition: background 0.2s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: transform 0.2s; }
+  .switch:checked { background: #30d158; }
+  .switch:checked::after { transform: translateX(20px); }
+  .sheet button.act { width: 100%; margin-top: 12px; padding: 13px 0; font-size: 14px; }
+
+  /* ---------- 가로 모드: 버튼을 넓게, 위아래 여백 줄이기 ---------- */
+  @media (orientation: landscape) {
+    header { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 6px; }
+    main { gap: 12px 10px; padding-top: 12px; }
+    .label { font-size: 11.5px; }
+    .touch { height: calc(100vh - 170px); }
+  }
 </style>
 </head>
 <body>
 <header>
   <button class="back" id="back"><b>‹</b><span id="backText">뒤로</span></button>
   <h1 id="title">QuickDeck</h1>
-  <span class="dot" id="dot" title="PC 연결 상태"></span>
+  <span class="hright"><span class="dot" id="dot" title="PC 연결 상태"></span><button class="gear" id="gear" aria-label="설정">⚙︎</button></span>
 </header>
-<main id="grid"><div class="msg">PC 에 연결하는 중…</div></main>
+<main id="grid" class="pane on"><div class="msg">PC 에 연결하는 중…</div></main>
+
+<section id="pad" class="pane">
+  <div class="touch" id="touch">한 손가락으로 문지르면 마우스 이동<br />톡 = 클릭 · 두 손가락 톡 = 오른쪽 클릭<br />두 손가락으로 위아래 = 스크롤</div>
+  <div class="mbtns">
+    <button data-click="left">왼쪽 클릭</button>
+    <button data-click="right">오른쪽 클릭</button>
+  </div>
+  <label class="speed">속도 <input type="range" id="speed" min="1" max="5" step="0.5" value="2.5" /></label>
+</section>
+
+<section id="keys" class="pane">
+  <textarea id="text" placeholder="여기에 쓴 글이 PC 에서 지금 열린 창에 입력돼요. 한글도 돼요."></textarea>
+  <button class="send" id="send">PC로 보내기</button>
+  <div class="qkeys">
+    <button data-key="enter">Enter</button><button data-key="backspace">⌫</button><button data-key="tab">Tab</button><button data-key="esc">Esc</button>
+    <button data-key="left">←</button><button data-key="up">↑</button><button data-key="down">↓</button><button data-key="right">→</button>
+    <button data-key="ctrl+c">복사</button><button data-key="ctrl+v">붙여넣기</button><button data-key="ctrl+z">되돌리기</button><button data-key="ctrl+a">전체 선택</button>
+  </div>
+  <p class="hintline">PC 에서 글을 넣을 칸을 먼저 클릭해 두세요.</p>
+</section>
+
+<section id="music" class="pane">
+  <div class="art" id="art">🎵</div>
+  <p class="song" id="song">재생 중인 음악이 없어요</p>
+  <p class="singer" id="singer">유튜브·멜론·스포티파이 등에서 음악을 틀어 보세요</p>
+  <div class="transport">
+    <button data-media="prev" aria-label="이전 곡">⏮</button>
+    <button class="play" id="playBtn" data-media="toggle" aria-label="재생/일시정지">▶</button>
+    <button data-media="next" aria-label="다음 곡">⏭</button>
+  </div>
+  <div class="vol">
+    <button id="muteBtn" aria-label="음소거">🔊</button>
+    <input type="range" id="vol" min="0" max="100" step="1" value="50" />
+    <b id="volNum">50</b>
+  </div>
+</section>
+
+<nav class="tabbar">
+  <button class="on" data-tab="grid"><b>▦</b>버튼</button>
+  <button data-tab="pad"><b>☝︎</b>트랙패드</button>
+  <button data-tab="keys"><b>⌨︎</b>키보드</button>
+  <button data-tab="music"><b>♫</b>음악</button>
+</nav>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <h2>리모컨 설정</h2>
+  <label class="srow"><span>PC 따라 자동 전환<small>PC 에서 한글을 쓰면 여기도 한글 폴더로</small></span><input type="checkbox" class="switch" id="optFollow" /></label>
+  <label class="srow"><span>화면 켜두기<small>리모컨을 보는 동안 화면이 꺼지지 않게</small></span><input type="checkbox" class="switch" id="optAwake" /></label>
+  <div class="srow"><span>이 기기의 시작 화면<small id="startInfo">처음 화면</small></span></div>
+  <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -207,7 +382,17 @@
     return { list, names };
   }
 
-  function iconHtml(b) {
+  /** 토글이 켜져 있으면 켜진 상태의 이름·아이콘 */
+  const shown = (b) => (b.kind === "toggle" && b.on ? { ...b, label: b.altLabel || b.label, icon: b.altIcon || b.icon } : b);
+
+  const WIDGETS = ["clock", "timer", "sysinfo"];
+  function iconHtml(raw) {
+    const b = shown(raw);
+    if (WIDGETS.includes(b.kind)) {
+      const bar = b.kind === "clock" ? "" : '<span class="wbar"><i></i></span>';
+      const badge = b.hasLong ? '<span class="badge">⋯</span>' : "";
+      return `<span class="icon wf" style="background:${esc(b.color)}"><span class="wl"></span>${bar}${badge}</span>`;
+    }
     if (b.kind === "folder" && !b.image && b.children.length) {
       const minis = b.children.slice(0, 9).map((c) =>
         `<span style="background:${c.image && c.imageFull ? "transparent" : esc(c.color)}">${c.image ? `<img src="${c.image}">` : esc(c.icon)}</span>`).join("");
@@ -216,8 +401,10 @@
     const full = b.image && b.imageFull;
     const bg = full ? "" : `background:${esc(b.color)}`;
     const inner = b.image ? `<img class="${full ? "full" : "fit"}" src="${b.image}">` : `<span class="glyph">${esc(b.icon || (b.kind === "folder" ? "📁" : ""))}</span>`;
-    const badge = b.kind === "multi" ? '<span class="badge">⛓</span>' : (b.kind === "folder" && b.image ? '<span class="badge">▦</span>' : "");
-    return `<span class="icon${b.kind === "folder" && !b.image ? " glass" : ""}" style="${bg}">${inner}${badge}</span>`;
+    const marks = [b.kind === "multi" ? "⛓" : "", b.kind === "folder" && b.image ? "▦" : "", b.hasLong ? "⋯" : ""].filter(Boolean).join(" ");
+    const badge = marks ? `<span class="badge">${marks}</span>` : "";
+    const on = b.kind === "toggle" && b.on ? '<span class="ondot"></span>' : "";
+    return `<span class="icon${b.kind === "folder" && !b.image ? " glass" : ""}" style="${bg}">${inner}${badge}${on}</span>`;
   }
 
   function esc(s) {
@@ -227,8 +414,11 @@
   function render() {
     if (!deck) return;
     const { list, names } = current();
-    document.documentElement.style.setProperty("--cols", Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6));
-    title.textContent = names.length ? names[names.length - 1] : "QuickDeck";
+    const landscape = window.innerWidth > window.innerHeight;
+    const cols = landscape ? Math.min((deck.columns || 4) + 2, 8) : Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6);
+    document.documentElement.style.setProperty("--cols", cols);
+    title.dataset.deck = names.length ? names[names.length - 1] : "QuickDeck";
+    if (grid.classList.contains("on")) title.textContent = title.dataset.deck;
     back.classList.toggle("show", path.length > 0);
     backText.textContent = names.length > 1 ? names[names.length - 2] : "홈";
     if (!list.length) {
@@ -236,22 +426,79 @@
       return;
     }
     grid.innerHTML = list.map((b) =>
-      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}">${iconHtml(b)}<span class="label">${esc(b.label)}</span></button>`).join("");
+      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}" data-min="${b.minutes || 0}" data-long="${b.hasLong ? 1 : 0}">${iconHtml(b)}<span class="label">${esc(shown(b).label)}</span></button>`).join("");
+    paintWidgets();
   }
 
-  async function press(tile) {
+  // ---------- 위젯: 1초마다 시각·사용률·타이머 남은 시간 ----------
+  let widgetState = null;
+  const doneSeen = {};
+  const pad2 = (n) => String(n).padStart(2, "0");
+  function fmtLeft(ms) {
+    const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60);
+    return h ? `${h}:${pad2(m)}:${pad2(t % 60)}` : `${pad2(m)}:${pad2(t % 60)}`;
+  }
+  function paintWidgets() {
+    const now = new Date();
+    grid.querySelectorAll(".tile").forEach((el) => {
+      const kind = el.dataset.kind;
+      if (!WIDGETS.includes(kind)) return;
+      const wl = el.querySelector(".wl"), bar = el.querySelector(".wbar i");
+      let lines = [], prog = null, done = false;
+      if (kind === "clock") {
+        lines = [`${pad2(now.getHours())}:${pad2(now.getMinutes())}`];
+        el.querySelector(".label").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 (${"일월화수목금토"[now.getDay()]})`;
+      } else if (kind === "sysinfo") {
+        const w = widgetState || { cpu: 0, memory: 0 };
+        lines = [`CPU ${w.cpu}%`, `RAM ${w.memory}%`];
+        prog = w.cpu / 100;
+      } else {
+        const total = Number(el.dataset.min) * 60000;
+        const t = widgetState && widgetState.timers[el.dataset.id];
+        const left = t ? t.remainingMs : total;
+        done = !!(t && t.done);
+        lines = [done ? "끝!" : fmtLeft(left)];
+        prog = total ? left / total : 0;
+      }
+      wl.className = "wl n" + lines.length;
+      wl.innerHTML = lines.map((l) => `<span>${esc(l)}</span>`).join("");
+      if (bar && prog !== null) bar.style.width = Math.max(0, Math.min(1, prog)) * 100 + "%";
+      el.classList.toggle("wdone", done);
+    });
+  }
+  async function pollWidgets() {
+    if (document.hidden || !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"]')) return;
+    try {
+      const r = await fetch(`/api/widgets?t=${encodeURIComponent(token)}`, { cache: "no-store" });
+      if (r.ok) {
+        widgetState = await r.json();
+        // 타이머가 막 끝났으면 진동 + 알림 (화면에 안 보이는 타이머도)
+        for (const [id, t] of Object.entries(widgetState.timers || {})) {
+          if (t.done && !doneSeen[id]) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+            toast("⏰ 타이머가 끝났어요!", 4000);
+          }
+          doneSeen[id] = t.done;
+        }
+      }
+    } catch {}
+    paintWidgets();
+  }
+
+  async function press(tile, long = false) {
     const id = tile.dataset.id;
-    const kind = tile.dataset.kind;
+    const kind = long ? "button" : tile.dataset.kind;
     if (navigator.vibrate) navigator.vibrate(12);
     tile.classList.add("pressed");
     setTimeout(() => tile.classList.remove("pressed"), 150);
     if (kind === "folder") {
+      autoFrom = null;
       path.push(id);
       render();
       window.scrollTo(0, 0);
     }
     try {
-      const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`, { method: "POST" });
+      const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}${long ? "&long=1" : ""}`, { method: "POST" });
       const j = await r.json();
       if (kind === "folder") { if (!j.ok) toast(j.error); return; }
       flash(id, j.ok);
@@ -283,21 +530,230 @@
       }
       setOnline(true);
       if (j.changed) {
+        const first = !deck;
         deck = j;
         version = j.version;
         applyTheme(j.theme || "dark");
+        if (first) path = store.get("start", []);
         render();
+        updateStartInfo();
       }
+      follow(j.activeFolder ?? null);
     } catch {
       setOnline(false);
     }
   }
 
+
+  // ================= 탭, 설정, 트랙패드, 키보드 =================
+  const store = {
+    get: (k, d) => { try { const v = localStorage.getItem("qd." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set: (k, v) => { try { localStorage.setItem("qd." + k, JSON.stringify(v)); } catch {} },
+  };
+  const api = (q, body) => fetch(`/api/control?t=${encodeURIComponent(token)}&${q}`, { method: "POST", body: body ?? "", keepalive: true })
+    .then((r) => r.json()).then((j) => { if (!j.ok) toast(j.error || "실행하지 못했어요"); return j; })
+    .catch(() => { setOnline(false); });
+
+  // --- 탭 ---
+  const tabs = [...document.querySelectorAll(".tabbar button")];
+  function showTab(id) {
+    tabs.forEach((b) => b.classList.toggle("on", b.dataset.tab === id));
+    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === id));
+    back.style.visibility = id === "grid" ? "" : "hidden";
+    title.textContent = id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : (title.dataset.deck || "QuickDeck");
+    if (id === "music") pollMedia();
+    store.set("tab", id);
+  }
+  tabs.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+  // --- 설정 시트 ---
+  const sheet = document.getElementById("sheet");
+  const sheetBg = document.getElementById("sheetBg");
+  const optFollow = document.getElementById("optFollow");
+  const optAwake = document.getElementById("optAwake");
+  const startInfo = document.getElementById("startInfo");
+  const openSheet = (on) => { sheet.classList.toggle("on", on); sheetBg.classList.toggle("on", on); };
+  document.getElementById("gear").addEventListener("click", () => openSheet(true));
+  sheetBg.addEventListener("click", () => openSheet(false));
+  optFollow.checked = store.get("follow", true);
+  optFollow.addEventListener("change", () => store.set("follow", optFollow.checked));
+  optAwake.checked = store.get("awake", false);
+  optAwake.addEventListener("change", () => { store.set("awake", optAwake.checked); keepAwake(optAwake.checked); });
+  document.getElementById("setStart").addEventListener("click", () => {
+    store.set("start", path.slice());
+    updateStartInfo();
+    toast(path.length ? "이 폴더가 시작 화면이 됐어요" : "처음 화면을 시작 화면으로 정했어요");
+  });
+  function updateStartInfo() {
+    const sp = store.get("start", []);
+    if (!deck || !sp.length) { startInfo.textContent = "처음 화면"; return; }
+    let list = deck.buttons; const names = [];
+    for (const id of sp) { const f = list.find((b) => b.id === id && b.kind === "folder"); if (!f) break; names.push(f.label); list = f.children; }
+    startInfo.textContent = names.length ? names.join(" › ") : "처음 화면";
+  }
+
+  // --- 화면 켜두기: 가능하면 Wake Lock, 안 되면(https 가 아닌 주소) 소리 없는 영상 재생으로 ---
+  let wakeLock = null, wakeVideo = null;
+  async function keepAwake(on) {
+    try {
+      if (!on) { wakeLock?.release(); wakeLock = null; wakeVideo?.pause(); return; }
+      if ("wakeLock" in navigator && window.isSecureContext) { wakeLock = await navigator.wakeLock.request("screen"); return; }
+      if (!wakeVideo) {
+        const c = document.createElement("canvas"); c.width = c.height = 2;
+        const ctx = c.getContext("2d"); let t = 0;
+        setInterval(() => { ctx.fillStyle = (t++ % 2) ? "#000" : "#010101"; ctx.fillRect(0, 0, 2, 2); }, 1000);
+        wakeVideo = document.createElement("video");
+        wakeVideo.muted = true; wakeVideo.playsInline = true; wakeVideo.setAttribute("playsinline", "");
+        wakeVideo.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none";
+        wakeVideo.srcObject = c.captureStream(1);
+        document.body.appendChild(wakeVideo);
+      }
+      await wakeVideo.play();
+    } catch { /* 지원하지 않는 기기: 휴대폰 설정에서 화면 꺼짐 시간을 늘려 주세요 */ }
+  }
+  // 브라우저는 화면을 한 번 터치한 뒤에만 켜두기를 허락한다
+  document.addEventListener("click", () => { if (optAwake.checked) keepAwake(true); }, { once: true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && optAwake.checked) keepAwake(true); });
+
+  // --- PC 따라 자동 전환 ---
+  let lastActive, autoFrom = null;
+  function pathTo(id, list = deck.buttons, base = []) {
+    for (const b of list) {
+      if (b.kind !== "folder") continue;
+      const here = [...base, b.id];
+      if (b.id === id) return here;
+      const f = pathTo(id, b.children, here); if (f) return f;
+    }
+    return null;
+  }
+  function follow(active) {
+    if (active === lastActive) return;
+    lastActive = active;
+    if (!optFollow.checked || !deck) return;
+    if (active) {
+      const p = pathTo(active);
+      if (!p) return;
+      if (autoFrom === null) autoFrom = path.slice();
+      path = p; render();
+    } else if (autoFrom !== null) {
+      path = autoFrom; autoFrom = null; render();
+    }
+  }
+
+  // --- 트랙패드 ---
+  const touch = document.getElementById("touch");
+  const speed = document.getElementById("speed");
+  speed.value = store.get("speed", 2.5);
+  speed.addEventListener("change", () => store.set("speed", Number(speed.value)));
+  let acc = { x: 0, y: 0, s: 0 }, last = null, startT = 0, moved = 0, fingers = 0, sending = false;
+  function flush() {
+    if (sending) return;
+    const dx = Math.round(acc.x), dy = Math.round(acc.y), sc = Math.round(acc.s);
+    if (!dx && !dy && !sc) return;
+    acc.x -= dx; acc.y -= dy; acc.s -= sc;
+    sending = true;
+    const q = sc ? `op=scroll&dy=${sc}` : `op=move&dx=${dx}&dy=${dy}`;
+    api(q).finally(() => { sending = false; flush(); });
+  }
+  touch.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    fingers = Math.max(fingers, e.touches.length);
+    if (e.touches.length === 1) { startT = Date.now(); moved = 0; fingers = 1; }
+    last = [...e.touches].map((t) => ({ x: t.clientX, y: t.clientY }));
+  }, { passive: false });
+  touch.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const cur = [...e.touches].map((t) => ({ x: t.clientX, y: t.clientY }));
+    if (!last || cur.length !== last.length) { last = cur; return; }
+    const dx = cur[0].x - last[0].x, dy = cur[0].y - last[0].y;
+    moved += Math.abs(dx) + Math.abs(dy);
+    const k = Number(speed.value);
+    if (cur.length >= 2) acc.s += dy / 12; else { acc.x += dx * k; acc.y += dy * k; }
+    last = cur;
+    flush();
+  }, { passive: false });
+  touch.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    if (e.touches.length) return;
+    if (moved < 8 && Date.now() - startT < 300) {
+      if (navigator.vibrate) navigator.vibrate(8);
+      api(`op=click&btn=${fingers >= 2 ? "right" : "left"}`);
+    }
+    last = null; fingers = 0;
+  }, { passive: false });
+  document.querySelectorAll("[data-click]").forEach((b) => b.addEventListener("click", () => {
+    if (navigator.vibrate) navigator.vibrate(8);
+    api(`op=click&btn=${b.dataset.click}`);
+  }));
+
+  // --- 키보드 ---
+  const text = document.getElementById("text");
+  document.getElementById("send").addEventListener("click", async () => {
+    const v = text.value;
+    if (!v) { text.focus(); return; }
+    const j = await api("op=type", v);
+    if (j && j.ok) { text.value = ""; toast("PC로 보냈어요"); }
+  });
+  document.querySelectorAll("[data-key]").forEach((b) => b.addEventListener("click", () => {
+    if (navigator.vibrate) navigator.vibrate(8);
+    api(`op=key&k=${encodeURIComponent(b.dataset.key)}`);
+  }));
+
+  // --- 음악 ---
+  const art = document.getElementById("art"), song = document.getElementById("song"), singer = document.getElementById("singer");
+  const playBtn = document.getElementById("playBtn"), vol = document.getElementById("vol"), volNum = document.getElementById("volNum"), muteBtn = document.getElementById("muteBtn");
+  let lastArt = null, volDragging = false, volTimer = 0;
+  async function pollMedia() {
+    if (document.hidden || !document.getElementById("music").classList.contains("on")) return;
+    try {
+      const j = await (await fetch(`/api/media?t=${encodeURIComponent(token)}`, { cache: "no-store" })).json();
+      const n = j.now;
+      song.textContent = n ? (n.title || "제목 없음") : "재생 중인 음악이 없어요";
+      singer.textContent = n ? (n.artist || n.source || "") : "유튜브·멜론·스포티파이 등에서 음악을 틀어 보세요";
+      playBtn.textContent = n && n.playing ? "⏸" : "▶";
+      const a = n && n.art ? n.art : "";
+      if (a !== lastArt) { lastArt = a; art.innerHTML = a ? `<img src="${a}" alt="">` : "🎵"; }
+      if (!volDragging) { vol.value = j.volume; volNum.textContent = j.volume; }
+      muteBtn.textContent = j.muted ? "🔇" : "🔊";
+      setOnline(true);
+    } catch { setOnline(false); }
+  }
+  setInterval(pollMedia, 2000);
+  document.querySelectorAll("[data-media]").forEach((b) => b.addEventListener("click", async () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    await api(`op=media&cmd=${b.dataset.media}`);
+    setTimeout(pollMedia, 350);
+  }));
+  vol.addEventListener("input", () => {
+    volDragging = true; volNum.textContent = vol.value;
+    clearTimeout(volTimer);
+    volTimer = setTimeout(() => api(`op=volume&v=${vol.value}`), 60);
+  });
+  vol.addEventListener("change", () => { api(`op=volume&v=${vol.value}`); setTimeout(() => { volDragging = false; }, 400); });
+  muteBtn.addEventListener("click", async () => { await api("op=mute"); pollMedia(); });
+
+  // 길게 누르기: 0.55초 이상 누르고 있으면 길게 누르기 동작, 이어지는 클릭은 무시
+  let holdTimer = 0, holdFired = false;
+  grid.addEventListener("pointerdown", (e) => {
+    const tile = e.target.closest(".tile");
+    holdFired = false;
+    clearTimeout(holdTimer);
+    if (!tile || tile.dataset.long !== "1") return;
+    holdTimer = setTimeout(() => {
+      holdFired = true;
+      if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
+      press(tile, true);
+    }, 550);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => grid.addEventListener(ev, () => clearTimeout(holdTimer)));
+  grid.addEventListener("contextmenu", (e) => { if (e.target.closest('.tile[data-long="1"]')) e.preventDefault(); });
   grid.addEventListener("click", (e) => {
     const tile = e.target.closest(".tile");
-    if (tile) press(tile);
+    if (!tile) return;
+    if (holdFired) { holdFired = false; return; }
+    press(tile);
   });
-  back.addEventListener("click", () => { path.pop(); render(); });
+  back.addEventListener("click", () => { autoFrom = null; path.pop(); render(); });
   document.addEventListener("visibilitychange", poll);
   window.addEventListener("resize", render);
 
@@ -306,8 +762,10 @@
     setOnline(false);
     return;
   }
+  showTab(params.get("tab") || store.get("tab", "grid"));
   poll();
   setInterval(poll, 1500);
+  setInterval(pollWidgets, 1000);
 })();
 </script>
 </body>

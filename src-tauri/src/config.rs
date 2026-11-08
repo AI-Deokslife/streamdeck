@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager};
 
 /// 버튼이 실행하는 동작.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Action {
     /// 프로그램/파일/폴더 실행
     Launch {
@@ -38,6 +38,24 @@ pub enum Action {
     Delay { ms: u64 },
     /// 여러 동작을 순서대로 실행
     Multi { steps: Vec<Action> },
+    /// 시계 (버튼에 지금 시각 표시, 누르면 아무 일 없음)
+    Clock {},
+    /// 타이머: 누르면 시작/일시정지, 길게 누르면 처음으로
+    Timer { minutes: u32 },
+    /// CPU·메모리 사용률 표시
+    SysInfo {},
+    /// 지금 앞에 있는 창 배치: left / right / maximize / minimize / center / nextMonitor
+    Window { mode: String },
+    /// 누를 때마다 first / second 를 번갈아 실행 (예: 마이크 끄기 ↔ 켜기).
+    /// 켜진 상태(second 를 실행할 차례)에는 alt_label / alt_icon 을 보여준다
+    Toggle {
+        first: Box<Action>,
+        second: Box<Action>,
+        #[serde(default)]
+        alt_label: String,
+        #[serde(default)]
+        alt_icon: String,
+    },
     /// 하위 폴더: 누르면 안의 버튼들로 화면이 바뀐다 (여러 단계로 중첩 가능)
     Folder {
         #[serde(default)]
@@ -117,6 +135,9 @@ pub struct Button {
     #[serde(default)]
     pub hotkey: String,
     pub action: Action,
+    /// 길게 눌렀을 때 실행할 동작 (선택)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub long_action: Option<Action>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,6 +156,9 @@ pub struct Config {
     /// true 면 마우스를 올렸을 때만 선명하게(100%), 벗어나면 opacity 로
     #[serde(default)]
     pub clear_on_hover: bool,
+    /// 화면 가장자리에 붙이면 마우스가 떠날 때 숨기기
+    #[serde(default)]
+    pub auto_hide: bool,
 }
 
 fn default_opacity() -> u32 {
@@ -160,6 +184,7 @@ fn btn(id: &str, label: &str, icon: &str, color: &str, hotkey: &str, action: Act
         color: color.into(),
         hotkey: hotkey.into(),
         action,
+        long_action: None,
     }
 }
 
@@ -171,6 +196,7 @@ impl Default for Config {
             theme: default_theme(),
             opacity: default_opacity(),
             clear_on_hover: false,
+            auto_hide: false,
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),
@@ -453,5 +479,27 @@ mod read_tests {
         std::fs::write(&p, "{}").unwrap();
         assert_eq!(read_with_retry(&p).unwrap(), "{}");
         let _ = std::fs::remove_file(&p);
+    }
+}
+
+#[cfg(test)]
+mod toggle_tests {
+    use super::*;
+
+    #[test]
+    fn toggle_and_long_press_roundtrip() {
+        let json = r#"{"id":"mic","label":"마이크 끄기","action":{"type":"toggle",
+            "first":{"type":"keys","keys":"ctrl+shift+m"},
+            "second":{"type":"keys","keys":"ctrl+shift+m"},
+            "altLabel":"마이크 켜기","altIcon":"🎙"},
+            "longAction":{"type":"url","url":"https://example.com"}}"#;
+        let b: Button = serde_json::from_str(json).unwrap();
+        assert!(matches!(&b.action, Action::Toggle { alt_label, .. } if alt_label == "마이크 켜기"));
+        assert!(matches!(&b.long_action, Some(Action::Url { .. })));
+        let back = serde_json::to_string(&b).unwrap();
+        assert!(back.contains("\"longAction\"") && back.contains("\"altIcon\""));
+        // 길게 누르기가 없으면 저장할 때 빠진다
+        let plain: Button = serde_json::from_str(r#"{"id":"a","label":"a","action":{"type":"url","url":"x"}}"#).unwrap();
+        assert!(!serde_json::to_string(&plain).unwrap().contains("longAction"));
     }
 }

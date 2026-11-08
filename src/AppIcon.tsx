@@ -1,5 +1,6 @@
 // iOS 홈 화면 스타일 앱 아이콘 (둥근 사각형). 폴더는 iOS 폴더처럼 안의 버튼을 작게 미리 보여준다.
 import { DeckButton } from "./types";
+import { WidgetFace } from "./widgets";
 
 function MiniIcon({ b }: { b: DeckButton }) {
   return (
@@ -9,7 +10,9 @@ function MiniIcon({ b }: { b: DeckButton }) {
   );
 }
 
-export default function AppIcon({ b }: { b: DeckButton }) {
+export default function AppIcon({ b: raw, on = false, face }: { b: DeckButton; on?: boolean; face?: WidgetFace }) {
+  // 토글이 켜져 있으면 켜진 상태의 아이콘으로
+  const b = on && raw.action.type === "toggle" ? { ...raw, icon: raw.action.altIcon || raw.icon } : raw;
   const a = b.action;
   const isFolder = a.type === "folder";
 
@@ -27,6 +30,25 @@ export default function AppIcon({ b }: { b: DeckButton }) {
     );
   }
 
+  // 시계·타이머·CPU: 아이콘 대신 글자
+  if (face) {
+    return (
+      <span className={"app-icon widget-face" + (face.state ? " " + face.state : "")} style={{ background: b.color }}>
+        <span className={"widget-lines n" + face.lines.length}>
+          {face.lines.map((l, i) => (
+            <span key={i}>{l}</span>
+          ))}
+        </span>
+        {face.progress !== undefined && (
+          <span className="widget-bar">
+            <span style={{ width: `${Math.max(0, Math.min(1, face.progress)) * 100}%` }} />
+          </span>
+        )}
+        <Badges b={b} />
+      </span>
+    );
+  }
+
   const full = !!b.image && !!b.imageFull;
   return (
     <span className={"app-icon" + (isFolder && !b.image ? " glass" : "")} style={full || (isFolder && !b.image) ? undefined : { background: b.color }}>
@@ -36,6 +58,7 @@ export default function AppIcon({ b }: { b: DeckButton }) {
         <span className="glyph">{b.icon || (isFolder ? "📁" : "")}</span>
       )}
       <Badges b={b} />
+      {on && <span className="on-dot" />}
     </span>
   );
 }
@@ -46,6 +69,7 @@ function Badges({ b }: { b: DeckButton }) {
   if (b.action.type === "folder" && b.image) marks.push("▦");
   if (b.action.type === "multi") marks.push("⛓");
   if (b.hotkey) marks.push("⌘");
+  if (b.longAction) marks.push("⋯");
   if (!marks.length) return null;
   return <span className="icon-badge">{marks.join(" ")}</span>;
 }

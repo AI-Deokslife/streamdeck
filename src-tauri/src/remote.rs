@@ -213,7 +213,55 @@ trait Host: Send + Sync + 'static {
     fn token(&self) -> String;
     fn version(&self) -> u64;
     fn deck(&self, version: u64) -> Value;
-    fn press(&self, id: &str) -> Result<(), String>;
+    fn press(&self, id: &str, long: bool) -> Result<(), String>;
+    /// 지금 PC 에서 앞에 있는 프로그램에 연결된 폴더 (휴대폰도 따라서 자동 전환)
+    fn active_folder(&self) -> Option<String>;
+    /// 트랙패드·키보드 탭 조작
+    fn control(&self, c: Control) -> Result<(), String>;
+    /// 음악 탭: 지금 재생 중인 곡과 볼륨
+    fn media(&self) -> Value;
+    /// 위젯 버튼 값 (CPU·메모리·타이머)
+    fn widgets(&self) -> Value;
+}
+
+/// 휴대폰 트랙패드·키보드 탭에서 오는 조작
+#[derive(Debug, PartialEq)]
+pub enum Control {
+    Move(i32, i32),
+    Click(&'static str),
+    Scroll(i32),
+    Type(String),
+    Key(String),
+    /// "toggle" / "next" / "prev"
+    Media(&'static str),
+    Volume(i32),
+    Mute,
+}
+
+/// 쿼리/본문 → 조작. 값이 이상하면 None
+fn parse_control(op: &str, get: &dyn Fn(&str) -> Option<String>, body: &str) -> Option<Control> {
+    let num = |k: &str| get(k).and_then(|v| v.parse::<i32>().ok()).map(|v| v.clamp(-2000, 2000));
+    match op {
+        "move" => Some(Control::Move(num("dx")?, num("dy")?)),
+        "click" => match get("btn").as_deref() {
+            Some("right") => Some(Control::Click("right")),
+            Some("middle") => Some(Control::Click("middle")),
+            Some("double") => Some(Control::Click("double")),
+            _ => Some(Control::Click("left")),
+        },
+        "scroll" => Some(Control::Scroll(num("dy")?)),
+        "type" if !body.is_empty() => Some(Control::Type(body.chars().take(5000).collect())),
+        // 키 이름은 단축키 버튼과 같은 형식 (enter, ctrl+c ...). 글자·숫자·+·공백만 허용
+        "key" => get("k").filter(|k| !k.is_empty() && k.len() <= 40 && k.chars().all(|c| c.is_ascii_alphanumeric() || "+ ".contains(c))).map(Control::Key),
+        "media" => Some(Control::Media(match get("cmd").as_deref() {
+            Some("next") => "next",
+            Some("prev") => "prev",
+            _ => "toggle",
+        })),
+        "volume" => num("v").map(|v| Control::Volume(v.clamp(0, 100))),
+        "mute" => Some(Control::Mute),
+        _ => None,
+    }
 }
 
 struct AppHost(AppHandle);
@@ -226,11 +274,39 @@ impl Host for AppHost {
         self.0.state::<RemoteState>().version.load(Ordering::SeqCst)
     }
     fn deck(&self, version: u64) -> Value {
-        let cfg = self.0.state::<crate::AppState>().config.lock().unwrap().clone();
-        deck_json(&cfg, version)
+        let state = self.0.state::<crate::AppState>();
+        let cfg = state.config.lock().unwrap().clone();
+        let toggles = state.toggles.lock().unwrap().clone();
+        deck_json(&cfg, version, &toggles)
     }
-    fn press(&self, id: &str) -> Result<(), String> {
-        crate::press_from_remote(&self.0, id)
+    fn press(&self, id: &str, long: bool) -> Result<(), String> {
+        crate::press_from_remote(&self.0, id, long)
+    }
+    fn active_folder(&self) -> Option<String> {
+        let exe = crate::winutil::last_app();
+        let state = self.0.state::<crate::AppState>();
+        let cfg = state.config.lock().unwrap();
+        config::folder_for_app(&cfg.buttons, &exe)
+    }
+    fn control(&self, c: Control) -> Result<(), String> {
+        use crate::actions;
+        match c {
+            Control::Move(dx, dy) => actions::mouse_move(dx, dy),
+            Control::Click(b) => actions::mouse_click(b),
+            Control::Scroll(dy) => actions::mouse_scroll(dy),
+            Control::Type(text) => actions::type_from_remote(&text),
+            Control::Key(k) => actions::send_keys(&k),
+            Control::Media(cmd) => crate::media::media_command(cmd),
+            Control::Volume(v) => crate::media::set_volume(v),
+            Control::Mute => crate::media::toggle_mute(),
+        }
+    }
+    fn widgets(&self) -> Value {
+        json!(crate::widgets::snapshot())
+    }
+    fn media(&self) -> Value {
+        let (volume, muted) = crate::media::volume().unwrap_or((0, false));
+        json!({ "now": crate::media::now_playing(), "volume": volume, "muted": muted })
     }
 }
 
@@ -333,11 +409,14 @@ fn handle(host: &dyn Host, mut req: Request) {
     match (req.method(), path.as_str()) {
         (Method::Get, "/api/deck") => {
             let version = host.version();
+            let active = host.active_folder();
             if get("v").and_then(|v| v.parse::<u64>().ok()) == Some(version) {
-                respond_json(req, 200, json!({ "changed": false, "version": version }));
+                respond_json(req, 200, json!({ "changed": false, "version": version, "activeFolder": active }));
                 return;
             }
-            respond_json(req, 200, host.deck(version));
+            let mut deck = host.deck(version);
+            deck["activeFolder"] = json!(active);
+            respond_json(req, 200, deck);
         }
         (Method::Post, "/api/press") => {
             // 본문은 쓰지 않지만 읽어서 비운다
@@ -347,7 +426,22 @@ fn handle(host: &dyn Host, mut req: Request) {
                 respond_json(req, 400, json!({ "ok": false, "error": "버튼 id 가 없어요" }));
                 return;
             };
-            match host.press(&id) {
+            match host.press(&id, get("long") == Some("1")) {
+                Ok(()) => respond_json(req, 200, json!({ "ok": true })),
+                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+            }
+        }
+        (Method::Get, "/api/media") => respond_json(req, 200, host.media()),
+        (Method::Get, "/api/widgets") => respond_json(req, 200, host.widgets()),
+        (Method::Post, "/api/control") => {
+            let mut body = String::new();
+            let _ = req.as_reader().take(20_000).read_to_string(&mut body);
+            let getter = |k: &str| get(k).map(str::to_string);
+            let Some(c) = parse_control(get("op").unwrap_or(""), &getter, &body) else {
+                respond_json(req, 400, json!({ "ok": false, "error": "알 수 없는 조작이에요" }));
+                return;
+            };
+            match host.control(c) {
                 Ok(()) => respond_json(req, 200, json!({ "ok": true })),
                 Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
             }
@@ -357,18 +451,30 @@ fn handle(host: &dyn Host, mut req: Request) {
 }
 
 /// 휴대폰에 보낼 버튼 목록. 실행 경로·단축키·명령 같은 내용은 빼고 모양만 보낸다.
-fn deck_json(cfg: &config::Config, version: u64) -> Value {
-    fn strip(list: &[config::Button]) -> Vec<Value> {
+fn deck_json(cfg: &config::Config, version: u64, toggles: &std::collections::HashMap<String, bool>) -> Value {
+    fn strip(list: &[config::Button], toggles: &std::collections::HashMap<String, bool>) -> Vec<Value> {
         list.iter()
             .map(|b| {
                 let (kind, children) = match &b.action {
-                    config::Action::Folder { buttons, .. } => ("folder", strip(buttons)),
+                    config::Action::Folder { buttons, .. } => ("folder", strip(buttons, toggles)),
                     config::Action::Multi { .. } => ("multi", vec![]),
+                    config::Action::Toggle { .. } => ("toggle", vec![]),
+                    config::Action::Clock {} => ("clock", vec![]),
+                    config::Action::Timer { .. } => ("timer", vec![]),
+                    config::Action::SysInfo {} => ("sysinfo", vec![]),
                     _ => ("button", vec![]),
+                };
+                let (alt_label, alt_icon) = match &b.action {
+                    config::Action::Toggle { alt_label, alt_icon, .. } => (alt_label.as_str(), alt_icon.as_str()),
+                    _ => ("", ""),
                 };
                 json!({
                     "id": b.id, "label": b.label, "icon": b.icon, "color": b.color,
                     "image": b.image, "imageFull": b.image_full, "kind": kind, "children": children,
+                    "on": toggles.get(&b.id).copied().unwrap_or(false),
+                    "altLabel": alt_label, "altIcon": alt_icon,
+                    "hasLong": b.long_action.is_some() || matches!(b.action, config::Action::Timer { .. }),
+                    "minutes": match &b.action { config::Action::Timer { minutes } => *minutes, _ => 0 },
                 })
             })
             .collect()
@@ -378,7 +484,7 @@ fn deck_json(cfg: &config::Config, version: u64) -> Value {
         "version": version,
         "columns": cfg.columns,
         "theme": cfg.theme,
-        "buttons": strip(&cfg.buttons),
+        "buttons": strip(&cfg.buttons, toggles),
     })
 }
 
@@ -420,7 +526,7 @@ mod tests {
                     {"id":"k","label":"저장","action":{"type":"keys","keys":"alt+s"}}]}}]}"#,
         )
         .unwrap();
-        let text = deck_json(&cfg, 3).to_string();
+        let text = deck_json(&cfg, 3, &Default::default()).to_string();
         assert!(!text.contains("secret-command"), "명령 내용이 휴대폰으로 가면 안 됨");
         assert!(!text.contains("alt+s"));
         assert!(!text.contains("Hwp.exe"));
@@ -438,6 +544,7 @@ mod tests {
             token: String,
             version: AtomicU64,
             cfg: config::Config,
+            controls: Mutex<Vec<String>>,
         }
         impl Host for TestHost {
             fn token(&self) -> String {
@@ -447,20 +554,37 @@ mod tests {
                 self.version.load(Ordering::SeqCst)
             }
             fn deck(&self, version: u64) -> Value {
-                deck_json(&self.cfg, version)
+                deck_json(&self.cfg, version, &Default::default())
             }
-            fn press(&self, id: &str) -> Result<(), String> {
+            fn press(&self, id: &str, _long: bool) -> Result<(), String> {
                 if id == "f" { Ok(()) } else { Err("버튼을 찾을 수 없어요".into()) }
+            }
+            fn active_folder(&self) -> Option<String> {
+                Some("f".into())
+            }
+            fn control(&self, c: Control) -> Result<(), String> {
+                self.controls.lock().unwrap().push(format!("{c:?}"));
+                Ok(())
+            }
+            fn widgets(&self) -> Value {
+                json!({ "cpu": 37, "memory": 48, "timers": { "t": { "remainingMs": 183_000, "running": true, "done": false } } })
+            }
+            fn media(&self) -> Value {
+                json!({ "now": { "title": "테스트 곡", "artist": "가수", "playing": true, "source": "x", "art": "" }, "volume": 40, "muted": false })
             }
         }
         let cfg: config::Config = serde_json::from_str(
-            r#"{"toggleHotkey":"","columns":3,"theme":"toss","buttons":[
+            r##"{"toggleHotkey":"","columns":3,"theme":"toss","buttons":[
                 {"id":"f","label":"폴더","action":{"type":"folder","buttons":[
-                    {"id":"k","label":"저장","action":{"type":"keys","keys":"alt+s"}}]}}]}"#,
+                    {"id":"k","label":"저장","action":{"type":"keys","keys":"alt+s"}},
+                    {"id":"c","label":"","color":"#1c1c1e","action":{"type":"clock"}},
+                    {"id":"t","label":"라면","color":"#ff9f0a","action":{"type":"timer","minutes":5}},
+                    {"id":"s","label":"PC 상태","color":"#5e5ce6","action":{"type":"sysInfo"}},
+                    {"id":"w","label":"왼쪽 절반","icon":"◧","action":{"type":"window","mode":"left"}}]}}]}"##,
         )
         .unwrap();
         let token = new_token();
-        let host = Arc::new(TestHost { token: token.clone(), version: AtomicU64::new(0), cfg });
+        let host = Arc::new(TestHost { token: token.clone(), version: AtomicU64::new(0), cfg, controls: Mutex::new(vec![]) });
         let (server, port) = (47900..47950)
             .find_map(|p| Server::http((BIND, p)).ok().map(|s| (Arc::new(s), p)))
             .expect("테스트 포트를 열지 못함");
@@ -503,20 +627,54 @@ mod tests {
         assert!(call("POST", &format!("/api/press?t={token}&id=f")).1.contains("\"ok\":true"));
         assert!(call("POST", &format!("/api/press?t={token}&id=nope")).1.contains("\"ok\":false"));
 
+        // 자동 전환: 바뀐 게 없어도 지금 폴더는 알려줌
+        assert!(call("GET", &format!("/api/deck?t={token}&v=999999")).1.contains("\"activeFolder\""));
+        // 트랙패드·키보드 조작 (열쇠 필요)
+        assert_eq!(call("POST", "/api/control?op=move&dx=5&dy=-3").0, 403);
+        assert!(call("POST", &format!("/api/control?t={token}&op=move&dx=5&dy=-3")).1.contains("\"ok\":true"));
+        assert!(call("POST", &format!("/api/control?t={token}&op=click&btn=right")).1.contains("\"ok\":true"));
+        assert!(call("POST", &format!("/api/control?t={token}&op=key&k=ctrl%2Bc")).1.contains("\"ok\":true"));
+        assert_eq!(call("POST", &format!("/api/control?t={token}&op=key&k=%3Cscript%3E")).0, 400, "이상한 키 이름은 거절");
+        assert_eq!(call("POST", &format!("/api/control?t={token}&op=nope")).0, 400);
+        assert!(call("POST", &format!("/api/control?t={token}&op=media&cmd=next")).1.contains("\"ok\":true"));
+        assert!(call("POST", &format!("/api/control?t={token}&op=volume&v=150")).1.contains("\"ok\":true"));
+        assert!(call("POST", &format!("/api/control?t={token}&op=mute")).1.contains("\"ok\":true"));
+        let got = host.controls.lock().unwrap().clone();
+        assert_eq!(
+            got,
+            ["Move(5, -3)", "Click(\"right\")", "Key(\"ctrl+c\")", "Media(\"next\")", "Volume(100)", "Mute"],
+            "볼륨은 100 을 넘지 않게"
+        );
+        assert_eq!(call("GET", "/api/media").0, 403);
+        assert!(call("GET", &format!("/api/media?t={token}")).1.contains("테스트 곡"));
+        // 위젯: 열쇠 필요, 타이머는 길게 누르기(처음으로)가 있다고 알려줌
+        assert_eq!(call("GET", "/api/widgets").0, 403);
+        assert!(call("GET", &format!("/api/widgets?t={token}")).1.contains("\"cpu\":37"));
+        let deck: Value = serde_json::from_str(&call("GET", &format!("/api/deck?t={token}")).1).unwrap();
+        let kids = deck["buttons"][0]["children"].as_array().unwrap();
+        let kinds: Vec<&str> = kids.iter().map(|b| b["kind"].as_str().unwrap()).collect();
+        assert_eq!(kinds, ["button", "clock", "timer", "sysinfo", "button"]);
+        assert_eq!(kids[2]["minutes"], 5);
+        assert_eq!(kids[2]["hasLong"], true);
+        assert!(!deck.to_string().contains("\"left\""), "창 배치 방법도 감춤");
+
         // 휴대폰 화면 스크린샷 (QD_PHONE_SHOT=저장경로 를 주면) — 실제 서버에 붙어서 그린다
-        if let Ok(shot) = std::env::var("QD_PHONE_SHOT") {
+        if let Ok(dir) = std::env::var("QD_PHONE_SHOT") {
             let edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
-            let prof = std::env::temp_dir().join(format!("qd-phone-{}", std::process::id()));
-            let _ = std::process::Command::new(edge)
-                .args([
-                    "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                    &format!("--user-data-dir={}", prof.display()),
-                    "--window-size=500,900", "--force-device-scale-factor=1.5", "--virtual-time-budget=4000",
-                    &format!("--screenshot={shot}"),
-                    &format!("http://127.0.0.1:{port}/?t={token}"),
-                ])
-                .output();
-            assert!(std::path::Path::new(&shot).exists(), "스크린샷 실패");
+            for tab in ["grid", "pad", "keys", "music"] {
+                let shot = format!("{dir}/phone-{tab}.png");
+                let prof = std::env::temp_dir().join(format!("qd-phone-{}-{tab}", std::process::id()));
+                let _ = std::process::Command::new(edge)
+                    .args([
+                        "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                        &format!("--user-data-dir={}", prof.display()),
+                        "--window-size=500,900", "--force-device-scale-factor=1.5", "--virtual-time-budget=4000",
+                        &format!("--screenshot={shot}"),
+                        &format!("http://127.0.0.1:{port}/?t={token}&tab={tab}"),
+                    ])
+                    .output();
+                assert!(std::path::Path::new(&shot).exists(), "스크린샷 실패: {tab}");
+            }
         }
 
         server.unblock();

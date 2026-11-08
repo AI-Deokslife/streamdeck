@@ -1,4 +1,4 @@
-# 사용설명서 스크린샷 만들기. 먼저 프로젝트 폴더에서 `npx vite --port 1420` 을 실행해 둔다.
+﻿# 사용설명서 스크린샷 만들기. 먼저 프로젝트 폴더에서 `npx vite --port 1420` 을 실행해 둔다.
 $ErrorActionPreference = "Continue"
 $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 $out = Join-Path $PSScriptRoot "assets"
@@ -14,13 +14,22 @@ $shots = @(
   @{ n = "edit-folder";  v = "edit-folder"; t = "dark";  h = 720 },
   @{ n = "edit-multi";   v = "edit-multi";  t = "dark";  h = 720 },
   @{ n = "settings";     v = "settings";    t = "light"; h = 720 },
-  @{ n = "settings-2";   v = "settings-2";  t = "light"; h = 720 }
+  @{ n = "settings-2";   v = "settings-2";  t = "light"; h = 720 },
+  @{ n = "settings-remote"; v = "settings-remote"; t = "light"; h = 720 },
+  @{ n = "settings-look"; v = "settings-look"; t = "light"; h = 720 },
+  @{ n = "widgets";      v = "widgets";     t = "dark";  h = 330 },
+  @{ n = "widgets-edit"; v = "widgets-edit"; t = "dark"; h = 720 },
+  @{ n = "home-kakao";   v = "home";        t = "kakao"; h = 330 },
+  @{ n = "home-toss";    v = "home";        t = "toss";  h = 330 },
+  @{ n = "home-baemin";  v = "home";        t = "baemin"; h = 330 },
+  @{ n = "home-line";    v = "home";        t = "line";  h = 330 },
+  @{ n = "opacity";      v = "home";        t = "dark";  h = 330; q = "&op=60&bg=check" }
 )
 foreach ($s in $shots) {
   $file = Join-Path $out "shot-$($s.n).png"
   if (Test-Path $file) { Remove-Item $file }
-  & $edge --headless=new --disable-gpu --hide-scrollbars --user-data-dir="$prof" --force-device-scale-factor=2 `
+  & $edge --headless=new --disable-gpu --hide-scrollbars --user-data-dir="$prof-$($s.n)" --force-device-scale-factor=2 `
     --window-size=600,$($s.h) --virtual-time-budget=6000 --screenshot="$file" `
-    "http://localhost:1420/docs/manual/shots.html?view=$($s.v)&theme=$($s.t)&w=420&h=$($s.h)" 2>$null | Out-Null
+    "http://localhost:1420/docs/manual/shots.html?view=$($s.v)&theme=$($s.t)&w=420&h=$($s.h)$($s.q)" 2>$null | Out-Null
   if (Test-Path $file) { "ok   $($s.n)" } else { "FAIL $($s.n)" }
 }

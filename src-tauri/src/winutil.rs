@@ -36,6 +36,10 @@ pub fn last_app() -> String {
     LAST_EXE.lock().unwrap().clone()
 }
 
+pub fn own_hwnd() -> isize {
+    OWN_HWND.load(Ordering::SeqCst)
+}
+
 pub fn set_own_hwnd(hwnd: isize) {
     OWN_HWND.store(hwnd, Ordering::SeqCst);
 }
@@ -317,6 +321,99 @@ pub fn focus_app<S: AsRef<str>>(exes: &[S]) -> Result<(), FocusError> {
     } else {
         Err(FocusError::Failed)
     }
+}
+
+// ---------------- 창 배치 ----------------
+
+/// 지금 앞에 있는(또는 마지막으로 쓰던) 창을 배치한다.
+/// mode: left / right / maximize / minimize / center / nextMonitor
+pub fn arrange_window(mode: &str) -> Result<(), String> {
+    use windows_sys::Win32::{
+        Foundation::{LPARAM, RECT},
+        Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONEAREST},
+        UI::WindowsAndMessaging::{GetWindowRect, IsZoomed, SetWindowPos, SW_MAXIMIZE, SW_MINIMIZE, SWP_NOZORDER, SWP_NOACTIVATE},
+    };
+    let own = OWN_HWND.load(Ordering::SeqCst);
+    let fg = unsafe { GetForegroundWindow() } as isize;
+    let target = if fg != 0 && fg != own { fg } else { LAST_FOREIGN.load(Ordering::SeqCst) };
+    if target == 0 {
+        return Err("배치할 창이 없어요. 먼저 옮길 창을 클릭해 주세요".into());
+    }
+    let hwnd = target as HWND;
+    let work_of = |mon: HMONITOR| -> RECT {
+        let mut mi: MONITORINFO = unsafe { std::mem::zeroed() };
+        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        unsafe { GetMonitorInfoW(mon, &mut mi) };
+        mi.rcWork
+    };
+    unsafe {
+        match mode {
+            "maximize" => {
+                ShowWindow(hwnd, SW_MAXIMIZE);
+                return Ok(());
+            }
+            "minimize" => {
+                ShowWindow(hwnd, SW_MINIMIZE);
+                return Ok(());
+            }
+            _ => {}
+        }
+        // 최대화돼 있으면 먼저 풀어야 크기를 바꿀 수 있다
+        if IsZoomed(hwnd) != 0 {
+            ShowWindow(hwnd, SW_RESTORE);
+        }
+        let mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let w = work_of(mon);
+        let (ww, wh) = (w.right - w.left, w.bottom - w.top);
+        let mut r: RECT = std::mem::zeroed();
+        GetWindowRect(hwnd, &mut r);
+        let (cw, ch) = (r.right - r.left, r.bottom - r.top);
+        let (x, y, cx, cy) = match mode {
+            "left" => (w.left, w.top, ww / 2, wh),
+            "right" => (w.left + ww / 2, w.top, ww - ww / 2, wh),
+            "center" => (w.left + (ww - cw.min(ww)) / 2, w.top + (wh - ch.min(wh)) / 2, cw.min(ww), ch.min(wh)),
+            "nextMonitor" => {
+                unsafe extern "system" fn collect(m: HMONITOR, _: HDC, _: *mut RECT, l: LPARAM) -> i32 {
+                    unsafe { (*(l as *mut Vec<HMONITOR>)).push(m) };
+                    1
+                }
+                let mut mons: Vec<HMONITOR> = Vec::new();
+                EnumDisplayMonitors(std::ptr::null_mut(), std::ptr::null(), Some(collect), &mut mons as *mut _ as LPARAM);
+                if mons.len() < 2 {
+                    return Err("모니터가 하나뿐이에요".into());
+                }
+                let i = mons.iter().position(|&m| m == mon).unwrap_or(0);
+                let n = work_of(mons[(i + 1) % mons.len()]);
+                // 같은 상대 위치·비율로 옮긴다
+                let (nw, nh) = (n.right - n.left, n.bottom - n.top);
+                let fx = |v: i32, from: i32, size: i32, to: i32, nsize: i32| to + ((v - from) as i64 * nsize as i64 / size.max(1) as i64) as i32;
+                let nx = fx(r.left, w.left, ww, n.left, nw);
+                let ny = fx(r.top, w.top, wh, n.top, nh);
+                let ncx = (cw as i64 * nw as i64 / ww.max(1) as i64) as i32;
+                let ncy = (ch as i64 * nh as i64 / wh.max(1) as i64) as i32;
+                (nx, ny, ncx, ncy)
+            }
+            _ => return Err(format!("알 수 없는 배치: {mode}")),
+        };
+        // Windows 10/11 창에는 보이지 않는 테두리(그림자 자리)가 있어서 그만큼 넓혀야 틈 없이 붙는다
+        let (x, y, cx, cy) = if mode == "left" || mode == "right" {
+            use windows_sys::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+            let mut f: RECT = std::mem::zeroed();
+            let ok = DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS as u32, &mut f as *mut _ as *mut _, std::mem::size_of::<RECT>() as u32) == 0;
+            if ok {
+                let (l, t, rr, b) = (f.left - r.left, f.top - r.top, r.right - f.right, r.bottom - f.bottom);
+                (x - l, y - t, cx + l + rr, cy + t + b)
+            } else {
+                (x, y, cx, cy)
+            }
+        } else {
+            (x, y, cx, cy)
+        };
+        if SetWindowPos(hwnd, std::ptr::null_mut(), x, y, cx, cy, SWP_NOZORDER | SWP_NOACTIVATE) == 0 {
+            return Err("창을 옮기지 못했어요 (관리자 권한 창일 수 있어요)".into());
+        }
+    }
+    Ok(())
 }
 
 /// 전역 단축키로 실행된 경우 사용자가 아직 Ctrl/Alt 등을 누르고 있으면

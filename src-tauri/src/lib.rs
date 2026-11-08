@@ -1,10 +1,14 @@
 mod actions;
 mod apppath;
+mod autohide;
 mod capture;
 mod config;
 mod favicon;
 mod icon;
+mod media;
 mod remote;
+mod widgets;
+mod updates;
 mod winutil;
 
 use config::{Action, Config};
@@ -30,6 +34,48 @@ struct AppState {
     saved_size: Mutex<Option<LogicalSize<f64>>>,
     /// 앱 시작 시 단축키 등록 과정에서 생긴 알림 (화면에 한 번 보여줌)
     startup_notices: Mutex<Vec<String>>,
+    /// 토글 버튼 상태 (버튼 id → 켜짐). 앱을 껐다 켜면 모두 꺼짐으로 시작
+    toggles: Mutex<HashMap<String, bool>>,
+}
+
+/// 버튼 실행 (PC 클릭·전역 단축키·휴대폰 공통). 토글 상태와 길게 누르기를 여기서 처리한다
+fn execute(app: &AppHandle, id: &str, long: bool, from_hotkey: bool) -> Result<(), String> {
+    let (button, inherited) = {
+        let state = app.state::<AppState>();
+        let cfg = state.config.lock().unwrap();
+        config::find_button(&cfg.buttons, id).map(|(b, i)| (b.clone(), i))
+    }
+    .ok_or("버튼을 찾을 수 없어요")?;
+    let action = if long {
+        match (&button.long_action, &button.action) {
+            (Some(a), _) => a.clone(),
+            (None, Action::Timer { .. }) => {
+                widgets::timer_reset(id);
+                remote::bump_version(app);
+                return Ok(());
+            }
+            (None, _) => return Err("길게 누르기 동작이 없어요".into()),
+        }
+    } else {
+        button.action.clone()
+    };
+    match &action {
+        // 타이머: 짧게 = 시작/일시정지, 길게(따로 정한 동작이 없으면) = 처음으로
+        Action::Timer { minutes } => {
+            widgets::timer_press(id, *minutes);
+            remote::bump_version(app);
+            Ok(())
+        }
+        Action::Toggle { first, second, .. } => {
+            let on = app.state::<AppState>().toggles.lock().unwrap().get(id).copied().unwrap_or(false);
+            actions::run(app, if on { second } else { first }, from_hotkey, &inherited)?;
+            app.state::<AppState>().toggles.lock().unwrap().insert(id.to_string(), !on);
+            let _ = app.emit("toggle-changed", serde_json::json!({ "id": id, "on": !on }));
+            remote::bump_version(app);
+            Ok(())
+        }
+        _ => actions::run(app, &action, from_hotkey, &inherited),
+    }
 }
 
 fn toggle_registered(app: &AppHandle) -> bool {
@@ -66,6 +112,10 @@ fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
 
 fn toggle_window(app: &AppHandle) {
     if let Some(w) = main_window(app) {
+        // 가장자리에 숨어 있었으면 숨기기 대신 꺼내기
+        if autohide::reveal() {
+            return;
+        }
         if w.is_visible().unwrap_or(false) {
             let _ = w.hide();
         } else {
@@ -75,6 +125,7 @@ fn toggle_window(app: &AppHandle) {
 }
 
 fn show_window(app: &AppHandle) {
+    autohide::reveal();
     if let Some(w) = main_window(app) {
         let _ = w.show();
         let _ = w.unminimize();
@@ -154,22 +205,38 @@ fn take_startup_notices(state: State<AppState>) -> Vec<String> {
 #[tauri::command]
 fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Vec<String>, String> {
     config::save(&app, &cfg)?;
+    autohide::set_enabled(cfg.auto_hide);
     *state.config.lock().unwrap() = cfg.clone();
     remote::bump_version(&app); // 휴대폰 리모컨 화면도 새로 받게
     Ok(register_hotkeys(&app, &cfg))
 }
 
 /// 휴대폰 리모컨에서 버튼을 눌렀을 때 (PC 의 버튼 클릭과 같은 동작)
-fn press_from_remote(app: &AppHandle, id: &str) -> Result<(), String> {
-    let (action, inherited) = find_action(app, id).ok_or("버튼을 찾을 수 없어요")?;
+fn press_from_remote(app: &AppHandle, id: &str, long: bool) -> Result<(), String> {
+    if long {
+        return execute(app, id, true, false);
+    }
+    let (action, _) = find_action(app, id).ok_or("버튼을 찾을 수 없어요")?;
     match &action {
         // 폴더 이동은 휴대폰 화면이 처리하고, 연결 프로그램이 있으면 PC 에서 실행/활성화
         Action::Folder { apps, launch, .. } if !launch.trim().is_empty() || !apps.is_empty() => {
             actions::activate_or_launch(app, apps, launch).map(|_| ())
         }
         Action::Folder { .. } => Ok(()),
-        _ => actions::run(app, &action, false, &inherited),
+        _ => execute(app, id, false, false),
     }
+}
+
+/// 위젯 버튼에 보여줄 값 (CPU·메모리, 타이머 남은 시간)
+#[tauri::command]
+fn get_widgets() -> widgets::WidgetState {
+    widgets::snapshot()
+}
+
+/// 토글 버튼들의 지금 상태
+#[tauri::command]
+fn get_toggles(state: State<AppState>) -> HashMap<String, bool> {
+    state.toggles.lock().unwrap().clone()
 }
 
 #[tauri::command]
@@ -188,9 +255,8 @@ fn regenerate_remote_key(app: AppHandle) -> remote::RemoteStatus {
 }
 
 #[tauri::command]
-async fn run_button(app: AppHandle, id: String) -> Result<(), String> {
-    let (action, inherited) = find_action(&app, &id).ok_or("버튼을 찾을 수 없습니다")?;
-    tauri::async_runtime::spawn_blocking(move || actions::run(&app, &action, false, &inherited))
+async fn run_button(app: AppHandle, id: String, long: Option<bool>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || execute(&app, &id, long.unwrap_or(false), false))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -329,6 +395,7 @@ fn hide_window(app: AppHandle) {
 fn set_edit_mode(app: AppHandle, state: State<AppState>, on: bool) -> Result<(), String> {
     let w = main_window(&app).ok_or("창 없음")?;
     let scale = w.scale_factor().map_err(|e| e.to_string())?;
+    autohide::set_paused(on);
     if on {
         winutil::set_no_activate(false);
         let size = w.inner_size().map_err(|e| e.to_string())?.to_logical::<f64>(scale);
@@ -360,9 +427,10 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let toggle = MenuItem::with_id(app, "toggle", "보이기 / 숨기기", true, None::<&str>)?;
     let edit = MenuItem::with_id(app, "edit", "버튼 편집", true, None::<&str>)?;
     let auto = CheckMenuItem::with_id(app, "autostart", "Windows 시작 시 자동 실행", true, autostart_on, None::<&str>)?;
+    let update = MenuItem::with_id(app, "update", "업데이트 확인", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&toggle, &edit, &sep, &auto, &quit])?;
+    let menu = Menu::with_items(app, &[&toggle, &edit, &sep, &auto, &update, &quit])?;
 
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().cloned().expect("앱 아이콘 없음"))
@@ -379,7 +447,15 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 let al = app.autolaunch();
                 let _ = if al.is_enabled().unwrap_or(false) { al.disable() } else { al.enable() };
             }
-            "quit" => app.exit(0),
+            "update" => {
+                show_window(app);
+                updates::check_in_background(app.clone(), true, std::time::Duration::ZERO);
+            }
+            "quit" => {
+                // 숨은 자리 말고 원래 자리를 기억하도록 먼저 꺼낸다
+                autohide::reveal();
+                app.exit(0)
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -399,6 +475,7 @@ pub fn run() {
         // 이미 실행 중이면 새로 띄우지 않고 기존 창을 보여준다 (반드시 첫 번째 플러그인)
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(
@@ -433,9 +510,10 @@ pub fn run() {
                                     }
                                     return;
                                 }
-                                let app = app.clone();
+                                let _ = inherited;
+                                let (app, id) = (app.clone(), button_id.to_string());
                                 thread::spawn(move || {
-                                    if let Err(e) = actions::run(&app, &action, true, &inherited) {
+                                    if let Err(e) = execute(&app, &id, false, true) {
                                         let _ = app.emit("action-error", e);
                                     }
                                 });
@@ -475,10 +553,15 @@ pub fn run() {
                 eprintln!("{n}");
             }
             let state = app.state::<AppState>();
+            autohide::set_enabled(cfg.auto_hide);
+            autohide::start();
             *state.config.lock().unwrap() = cfg;
             *state.startup_notices.lock().unwrap() = notices;
             build_tray(&handle)?;
             remote::start_if_enabled(&handle);
+            widgets::start_watcher(handle.clone());
+            // 켠 뒤 잠시 있다가 새 버전 확인 (조용히: 없거나 실패하면 아무 말 안 함)
+            updates::check_in_background(handle.clone(), false, std::time::Duration::from_secs(8));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -489,6 +572,9 @@ pub fn run() {
             test_action,
             list_running_apps,
             current_app,
+            get_toggles,
+            get_widgets,
+            updates::install_update,
             activate_app,
             resolve_app_path,
             get_app_icon,

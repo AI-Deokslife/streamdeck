@@ -21,6 +21,7 @@ import {
   updateById,
 } from "./tree";
 import { AppFocus, Config, DeckButton, STYLE_THEMES, newButton } from "./types";
+import { WIDGET_TYPES, WidgetState, formatDate, widgetFace } from "./widgets";
 import "./App.css";
 
 /** 아이콘 아래 이름 줄 + 간격 */
@@ -40,6 +41,26 @@ export default function App() {
   const dragId = useRef<string | null>(null);
   /** 편집 중 복사해 둔 버튼 (다른 폴더에 붙여넣기용) */
   const [copied, setCopied] = useState<DeckButton | null>(null);
+  /** 토글 버튼 상태 (버튼 id → 켜짐) */
+  const [toggles, setToggles] = useState<Record<string, boolean>>({});
+  /** 길게 누르기: 타이머와, 길게 누르기가 실행돼서 이어지는 클릭을 무시해야 하는지 */
+  const longTimer = useRef<number>(undefined);
+  const longFired = useRef(false);
+  useEffect(() => {
+    invoke<Record<string, boolean>>("get_toggles").then(setToggles).catch(() => {});
+    const un = listen<{ id: string; on: boolean }>("toggle-changed", (e) =>
+      setToggles((t) => ({ ...t, [e.payload.id]: e.payload.on })),
+    );
+    return () => {
+      un.then((f) => f());
+    };
+  }, []);
+  /** 새 버전 알림과 내려받는 중 진행률 */
+  const [update, setUpdate] = useState<{ version: string; current: string; notes: string } | null>(null);
+  const [updating, setUpdating] = useState<{ got: number; total: number | null } | null>(null);
+  /** 위젯 버튼 값 (CPU·메모리, 타이머)과 시계용 현재 시각 */
+  const [widgets, setWidgets] = useState<WidgetState | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const toastTimer = useRef<number>(undefined);
   /** 연결 프로그램 때문에 자동으로 연 폴더 (스마트 프로필) */
   const [autoApp, setAutoApp] = useState<string | null>(null);
@@ -148,6 +169,53 @@ export default function App() {
   const view = editing && draft ? draft : config;
   const current = view ? buttonsAt(view.buttons, path) : null;
 
+  // 위젯 버튼이 하나라도 보이면 1초마다 값 갱신
+  const showsWidgets = !!current?.some((b) => WIDGET_TYPES.includes(b.action.type));
+  useEffect(() => {
+    if (!showsWidgets) return;
+    const tick = () => {
+      setNow(new Date());
+      invoke<WidgetState>("get_widgets").then(setWidgets).catch(() => {});
+    };
+    tick();
+    const h = window.setInterval(tick, 1000);
+    return () => window.clearInterval(h);
+  }, [showsWidgets]);
+
+  // 자동 업데이트 알림
+  useEffect(() => {
+    const uns = [
+      listen<{ version: string; current: string; notes: string }>("update-available", (e) => setUpdate(e.payload)),
+      listen<string>("update-status", (e) => showToast(e.payload, "info", 4000)),
+      listen<{ got: number; total: number | null }>("update-progress", (e) => setUpdating(e.payload)),
+    ];
+    return () => {
+      uns.forEach((u) => u.then((f) => f()));
+    };
+  }, [showToast]);
+
+  async function installUpdate() {
+    setUpdating({ got: 0, total: null });
+    try {
+      await invoke("install_update"); // 성공하면 설치 후 다시 시작해서 여기로 돌아오지 않음
+    } catch (e) {
+      setUpdating(null);
+      showToast(String(e), "error", 8000);
+    }
+  }
+
+  // 타이머가 끝나면 알림
+  useEffect(() => {
+    const un = listen<string>("timer-done", (e) => {
+      const b = configRef.current && allButtons(configRef.current.buttons).find((x) => x.id === e.payload);
+      showToast(`⏰ ${b?.label || "타이머"} 끝났어요!`, "info", 8000);
+      invoke<WidgetState>("get_widgets").then(setWidgets).catch(() => {});
+    });
+    return () => {
+      un.then((f) => f());
+    };
+  }, [showToast]);
+
   // 투명도: 마우스가 창 위에 있는지, 설정에서 슬라이더를 끄는 중인지(미리보기)
   const [hovered, setHovered] = useState(false);
   const [previewOpacity, setPreviewOpacity] = useState<number | null>(null);
@@ -230,6 +298,33 @@ export default function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  // ---------- 편집 되돌리기 (Ctrl+Z / 다시 실행 Ctrl+Y) ----------
+  const history = useRef<{ past: Config[]; future: Config[]; last: Config | null; lastAt: number; skip: boolean }>({
+    past: [],
+    future: [],
+    last: null,
+    lastAt: 0,
+    skip: false,
+  });
+  useEffect(() => {
+    const h = history.current;
+    if (!editing || !draft) {
+      Object.assign(h, { past: [], future: [], last: null, lastAt: 0, skip: false });
+      return;
+    }
+    if (h.skip) {
+      h.skip = false;
+    } else if (h.last && h.last !== draft) {
+      // 글자를 연달아 칠 때는 한 번으로 묶는다
+      const now = Date.now();
+      if (now - h.lastAt > 700 || !h.past.length) h.past.push(h.last);
+      if (h.past.length > 100) h.past.shift();
+      h.future = [];
+      h.lastAt = now;
+    }
+    h.last = draft;
+  }, [draft, editing]);
+
   if (!config || !view) return <div className="loading">불러오는 중…</div>;
 
   const buttons = current ?? view.buttons;
@@ -246,12 +341,34 @@ export default function App() {
         ? 1
         : baseOpacity;
 
+  function undo(redo = false) {
+    const h = history.current;
+    const from = redo ? h.future : h.past;
+    const to = redo ? h.past : h.future;
+    const next = from.pop();
+    if (!next || !draft) {
+      showToast(redo ? "다시 실행할 게 없어요" : "더 되돌릴 게 없어요", "info", 1500);
+      return;
+    }
+    to.push(draft);
+    h.skip = true;
+    h.lastAt = 0;
+    setDraft(next);
+    showToast(redo ? "다시 실행했어요" : "되돌렸어요 (다시 실행: Ctrl+Y)", "info", 1500);
+  }
+
   editKeys.current = (e) => {
-    if (!editing || !e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (!editing || !e.ctrlKey || e.altKey) return;
     // 글자 입력 칸이나 단축키 녹화 칸에서는 원래 동작 그대로
     const t = e.target as HTMLElement | null;
     if (t?.closest("input, textarea, select, [contenteditable], .keycap-box, .icon-preview")) return;
     const k = e.code;
+    if (k === "KeyZ" || k === "KeyY") {
+      e.preventDefault();
+      undo(k === "KeyY" || e.shiftKey);
+      return;
+    }
+    if (e.shiftKey) return;
     if (k === "KeyC" && selected) copyButton(selected);
     else if (k === "KeyV" && copied) pasteButton();
     else if (k === "KeyD" && selected) duplicateButton(selected);
@@ -269,7 +386,31 @@ export default function App() {
     setSelectedId(null);
   }
 
+  /** 길게 누르기 시작 (편집 중이 아니고 길게 누르기 동작이 있을 때만) */
+  function pressStart(b: DeckButton) {
+    longFired.current = false;
+    window.clearTimeout(longTimer.current);
+    if (editing || (!b.longAction && b.action.type !== "timer")) return;
+    longTimer.current = window.setTimeout(async () => {
+      longFired.current = true;
+      setPressedId(b.id);
+      setTimeout(() => setPressedId(null), 250);
+      try {
+        await invoke("run_button", { id: b.id, long: true });
+      } catch (e) {
+        showToast(String(e));
+      }
+    }, 550);
+  }
+  function pressCancel() {
+    window.clearTimeout(longTimer.current);
+  }
+
   async function press(b: DeckButton) {
+    if (longFired.current) {
+      longFired.current = false; // 길게 누르기가 이미 실행됨
+      return;
+    }
     if (editing) {
       setSelectedId(b.id === selectedId ? null : b.id);
       return;
@@ -555,6 +696,10 @@ export default function App() {
                 (selectedId === b.id ? " selected" : "")
               }
               onClick={() => press(b)}
+              onPointerDown={() => pressStart(b)}
+              onPointerUp={pressCancel}
+              onPointerLeave={pressCancel}
+              onContextMenu={(e) => b.longAction && e.preventDefault()}
               onDoubleClick={() => editing && isFolder && openFolder(b.id)}
               title={b.hotkey ? `${b.label} (${prettyHotkey(b.hotkey)})` : b.label}
               draggable={editing}
@@ -574,8 +719,16 @@ export default function App() {
                 if (dragId.current) reorder(dragId.current, b.id);
               }}
             >
-              <AppIcon b={b} />
-              {b.label && <span className="tile-label">{b.label}</span>}
+              <AppIcon b={b} on={!!toggles[b.id]} face={widgetFace(b, now, widgets)} />
+              {(b.label || b.action.type === "clock") && (
+                <span className="tile-label">
+                  {b.action.type === "clock"
+                    ? formatDate(now)
+                    : toggles[b.id] && b.action.type === "toggle"
+                      ? b.action.altLabel || b.label
+                      : b.label}
+                </span>
+              )}
               {editing && (
                 <span
                   className="del-badge"
@@ -646,6 +799,31 @@ export default function App() {
             />
           )}
         </section>
+      )}
+
+      {update && !editing && (
+        <div className="update-bar">
+          {updating ? (
+            <>
+              <span className="grow">
+                내려받는 중…{" "}
+                {updating.total ? `${Math.round((updating.got / updating.total) * 100)}%` : `${(updating.got / 1048576).toFixed(1)}MB`}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="grow" title={update.notes || undefined}>
+                🎉 새 버전 <b>v{update.version}</b>
+              </span>
+              <button className="update-go" onClick={installUpdate}>
+                지금 업데이트
+              </button>
+              <button className="update-x" onClick={() => setUpdate(null)} title="나중에">
+                ✕
+              </button>
+            </>
+          )}
+        </div>
       )}
 
       {toast && (

@@ -61,7 +61,23 @@
         transformCallback: (cb) => { const id = Math.floor(Math.random() * 1e9); window["_" + id] = cb; return id; },
         unregisterCallback: () => {},
         invoke: async (cmd, a) => {
-          if (cmd === "get_config") return structuredClone(await cfgPromise);
+          if (cmd === "get_config") {
+            const c = structuredClone(await cfgPromise);
+            // ?view=widgets : 위젯·토글·창 배치 버튼 모음
+            if (view.startsWith("widgets")) c.buttons = [
+              { id: "clk", label: "", icon: "🕒", color: "#1c1c1e", hotkey: "", action: { type: "clock" } },
+              { id: "tmr", label: "라면 타이머", icon: "⏱", color: "#ff9f0a", hotkey: "", action: { type: "timer", minutes: 5 } },
+              { id: "sys", label: "PC 상태", icon: "📈", color: "#5e5ce6", hotkey: "", action: { type: "sysInfo" } },
+              { id: "mic", label: "마이크 끄기", icon: "🎙", color: "#30d158", hotkey: "", action: { type: "toggle", first: { type: "keys", keys: "win+alt+k", app: "" }, second: { type: "keys", keys: "win+alt+k", app: "" }, altLabel: "마이크 켜기", altIcon: "🔇" } },
+              { id: "wl", label: "왼쪽 절반", icon: "◧", color: "#0a84ff", hotkey: "", action: { type: "window", mode: "left" } },
+              { id: "wr", label: "오른쪽 절반", icon: "◨", color: "#0a84ff", hotkey: "", action: { type: "window", mode: "right" } },
+              { id: "wm", label: "다음 모니터", icon: "🖥️", color: "#40c8e0", hotkey: "", action: { type: "window", mode: "nextMonitor" } },
+              { ...k("lp", "볼륨", "🔊", "#bf5af2", "volumeup"), longAction: { type: "keys", keys: "mute", app: "" } },
+            ];
+            return c;
+          }
+          if (cmd === "get_widgets") return { cpu: 23, memory: 61, timers: { tmr: { remainingMs: 192000, running: true, done: false } } };
+          if (cmd === "get_toggles") return { mic: true };
           if (cmd === "take_startup_notices") return [];
           if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
           if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
@@ -90,6 +106,9 @@
         if (view === "edit-multi") { edit(); await wait(150); tile("아침 루틴")?.click(); await wait(150); q(".step-head")[1]?.click(); await wait(100); scrollPanelTo(document.querySelector(".steps")); }
         if (view === "settings") { edit(); await wait(250); scrollPanelTo(label("화면 테마")); }
         if (view === "settings-2") { edit(); await wait(250); scrollPanelTo(label("프로그램 프리셋")); }
+        if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }
+        if (view === "update") { const h = L["update-available"]?.[0]; if (h) window["_" + h]({ event: "update-available", payload: { version: "0.7.1", current: "0.7.0", notes: "" } }); }
+        if (view === "settings-look") { edit(); await wait(250); scrollPanelTo(label("창 투명도")); }
         if (view === "settings-remote") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
         await wait(300);
         document.title = "READY";
