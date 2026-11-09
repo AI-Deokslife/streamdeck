@@ -919,17 +919,42 @@ interface RemoteStatus {
   running: boolean;
   url: string;
   qrSvg: string;
+  /** 휴대폰을 USB 테더링으로 연결했을 때만 */
+  usbUrl: string | null;
+  usbQrSvg: string;
   error: string | null;
 }
+
+type RemoteVia = "wifi" | "usb";
 
 /** 휴대폰 리모컨 켜기/끄기와 QR 코드. 저장(완료)과 상관없이 바로 적용된다. */
 function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" | "info") => void }) {
   const [st, setSt] = useState<RemoteStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [via, setVia] = useState<RemoteVia>("wifi");
+  const hadUsb = useRef(false);
 
   useEffect(() => {
     invoke<RemoteStatus>("remote_status").then(setSt).catch(() => {});
   }, []);
+
+  // 켜져 있는 동안 3초마다 다시 확인 → USB 케이블을 꽂고 테더링을 켜면 USB QR 이 저절로 나타난다
+  const running = !!st?.running;
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setInterval(() => {
+      invoke<RemoteStatus>("remote_status").then(setSt).catch(() => {});
+    }, 3000);
+    return () => window.clearInterval(t);
+  }, [running]);
+
+  // USB 연결이 새로 생기면 USB 탭으로, 끊기면 Wi-Fi 탭으로
+  const hasUsb = !!st?.usbUrl;
+  useEffect(() => {
+    if (hasUsb && !hadUsb.current) setVia("usb");
+    if (!hasUsb && hadUsb.current) setVia("wifi");
+    hadUsb.current = hasUsb;
+  }, [hasUsb]);
 
   async function toggle(on: boolean) {
     setBusy(true);
@@ -951,6 +976,11 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
   }
 
   if (!st) return null;
+  // Wi-Fi·유선 연결이 없으면 두 주소가 같다
+  const wifiOnlyUsb = !!st.usbUrl && st.url === st.usbUrl;
+  const shownUrl = via === "usb" ? st.usbUrl : wifiOnlyUsb ? null : st.url;
+  const shownQr = via === "usb" ? st.usbQrSvg : wifiOnlyUsb ? "" : st.qrSvg;
+
   return (
     <>
       <label>휴대폰 리모컨</label>
@@ -960,33 +990,69 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
           휴대폰에서 버튼 누르기
         </label>
         {st.running && st.qrSvg ? (
-          <div className="remote-qr">
-            <div className="qr" dangerouslySetInnerHTML={{ __html: st.qrSvg }} />
-            <div className="remote-info">
-              <p>
-                휴대폰 <b>카메라로 QR 코드</b>를 찍으면 브라우저에 버튼판이 열려요. 앱 설치는 필요 없어요.
-              </p>
-              <p className="hint">
-                PC 와 휴대폰이 <b>같은 와이파이</b>에 있어야 해요. 브라우저 메뉴의 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수
-                있어요.
-              </p>
-              <div className="row">
-                <button
-                  type="button"
-                  className="small"
-                  onClick={() => navigator.clipboard.writeText(st.url).then(() => onNotice("주소를 복사했어요", "info"))}
-                >
-                  주소 복사
-                </button>
-                <button type="button" className="small ghost" onClick={regenerate}>
-                  열쇠 새로 만들기
-                </button>
-              </div>
+          <>
+            <div className="segmented remote-via" role="tablist">
+              <button type="button" role="tab" className={via === "wifi" ? "on" : ""} onClick={() => setVia("wifi")}>
+                📶 Wi-Fi로 연결
+              </button>
+              <button type="button" role="tab" className={via === "usb" ? "on" : ""} onClick={() => setVia("usb")}>
+                🔌 USB로 연결{hasUsb && <span className="via-dot" />}
+              </button>
             </div>
-          </div>
+            {shownUrl && shownQr ? (
+              <div className="remote-qr">
+                <div className="qr" dangerouslySetInnerHTML={{ __html: shownQr }} />
+                <div className="remote-info">
+                  <p>
+                    휴대폰 <b>카메라로 QR 코드</b>를 찍으면 브라우저에 버튼판이 열려요. 앱 설치는 필요 없어요.
+                  </p>
+                  {via === "usb" ? (
+                    <p className="hint">
+                      <b>USB 케이블로 연결된 휴대폰</b>에서 찍으세요. 와이파이가 없어도 되고, 연결된 동안 휴대폰이 충전돼요.
+                    </p>
+                  ) : (
+                    <p className="hint">
+                      PC 와 휴대폰이 <b>같은 와이파이</b>에 있어야 해요. 브라우저 메뉴의 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수
+                      있어요.
+                    </p>
+                  )}
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="small"
+                      onClick={() => navigator.clipboard.writeText(shownUrl).then(() => onNotice("주소를 복사했어요", "info"))}
+                    >
+                      주소 복사
+                    </button>
+                    <button type="button" className="small ghost" onClick={regenerate}>
+                      열쇠 새로 만들기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : via === "usb" ? (
+              <div className="remote-steps">
+                <b>휴대폰을 USB 케이블로 PC에 꽂고 테더링을 켜 주세요.</b>
+                <ol>
+                  <li>
+                    <b>안드로이드</b>: 설정 → 연결 → 모바일 핫스팟 및 테더링 → <b>USB 테더링</b> 켜기
+                  </li>
+                  <li>
+                    <b>아이폰</b>: 설정 → <b>개인용 핫스팟</b> 켜기 → 케이블 연결 후 ‘이 컴퓨터를 신뢰’ 허용
+                  </li>
+                </ol>
+                <span className="hint">연결되면 몇 초 안에 여기에 USB용 QR 코드가 저절로 나타나요.</span>
+              </div>
+            ) : (
+              <p className="hint">
+                Wi-Fi·유선 연결을 찾지 못했어요. 지금은 <b>USB로 연결</b> 탭의 QR 코드를 쓰세요.
+              </p>
+            )}
+          </>
         ) : (
           <p className="hint">
-            켜면 QR 코드가 나타나요. 같은 와이파이의 휴대폰에서만, QR 코드 속 비밀 열쇠가 있어야 조작할 수 있어요.
+            켜면 QR 코드가 나타나요. 같은 와이파이나 USB로 연결한 휴대폰에서, QR 코드 속 비밀 열쇠가 있어야 조작할 수
+            있어요.
           </p>
         )}
         {st.error && <span className="keycap-hint warn">{st.error}</span>}

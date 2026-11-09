@@ -16,6 +16,8 @@ $shots = @(
   @{ n = "settings";     v = "settings";    t = "light"; h = 720 },
   @{ n = "settings-2";   v = "settings-2";  t = "light"; h = 720 },
   @{ n = "settings-remote"; v = "settings-remote"; t = "light"; h = 720 },
+  @{ n = "settings-usb"; v = "settings-usb"; t = "light"; h = 720 },
+  @{ n = "settings-usb-wait"; v = "settings-usb-wait"; t = "light"; h = 720 },
   @{ n = "settings-look"; v = "settings-look"; t = "light"; h = 720 },
   @{ n = "widgets";      v = "widgets";     t = "dark";  h = 330 },
   @{ n = "widgets-edit"; v = "widgets-edit"; t = "dark"; h = 720 },

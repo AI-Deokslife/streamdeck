@@ -57,6 +57,8 @@
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 29 29"><rect x="-2" y="-2" width="29" height="29" fill="#fff"/><g fill="#111">${r}</g></svg>`;
       })();
       const L = {};
+      const T0 = Date.now();
+      const TOGGLES = { mic: true };
       window.__TAURI_INTERNALS__ = {
         transformCallback: (cb) => { const id = Math.floor(Math.random() * 1e9); window["_" + id] = cb; return id; },
         unregisterCallback: () => {},
@@ -76,12 +78,15 @@
             ];
             return c;
           }
-          if (cmd === "get_widgets") return { cpu: 23, memory: 61, timers: { tmr: { remainingMs: 192000, running: true, done: false } } };
-          if (cmd === "get_toggles") return { mic: true };
+          // 영상용: 타이머는 실제로 줄어들고, CPU 는 조금씩 움직인다 (사진은 첫 순간이라 그대로)
+          if (cmd === "get_widgets") { const el = Date.now() - T0; return { cpu: 23 + Math.round(8 * Math.sin(el / 900)), memory: 61, timers: { tmr: { remainingMs: Math.max(0, 192000 - el), running: true, done: false } } }; }
+          if (cmd === "get_toggles") return { ...TOGGLES };
+          if (cmd === "run_button" && a.id in TOGGLES) { TOGGLES[a.id] = !TOGGLES[a.id]; for (const h of L["toggle-changed"] || []) window["_" + h]({ event: "toggle-changed", payload: { id: a.id, on: TOGGLES[a.id] } }); return null; }
           if (cmd === "take_startup_notices") return [];
+          if (cmd === "plugin:app|version") return "0.7.3";
           if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
           if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
-          if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, error: null };
+          if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, usbUrl: view === "settings-usb" ? "http://192.168.42.129:47823/?t=0123456789abcdef0123456789abcdef" : null, usbQrSvg: view === "settings-usb" ? QR_SAMPLE : "", error: null };
           if (cmd === "plugin:event|listen") { (L[a.event] ||= []).push(a.handler); return a.handler; }
           return null;
         },
@@ -109,6 +114,8 @@
         if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }
         if (view === "update") { const h = L["update-available"]?.[0]; if (h) window["_" + h]({ event: "update-available", payload: { version: "0.7.1", current: "0.7.0", notes: "" } }); }
         if (view === "settings-look") { edit(); await wait(250); scrollPanelTo(label("창 투명도")); }
+        if (view === "settings-usb") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
+        if (view === "settings-usb-wait") { edit(); await wait(400); [...document.querySelectorAll(".remote-via button")][1]?.click(); await wait(150); scrollPanelTo(label("휴대폰 리모컨")); }
         if (view === "settings-remote") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
         await wait(300);
         document.title = "READY";

@@ -2,6 +2,7 @@
 //!
 //! - 기본은 꺼짐. 켜면 0.0.0.0:<port> 에서 기다린다 (처음 한 번 Windows 방화벽 허용 창이 뜬다).
 //! - 모든 API 는 비밀 열쇠(token)가 맞아야 동작한다. 열쇠는 QR 코드 주소에 들어 있다.
+//! - Wi-Fi 가 없어도 휴대폰 USB 테더링으로 연결할 수 있다 (USB 쪽 주소로 QR 을 따로 만든다).
 //! - 휴대폰 페이지는 1.5초마다 버튼 목록이 바뀌었는지 확인한다 (PC 에서 고치면 바로 반영).
 use crate::config;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use serde_json::{json, Value};
 use std::{
     fs,
     io::Read,
-    net::UdpSocket,
+    net::{Ipv4Addr, UdpSocket},
     path::PathBuf,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -61,6 +62,9 @@ pub struct RemoteStatus {
     pub running: bool,
     pub url: String,
     pub qr_svg: String,
+    /// 휴대폰을 USB 테더링으로 연결했을 때만: 그쪽 주소와 QR
+    pub usb_url: Option<String>,
+    pub usb_qr_svg: String,
     pub error: Option<String>,
 }
 
@@ -120,15 +124,126 @@ fn lan_ip() -> String {
     "127.0.0.1".into()
 }
 
+/// 이 PC 의 IPv4 주소 하나와 그 네트워크 장치 이름
+struct NetAddr {
+    ip: Ipv4Addr,
+    desc: String,
+}
+
+/// 휴대폰 USB 테더링으로 생긴 연결인지 (장치 이름이 우선, 이름이 애매하면 잘 알려진 주소 대역으로)
+fn is_usb_tether(desc: &str, ip: Ipv4Addr) -> bool {
+    let d = desc.to_lowercase();
+    let by_name = d.contains("remote ndis") // 안드로이드 (RNDIS)
+        || d.contains("rndis")
+        || d.contains("usbncm") // 최신 안드로이드 (NCM)
+        || d.contains("ncm host")
+        || d.contains("apple mobile device"); // 아이폰
+    let o = ip.octets();
+    let by_subnet = (o[0] == 172 && o[1] == 20 && o[2] == 10) // 아이폰 개인용 핫스팟
+        || (o[0] == 192 && o[1] == 168 && o[2] == 42); // 안드로이드 USB 테더링 기본 대역
+    by_name || by_subnet
+}
+
+/// 연결되어 있는 모든 네트워크 장치의 IPv4 주소 (루프백·자동 사설 주소 169.254 는 뺀다)
+#[cfg(windows)]
+fn addresses() -> Vec<NetAddr> {
+    use windows_sys::Win32::NetworkManagement::IpHelper::{
+        GetAdaptersAddresses, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_DNS_SERVER, GAA_FLAG_SKIP_MULTICAST,
+        IF_TYPE_SOFTWARE_LOOPBACK, IP_ADAPTER_ADDRESSES_LH,
+    };
+    use windows_sys::Win32::NetworkManagement::Ndis::IfOperStatusUp;
+    use windows_sys::Win32::Networking::WinSock::{AF_INET, SOCKADDR_IN};
+
+    let flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    let mut size: u32 = 16 * 1024;
+    let mut buf: Vec<u64> = Vec::new(); // u64 로 잡아 구조체 정렬을 맞춘다
+    let mut ret = 0;
+    for _ in 0..3 {
+        buf = vec![0u64; (size as usize).div_ceil(8)];
+        ret = unsafe {
+            GetAdaptersAddresses(AF_INET as u32, flags, std::ptr::null(), buf.as_mut_ptr().cast(), &mut size)
+        };
+        if ret != 111 {
+            break; // 111 = ERROR_BUFFER_OVERFLOW → size 를 키워 다시
+        }
+    }
+    let mut out = Vec::new();
+    if ret != 0 {
+        return out;
+    }
+    let wide = |p: *const u16| -> String {
+        if p.is_null() {
+            return String::new();
+        }
+        let mut n = 0;
+        unsafe {
+            while *p.add(n) != 0 {
+                n += 1;
+            }
+            String::from_utf16_lossy(std::slice::from_raw_parts(p, n))
+        }
+    };
+    let mut a = buf.as_ptr() as *const IP_ADAPTER_ADDRESSES_LH;
+    while !a.is_null() {
+        let ad = unsafe { &*a };
+        if ad.OperStatus == IfOperStatusUp && ad.IfType != IF_TYPE_SOFTWARE_LOOPBACK {
+            let desc = format!("{} {}", wide(ad.Description), wide(ad.FriendlyName));
+            let mut u = ad.FirstUnicastAddress;
+            while !u.is_null() {
+                let ua = unsafe { &*u };
+                let sa = ua.Address.lpSockaddr;
+                if !sa.is_null() && unsafe { (*sa).sa_family } == AF_INET {
+                    let sin = unsafe { &*(sa as *const SOCKADDR_IN) };
+                    let ip = Ipv4Addr::from(u32::from_be(unsafe { sin.sin_addr.S_un.S_addr }));
+                    if !ip.is_loopback() && !ip.is_link_local() && !ip.is_unspecified() {
+                        out.push(NetAddr { ip, desc: desc.clone() });
+                    }
+                }
+                u = ua.Next;
+            }
+        }
+        a = ad.Next;
+    }
+    out
+}
+
+#[cfg(not(windows))]
+fn addresses() -> Vec<NetAddr> {
+    Vec::new()
+}
+
+/// (Wi-Fi·유선 주소, USB 테더링 주소)
+fn pick_addresses() -> (String, Option<String>) {
+    let all = addresses();
+    let usb = all.iter().find(|a| is_usb_tether(&a.desc, a.ip)).map(|a| a.ip.to_string());
+    let mut lan = lan_ip();
+    // 테더링이 인터넷 기본 경로가 되면 lan_ip 가 USB 주소를 고른다 → 다른 장치 주소로
+    if usb.as_deref() == Some(lan.as_str()) || lan == "127.0.0.1" {
+        if let Some(other) = all.iter().find(|a| !is_usb_tether(&a.desc, a.ip)) {
+            lan = other.ip.to_string();
+        } else if let Some(u) = &usb {
+            lan = u.clone(); // Wi-Fi 도 유선도 없으면 USB 주소뿐
+        }
+    }
+    (lan, usb)
+}
+
 // ---------------- 켜기 / 끄기 / 상태 ----------------
 
 pub fn status(app: &AppHandle) -> RemoteStatus {
     let s = load_settings(app);
     let state = app.state::<RemoteState>();
     let running = state.server.lock().unwrap().is_some();
-    let url = format!("http://{}:{}/?t={}", lan_ip(), s.port, s.token);
+    let (lan, usb) = pick_addresses();
+    let url = format!("http://{}:{}/?t={}", lan, s.port, s.token);
     let qr_svg = if running { qr_svg(&url) } else { String::new() };
-    RemoteStatus { enabled: s.enabled, running, url, qr_svg, error: state.error.lock().unwrap().clone() }
+    // Wi-Fi·유선이 없으면 두 주소가 같다 (화면에서는 USB 쪽만 보여 준다)
+    let usb_url = usb.map(|u| format!("http://{}:{}/?t={}", u, s.port, s.token));
+    let usb_qr_svg = match (&usb_url, running) {
+        (Some(u), true) => self::qr_svg(u),
+        _ => String::new(),
+    };
+    RemoteStatus { enabled: s.enabled, running, url, qr_svg, usb_url, usb_qr_svg, error: state.error.lock().unwrap().clone() }
 }
 
 fn qr_svg(text: &str) -> String {
@@ -678,6 +793,21 @@ mod tests {
         }
 
         server.unblock();
+    }
+
+    #[test]
+    fn usb_tether_detection() {
+        let ip = |s: &str| s.parse::<Ipv4Addr>().unwrap();
+        assert!(is_usb_tether("Remote NDIS based Internet Sharing Device 이더넷 2", ip("10.155.3.20")));
+        assert!(is_usb_tether("UsbNcm Host Device", ip("192.168.97.5")));
+        assert!(is_usb_tether("Apple Mobile Device Ethernet", ip("10.0.0.2")));
+        assert!(is_usb_tether("이더넷 3", ip("172.20.10.2")));
+        assert!(is_usb_tether("이더넷 3", ip("192.168.42.129")));
+        // 일반 Wi-Fi, 유선, USB 랜 어댑터는 아니다
+        assert!(!is_usb_tether("Intel(R) Wi-Fi 6 AX201 Wi-Fi", ip("192.168.0.12")));
+        assert!(!is_usb_tether("Realtek USB GbE Family Controller 이더넷", ip("10.1.2.3")));
+        // 이 PC 에서 실제 주소 읽기가 깨지지 않는지
+        eprintln!("이 PC 주소: {:?}", pick_addresses());
     }
 
     #[test]

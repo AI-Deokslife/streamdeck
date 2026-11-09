@@ -1735,3 +1735,34 @@ kbd {
   font-size: 11px;
   background: var(--fill, rgba(127, 127, 127, 0.15));
 }
+
+/* 리모컨: Wi-Fi / USB 탭 */
+.remote-via button {
+  position: relative;
+}
+.via-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #30d158;
+  box-shadow: 0 0 5px rgba(48, 209, 88, 0.8);
+}
+.remote-steps {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 0.5px var(--separator);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--label);
+}
+.remote-steps ol {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.remote-steps li {
+  margin: 2px 0;
+}

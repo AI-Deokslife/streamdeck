@@ -488,7 +488,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
       <div><b>Ⅶ</b>문제 해결</div>
     </div>
     <div class="cover-foot">
-      <span><b>QuickDeck</b> &nbsp;v0.7.3 기준 · 제작 Lee EunDeok</span>
+      <span><b>QuickDeck</b> &nbsp;v0.7.5 기준 · 제작 Lee EunDeok</span>
       <span>2026. 11.</span>
     </div>
   </div>
@@ -567,7 +567,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <li><b>웹사이트 열기, 텍스트 입력, PowerShell 명령 실행</b></li>
     <li><b>멀티 액션</b> — 여러 동작을 순서대로 한 번에 실행합니다.</li>
     <li><b>프로그램 연결 폴더</b> — 한글을 쓰면 한글용 버튼으로 화면이 저절로 바뀝니다.</li>
-    <li><b>휴대폰 리모컨</b> — 같은 와이파이의 휴대폰으로 버튼을 누르고, 마우스·키보드·음악까지 조작합니다.</li>
+    <li><b>휴대폰 리모컨</b> — 같은 와이파이나 <b>USB 케이블</b>로 연결한 휴대폰으로 버튼을 누르고, 마우스·키보드·음악까지 조작합니다.</li>
     <li><b>똑똑한 버튼</b> — 토글, 길게 누르기, 시계·타이머·CPU 표시, 창 배치</li>
   </ul></div></div>
   <div class="note"><span class="box-label">알아 두기</span><p>QuickDeck 버튼을 눌러도 <b>지금 쓰고 있는 창의 포커스를 빼앗지 않습니다.</b> 그래서 메모장에 글을 쓰다가 QuickDeck의 ‘복사’ 버튼을 눌러도, 단축키는 메모장으로 그대로 들어갑니다.</p></div>
@@ -1007,7 +1007,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
         <li>휴대폰 <b>카메라로 QR 코드</b>를 찍고, 뜨는 주소를 엽니다.</li>
         <li>브라우저 메뉴의 <b>홈 화면에 추가</b>를 하면 앱처럼 아이콘으로 열 수 있습니다.</li>
       </ol></div>
-      <div class="warn"><span class="box-label">주의</span><p>PC와 휴대폰이 <b>같은 와이파이</b>에 있어야 합니다. 주소에 들어 있는 <b>열쇠</b>(긴 영문·숫자)가 있어야만 조작할 수 있으니, 주소를 남에게 보내지 마세요. 주소가 새어 나갔다면 <b>열쇠 새로 만들기</b>를 누르면 예전 주소는 바로 막힙니다.</p></div>
+      <div class="warn"><span class="box-label">주의</span><p>PC와 휴대폰이 <b>같은 와이파이</b>에 있어야 합니다(와이파이가 없으면 아래 <b>USB로 연결하기</b>). 주소에 들어 있는 <b>열쇠</b>(긴 영문·숫자)가 있어야만 조작할 수 있으니, 주소를 남에게 보내지 마세요. 주소가 새어 나갔다면 <b>열쇠 새로 만들기</b>를 누르면 예전 주소는 바로 막힙니다.</p></div>
     </div>
     <figure><img src="assets/shot-settings-remote.png" alt="" /><figcaption><b>그림 Ⅶ-1</b>휴대폰 리모컨 설정과 QR 코드</figcaption></figure>
   </div>
@@ -1020,11 +1020,26 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
   </table>
   <p class="small">휴대폰을 가로로 돌리면 한 줄에 버튼이 두 칸 더 들어갑니다. PC에서 버튼을 바꾸고 <b>완료</b>를 누르면 휴대폰 화면도 1~2초 안에 저절로 바뀝니다.</p>
 
+  <h3>와이파이가 없을 때: USB로 연결하기</h3>
+  <div class="side">
+    <div class="side-text">
+      <p>학교 와이파이가 기기끼리 접속을 막아 두었거나, PC는 유선이고 휴대폰은 다른 망일 때는 <b>USB 케이블</b>로 연결하세요. 휴대폰의 <b>USB 테더링</b>을 켜면 PC와 휴대폰 사이에 둘만의 작은 네트워크가 생깁니다. 공유기를 거치지 않아 반응이 빠르고, 연결된 동안 휴대폰이 충전됩니다.</p>
+      <div class="steps"><span class="box-label">따라 해 보기 — USB로 연결</span><ol>
+        <li>휴대폰을 USB 케이블로 PC에 꽂습니다.</li>
+        <li><b>안드로이드</b>: 설정 → 연결 → 모바일 핫스팟 및 테더링 → <b>USB 테더링</b>을 켭니다.<br /><b>아이폰</b>: 설정 → <b>개인용 핫스팟</b>을 켜고, PC에 ‘이 컴퓨터를 신뢰하겠습니까?’가 뜨면 <b>신뢰</b>를 누릅니다.</li>
+        <li>QuickDeck 리모컨 설정에서 <b>🔌 USB로 연결</b> 탭을 고릅니다. 몇 초 안에 USB용 QR 코드가 저절로 나타나고, 탭에 초록 점이 켜집니다.</li>
+        <li>휴대폰 카메라로 그 QR 코드를 찍습니다. 버튼판은 와이파이로 연결할 때와 똑같습니다.</li>
+      </ol></div>
+      <div class="note"><span class="box-label">알아 두기</span><p>와이파이로만 인터넷을 쓰는 노트북은 테더링을 켜는 동안 PC의 인터넷이 <b>휴대폰 데이터</b>로 바뀔 수 있습니다. 유선 랜을 쓰는 교실 PC는 보통 그대로입니다. 처음 연결할 때 Windows 방화벽 창이 다시 뜨면 <b>허용</b>을 누르세요. 아이폰은 요금제에 따라 개인용 핫스팟 메뉴가 막혀 있을 수 있습니다.</p></div>
+    </div>
+    <figure><img src="assets/shot-settings-usb.png" alt="" /><figcaption><b>그림 Ⅶ-2</b>USB로 연결 탭과 USB용 QR 코드</figcaption></figure>
+  </div>
+
   <h2><span class="sn">02</span>트랙패드·키보드·음악 탭</h2>
   <div class="fig-row">
-    <figure><img class="w100" src="assets/phone-grid.png" alt="" /><figcaption><b>그림 Ⅶ-2</b>버튼 탭</figcaption></figure>
-    <figure><img class="w100" src="assets/phone-pad.png" alt="" /><figcaption><b>그림 Ⅶ-3</b>트랙패드 탭</figcaption></figure>
-    <figure><img class="w100" src="assets/phone-music.png" alt="" /><figcaption><b>그림 Ⅶ-4</b>음악 탭</figcaption></figure>
+    <figure><img class="w100" src="assets/phone-grid.png" alt="" /><figcaption><b>그림 Ⅶ-3</b>버튼 탭</figcaption></figure>
+    <figure><img class="w100" src="assets/phone-pad.png" alt="" /><figcaption><b>그림 Ⅶ-4</b>트랙패드 탭</figcaption></figure>
+    <figure><img class="w100" src="assets/phone-music.png" alt="" /><figcaption><b>그림 Ⅶ-5</b>음악 탭</figcaption></figure>
   </div>
   <table>
     <tr><th style="width:18%">탭</th><th>할 수 있는 일</th></tr>
@@ -1047,7 +1062,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
       <p><b>길게 누르기</b>는 버튼 하나에 동작을 하나 더 넣는 기능입니다. 편집 칸 아래 <b>길게 누르면</b>에서 동작을 고르면, 버튼을 0.5초 이상 누르고 있을 때 그 동작이 실행됩니다. 오른쪽 위에 <b>⋯</b> 표시가 붙습니다.</p>
       <p class="small">예: ‘볼륨 +’ 버튼을 길게 누르면 음소거. 휴대폰에서도 똑같이 길게 누르면 됩니다(살짝 진동).</p>
     </div>
-    <figure><img src="assets/shot-widgets.png" alt="" /><figcaption><b>그림 Ⅶ-5</b>위젯·토글·창 배치 버튼</figcaption></figure>
+    <figure><img src="assets/shot-widgets.png" alt="" /><figcaption><b>그림 Ⅶ-6</b>위젯·토글·창 배치 버튼</figcaption></figure>
   </div>
 
   <h2><span class="sn">04</span>시계·타이머·CPU 위젯</h2>
@@ -1063,7 +1078,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
       <p>시간이 다 되면 PC에서 알림음과 함께 “⏰ 라면 타이머 끝났어요!” 알림이 뜨고, 버튼이 깜빡입니다. 휴대폰 리모컨을 열어 두었다면 <b>휴대폰도 진동</b>합니다.</p>
       <div class="tip"><span class="box-label">TIP</span><p>25분 타이머로 ‘집중 25분 + 휴식 5분’ 공부법(뽀모도로)을 해 보세요. 창을 닫아 두어도 타이머는 계속 돌아갑니다.</p></div>
     </div>
-    <figure><img src="assets/shot-widgets-edit.png" alt="" /><figcaption><b>그림 Ⅶ-6</b>타이머 버튼 편집</figcaption></figure>
+    <figure><img src="assets/shot-widgets-edit.png" alt="" /><figcaption><b>그림 Ⅶ-7</b>타이머 버튼 편집</figcaption></figure>
   </div>
 
   <h2><span class="sn">05</span>창 배치 버튼</h2>
@@ -1082,7 +1097,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <div class="q"><div class="qt"><span class="qn">1.</span>휴대폰 리모컨이 연결되지 않는다. 가장 먼저 확인할 것은?</div>
       <div class="choices one">
         <span>① 휴대폰에 QuickDeck 앱을 설치했는지</span>
-        <span>② PC와 휴대폰이 같은 와이파이에 있는지</span>
+        <span>② PC와 휴대폰이 같은 와이파이(또는 USB 테더링)로 연결되어 있는지</span>
         <span>③ 버튼에 전역 단축키를 붙였는지</span>
       </div></div>
     <div class="q"><div class="qt"><span class="qn">2.</span>타이머 버튼을 처음 시간으로 되돌리려면 어떻게 하나요?</div><div class="ox">(서술형)</div></div>
@@ -1109,7 +1124,8 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <tr><td>업데이트 후 버튼이 기본 8개만 보인다</td><td>설치 직후 설정 파일을 잠깐 읽지 못한 경우입니다. 버튼은 지워지지 않았습니다. <b>편집하지 말고</b> 트레이에서 종료 후 다시 실행하세요. 그래도 안 되면 Ⅵ단원의 ‘백업에서 복원’을 쓰세요.</td></tr>
     <tr><td>텍스트가 이상하게 입력된다</td><td>붙여넣기를 막아 둔 입력 칸일 수 있습니다. 버튼의 ‘한 글자씩 입력하기’를 켜 보세요.</td></tr>
     <tr><td>Win 키 조합이 녹화되지 않는다</td><td>Windows가 먼저 가로채는 키입니다. ✎를 눌러 <code>win+shift+s</code>처럼 글자로 입력하세요.</td></tr>
-    <tr><td>휴대폰에서 주소가 열리지 않는다</td><td>PC와 휴대폰이 같은 와이파이인지 확인하세요. 회사·학교 와이파이는 기기끼리 접속을 막아 둔 경우가 많습니다. Windows 방화벽에서 QuickDeck을 <b>허용</b>했는지도 확인하세요.</td></tr>
+    <tr><td>휴대폰에서 주소가 열리지 않는다</td><td>PC와 휴대폰이 같은 와이파이인지 확인하세요. 회사·학교 와이파이는 기기끼리 접속을 막아 둔 경우가 많습니다. 이럴 때는 휴대폰을 <b>USB로 연결</b>하고 테더링을 켜세요(Ⅶ단원 01). Windows 방화벽에서 QuickDeck을 <b>허용</b>했는지도 확인하세요.</td></tr>
+    <tr><td>‘USB로 연결’ 탭에 QR 코드가 나오지 않는다</td><td>휴대폰에서 <b>USB 테더링</b>(아이폰은 개인용 핫스팟)을 켰는지 확인하세요. <b>충전 전용 케이블</b>은 데이터가 통하지 않으니 다른 케이블로 바꿔 보세요. 아이폰은 PC에 <b>Apple Devices</b>(또는 iTunes) 앱이 설치되어 있어야 USB 테더링이 잡힙니다.</td></tr>
     <tr><td>휴대폰에 “열쇠가 맞지 않아요”</td><td>PC에서 열쇠를 새로 만든 경우입니다. 새 QR 코드를 다시 찍으세요.</td></tr>
     <tr><td>창 배치 버튼이 창을 못 옮긴다</td><td>관리자 권한으로 실행된 창은 옮길 수 없습니다. 또 바로 전에 쓴 창이 없으면(바탕화면만 클릭한 경우) 옮길 창이 없다고 알려 줍니다.</td></tr>
     <tr><td>가장자리에 붙였는데 숨지 않는다</td><td>설정에서 자동 숨김이 켜져 있는지, 그 방향에 다른 모니터가 이어져 있지 않은지 확인하세요. 편집하는 동안은 숨지 않습니다.</td></tr>
@@ -1201,7 +1217,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <div class="answer"><span class="an">Ⅵ-1 <em>①</em></span><span>버튼을 선택하지 않은 상태에서 설정 칸이 나옵니다.</span></div>
     <div class="answer"><span class="an">Ⅵ-2 <em>X</em></span><span>확인 후 <b>완료</b>를 눌러야 저장됩니다.</span></div>
     <div class="answer"><span class="an">Ⅵ-3 <em>②</em></span><span>Ctrl+Z로 되돌리고, Ctrl+Y로 다시 실행합니다.</span></div>
-    <div class="answer"><span class="an">Ⅶ-1 <em>②</em></span><span>앱은 필요 없고, 같은 와이파이에 있어야 접속됩니다.</span></div>
+    <div class="answer"><span class="an">Ⅶ-1 <em>②</em></span><span>앱은 필요 없고, 같은 와이파이에 있거나 USB 테더링으로 연결되어 있어야 접속됩니다.</span></div>
     <div class="answer"><span class="an">Ⅶ-2</span><span>타이머 버튼을 <b>길게 누릅니다.</b></span></div>
     <div class="answer"><span class="an">Ⅶ-3 <em>②</em></span><span>⋯은 길게 누르면 다른 동작을 하는 버튼입니다.</span></div>
   </div>
