@@ -597,7 +597,9 @@ fn handle(host: &dyn Host, mut req: Request) {
             let _ = req.respond(
                 Response::from_string(PAGE)
                     .with_header(header("Content-Type", "text/html; charset=utf-8"))
-                    .with_header(header("Cache-Control", "no-store")),
+                    .with_header(header("Cache-Control", "no-store"))
+                    // 32KB 를 넘으면 조각(chunked)으로 보내는데, 한 번에 길이를 알려 보내는 편이 단순하다
+                    .with_chunked_threshold(usize::MAX),
             );
             return;
         }

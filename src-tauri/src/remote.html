@@ -85,7 +85,7 @@
   .icon {
     position: relative;
     width: 100%;
-    max-width: 92px;
+    max-width: var(--icon-max, 92px);
     aspect-ratio: 1;
     border-radius: var(--radius);
     display: grid;
@@ -95,14 +95,14 @@
     transition: transform 0.12s ease, filter 0.12s ease;
   }
   .tile:active .icon, .tile.pressed .icon { transform: scale(0.88); filter: brightness(0.8); }
-  .icon .glyph { font-size: min(10vw, 40px); line-height: 1; color: #fff; font-weight: 700; }
+  .icon .glyph { font-size: min(calc(88vw / var(--cols, 4) * 0.42), calc(var(--icon-max, 92px) * 0.44)); line-height: 1; color: #fff; font-weight: 700; }
   .icon img.fit { width: 62%; height: 62%; object-fit: contain; }
   .icon img.full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .icon.glass { background: var(--glass); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
   .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7%; width: 70%; aspect-ratio: 1; align-content: start; }
   .mini span { aspect-ratio: 1; border-radius: 24%; display: grid; place-items: center; overflow: hidden; font-size: 2.4vw; }
   .mini img { width: 100%; height: 100%; object-fit: cover; }
-  .label { font-size: 12.5px; font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+  .label { font-size: var(--label-size, 12.5px); font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
   /* 위젯 (시계·타이머·CPU) */
   .icon.wf { flex-direction: column; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
   .wl { display: flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: min(calc(88vw / var(--cols, 4) * 0.25), 23px); }
@@ -241,6 +241,10 @@
   .sheet h2 { margin: 0 0 10px; font-size: 17px; }
   .srow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.2); font-size: 15px; }
   .srow small { display: block; font-size: 12px; opacity: 0.6; margin-top: 2px; }
+  .srow.col { flex-direction: column; align-items: stretch; gap: 8px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: 9px; background: rgba(128, 128, 128, 0.2); }
+  .seg button { border: 0; padding: 8px 0; border-radius: 7px; background: none; color: inherit; font: inherit; font-size: 13.5px; font-weight: 500; }
+  .seg button.on { background: rgba(255, 255, 255, 0.92); color: #111; font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
   .switch { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 50px; height: 30px; border-radius: 15px; background: rgba(128, 128, 128, 0.4); position: relative; transition: background 0.2s; }
   .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: transform 0.2s; }
   .switch:checked { background: #30d158; }
@@ -251,7 +255,7 @@
   @media (orientation: landscape) {
     header { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 6px; }
     main { gap: 12px 10px; padding-top: 12px; }
-    .label { font-size: 11.5px; }
+    .label { font-size: calc(var(--label-size, 12.5px) - 1px); }
     .touch { height: calc(100vh - 170px); }
   }
 </style>
@@ -312,6 +316,11 @@
   <div class="grab"></div>
   <h2>리모컨 설정</h2>
   <label class="srow"><span>PC 따라 자동 전환<small>PC 에서 한글을 쓰면 여기도 한글 폴더로</small></span><input type="checkbox" class="switch" id="optFollow" /></label>
+  <div class="srow col"><span>버튼 크기<small>이 휴대폰에서만 적용돼요. 크게 할수록 한 줄에 들어가는 버튼이 줄어요</small></span>
+    <div class="seg" id="optSize">
+      <button data-size="s">작게</button><button data-size="m">보통</button><button data-size="l">크게</button><button data-size="xl">아주 크게</button>
+    </div>
+  </div>
   <label class="srow"><span>화면 켜두기<small>리모컨을 보는 동안 화면이 꺼지지 않게</small></span><input type="checkbox" class="switch" id="optAwake" /></label>
   <div class="srow"><span>이 기기의 시작 화면<small id="startInfo">처음 화면</small></span></div>
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
@@ -322,6 +331,14 @@
 (() => {
   const params = new URLSearchParams(location.search);
   const token = params.get("t") || "";
+  const SIZES = {
+    s: { cols: 1, max: 80, label: 11.5 },
+    m: { cols: 0, max: 92, label: 12.5 },
+    l: { cols: -1, max: 130, label: 14 },
+    xl: { cols: -2, max: 180, label: 16 },
+  };
+  let buttonSize = "m";
+  try { buttonSize = JSON.parse(localStorage.getItem("qd.size")) || "m"; } catch {}
   const grid = document.getElementById("grid");
   const title = document.getElementById("title");
   const back = document.getElementById("back");
@@ -415,8 +432,14 @@
     if (!deck) return;
     const { list, names } = current();
     const landscape = window.innerWidth > window.innerHeight;
-    const cols = landscape ? Math.min((deck.columns || 4) + 2, 8) : Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6);
-    document.documentElement.style.setProperty("--cols", cols);
+    const base = landscape ? Math.min((deck.columns || 4) + 2, 8) : Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6);
+    // 버튼 크기(이 휴대폰 설정): 작게 = 한 줄에 하나 더, 크게 = 하나 덜, 아주 크게 = 둘 덜
+    const sz = SIZES[buttonSize] || SIZES.m;
+    const cols = Math.max(2, Math.min(9, base + sz.cols));
+    const root = document.documentElement.style;
+    root.setProperty("--cols", cols);
+    root.setProperty("--icon-max", sz.max + "px");
+    root.setProperty("--label-size", sz.label + "px");
     title.dataset.deck = names.length ? names[names.length - 1] : "QuickDeck";
     if (grid.classList.contains("on")) title.textContent = title.dataset.deck;
     back.classList.toggle("show", path.length > 0);
@@ -577,6 +600,15 @@
   sheetBg.addEventListener("click", () => openSheet(false));
   optFollow.checked = store.get("follow", true);
   optFollow.addEventListener("change", () => store.set("follow", optFollow.checked));
+  const sizeBtns = [...document.querySelectorAll("#optSize button")];
+  const paintSize = () => sizeBtns.forEach((b) => b.classList.toggle("on", b.dataset.size === buttonSize));
+  paintSize();
+  sizeBtns.forEach((b) => b.addEventListener("click", () => {
+    buttonSize = b.dataset.size;
+    store.set("size", buttonSize);
+    paintSize();
+    render();
+  }));
   optAwake.checked = store.get("awake", false);
   optAwake.addEventListener("change", () => { store.set("awake", optAwake.checked); keepAwake(optAwake.checked); });
   document.getElementById("setStart").addEventListener("click", () => {
