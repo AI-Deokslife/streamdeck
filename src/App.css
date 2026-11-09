@@ -1787,3 +1787,18 @@ kbd {
 .remote-steps li {
   margin: 2px 0;
 }
+
+/* 리모컨: USB 연결 허용 안내 */
+.usb-allow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 159, 10, 0.12);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 159, 10, 0.45);
+}
+.usb-allow p {
+  margin: 0;
+}

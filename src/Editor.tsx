@@ -922,6 +922,8 @@ interface RemoteStatus {
   /** 휴대폰을 USB 테더링으로 연결했을 때만 */
   usbUrl: string | null;
   usbQrSvg: string;
+  /** USB 연결(공용 네트워크)에서 오는 접속을 방화벽이 허용하는지 */
+  usbAllowed: boolean;
   error: string | null;
 }
 
@@ -969,6 +971,17 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
     setBusy(false);
   }
 
+  async function allowUsb() {
+    setBusy(true);
+    try {
+      setSt(await invoke<RemoteStatus>("allow_usb_remote"));
+      onNotice("USB 연결을 허용했어요. 휴대폰에서 QR 코드를 다시 찍어 보세요", "info");
+    } catch (e) {
+      onNotice(String(e));
+    }
+    setBusy(false);
+  }
+
   async function regenerate() {
     if (!window.confirm("열쇠를 새로 만들면 지금까지 연결한 휴대폰은 더 이상 조작할 수 없어요. 새 QR 코드를 다시 찍어야 합니다. 계속할까요?")) return;
     setSt(await invoke<RemoteStatus>("regenerate_remote_key"));
@@ -1007,9 +1020,21 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
                     휴대폰 <b>카메라로 QR 코드</b>를 찍으면 브라우저에 버튼판이 열려요. 앱 설치는 필요 없어요.
                   </p>
                   {via === "usb" ? (
-                    <p className="hint">
-                      <b>USB 케이블로 연결된 휴대폰</b>에서 찍으세요. 와이파이가 없어도 되고, 연결된 동안 휴대폰이 충전돼요.
-                    </p>
+                    st.usbAllowed ? (
+                      <p className="hint">
+                        <b>USB 케이블로 연결된 휴대폰</b>에서 찍으세요. 와이파이가 없어도 되고, 연결된 동안 휴대폰이 충전돼요.
+                      </p>
+                    ) : (
+                      <div className="usb-allow">
+                        <p>
+                          <b>처음 한 번 허용이 필요해요.</b> Windows가 USB 연결을 ‘공용 네트워크’로 보고 휴대폰 접속을 막아요.
+                        </p>
+                        <button type="button" className="small" disabled={busy} onClick={allowUsb}>
+                          🛡️ USB 연결 허용하기
+                        </button>
+                        <span className="hint">관리자 확인 창에서 ‘예’를 누르세요. 이 프로그램의 리모컨 연결만, USB·유선 연결에서만 허용해요.</span>
+                      </div>
+                    )
                   ) : (
                     <p className="hint">
                       PC 와 휴대폰이 <b>같은 와이파이</b>에 있어야 해요. 브라우저 메뉴의 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수

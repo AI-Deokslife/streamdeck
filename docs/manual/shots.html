@@ -86,7 +86,7 @@
           if (cmd === "plugin:app|version") return "0.7.3";
           if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
           if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
-          if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, usbUrl: view === "settings-usb" ? "http://192.168.42.129:47823/?t=0123456789abcdef0123456789abcdef" : null, usbQrSvg: view === "settings-usb" ? QR_SAMPLE : "", error: null };
+          if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, usbUrl: view === "settings-usb" ? "http://192.168.42.129:47823/?t=0123456789abcdef0123456789abcdef" : null, usbQrSvg: view === "settings-usb" ? QR_SAMPLE : "", usbAllowed: view !== "settings-usb", error: null };
           if (cmd === "plugin:event|listen") { (L[a.event] ||= []).push(a.handler); return a.handler; }
           return null;
         },

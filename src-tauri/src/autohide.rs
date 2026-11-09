@@ -76,6 +76,45 @@ pub fn wants_reveal(pt: (i32, i32), win: Rect, mon: Rect, edge: Edge) -> bool {
     }
 }
 
+/// 창이 작업 영역 안에 얼마나 보이는지 (0.0 ~ 1.0)
+pub fn visible_ratio(win: Rect, work: Rect) -> f64 {
+    let w = (win.right - win.left).max(1) as f64;
+    let h = (win.bottom - win.top).max(1) as f64;
+    let iw = (win.right.min(work.right) - win.left.max(work.left)).max(0) as f64;
+    let ih = (win.bottom.min(work.bottom) - win.top.max(work.top)).max(0) as f64;
+    (iw * ih) / (w * h)
+}
+
+/// 창을 작업 영역 안으로 들여놓은 왼쪽 위 위치 (창이 더 크면 왼쪽·위에 맞춘다)
+pub fn clamp_into(win: Rect, work: Rect) -> (i32, i32) {
+    let (w, h) = (win.right - win.left, win.bottom - win.top);
+    let x = win.left.min(work.right - w).max(work.left);
+    let y = win.top.min(work.bottom - h).max(work.top);
+    (x, y)
+}
+
+/// 창이 화면 밖으로 나가 있으면 가장 가까운 모니터 안으로 데려온다.
+/// (자동 숨김으로 가장자리에 숨은 채 PC 를 끄면 그 위치가 저장되어, 다음 부팅 때 화면 밖에서 켜지는 문제)
+/// 옮겼으면 true.
+pub fn ensure_on_screen() -> bool {
+    if HIDDEN.lock().unwrap().is_some() {
+        return false; // 일부러 숨긴 상태
+    }
+    let h = hwnd();
+    if h.is_null() {
+        return false;
+    }
+    let win = window_rect(h);
+    let (_, work) = monitor_rects(unsafe { MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST) });
+    // 창 테두리의 보이지 않는 여백(몇 px) 때문에 조금 넘치는 건 그대로 둔다
+    if visible_ratio(win, work) >= 0.85 {
+        return false;
+    }
+    let (x, y) = clamp_into(win, work);
+    unsafe { SetWindowPos(h, std::ptr::null_mut(), x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) };
+    true
+}
+
 struct Hidden {
     edge: Edge,
     restore: (i32, i32),
@@ -206,6 +245,21 @@ mod tests {
     use super::*;
 
     const MON: Rect = Rect { left: 0, top: 0, right: 1920, bottom: 1080 };
+
+    #[test]
+    fn brings_offscreen_window_back() {
+        let work = Rect { left: 0, top: 0, right: 1920, bottom: 1040 };
+        // 왼쪽 가장자리에 숨은 채 저장된 창 (4px 만 보임)
+        let hidden = Rect { left: -416, top: 200, right: 4, bottom: 820 };
+        assert!(visible_ratio(hidden, work) < 0.05);
+        assert_eq!(clamp_into(hidden, work), (0, 200));
+        // 오른쪽·아래로 나간 창
+        let out = Rect { left: 1800, top: 900, right: 2220, bottom: 1520 };
+        assert_eq!(clamp_into(out, work), (1500, 420));
+        // 화면 안에 있거나 테두리 여백만큼 살짝 넘친 창은 그대로
+        let ok = Rect { left: -7, top: 100, right: 413, bottom: 720 };
+        assert!(visible_ratio(ok, work) >= 0.85);
+    }
     const WORK: Rect = Rect { left: 0, top: 0, right: 1920, bottom: 1032 };
 
     #[test]

@@ -254,6 +254,12 @@ fn regenerate_remote_key(app: AppHandle) -> remote::RemoteStatus {
     remote::regenerate(&app)
 }
 
+/// USB 테더링 연결에서도 휴대폰이 접속할 수 있게 방화벽 규칙 추가 (관리자 확인 창이 뜬다)
+#[tauri::command]
+async fn allow_usb_remote(app: AppHandle) -> Result<remote::RemoteStatus, String> {
+    remote::allow_usb(&app)
+}
+
 #[tauri::command]
 async fn run_button(app: AppHandle, id: String, long: Option<bool>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || execute(&app, &id, long.unwrap_or(false), false))
@@ -559,6 +565,13 @@ pub fn run() {
             let state = app.state::<AppState>();
             autohide::set_enabled(cfg.auto_hide);
             autohide::start();
+            // 저장된 위치가 화면 밖이면 안으로 (부팅 직후엔 모니터가 늦게 잡힐 수 있어 몇 번 더 확인)
+            thread::spawn(|| {
+                for secs in [0u64, 2, 6, 15] {
+                    thread::sleep(std::time::Duration::from_secs(secs.max(1)));
+                    autohide::ensure_on_screen();
+                }
+            });
             *state.config.lock().unwrap() = cfg;
             *state.startup_notices.lock().unwrap() = notices;
             build_tray(&handle)?;
@@ -591,6 +604,7 @@ pub fn run() {
             remote_status,
             set_remote,
             regenerate_remote_key,
+            allow_usb_remote,
             hide_window,
             set_edit_mode
         ])

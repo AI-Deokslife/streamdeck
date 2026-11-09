@@ -65,6 +65,8 @@ pub struct RemoteStatus {
     /// 휴대폰을 USB 테더링으로 연결했을 때만: 그쪽 주소와 QR
     pub usb_url: Option<String>,
     pub usb_qr_svg: String,
+    /// USB 테더링 연결(공용 네트워크)에서 들어오는 접속을 방화벽이 허용하는지
+    pub usb_allowed: bool,
     pub error: Option<String>,
 }
 
@@ -212,6 +214,99 @@ fn addresses() -> Vec<NetAddr> {
     Vec::new()
 }
 
+// ---------------- USB 연결용 방화벽 규칙 ----------------
+//
+// 휴대폰 USB 테더링 연결은 Windows 가 '공용 네트워크'로 분류한다. 처음 리모컨을 켤 때 뜨는 방화벽 창은
+// 보통 '개인 네트워크'만 허용하므로 USB 쪽 접속은 막힌다. 사용자가 버튼을 누르면 관리자 확인을 거쳐
+// 아래 규칙 하나를 추가한다: 이 프로그램, 리모컨 포트(TCP)만, 유선(lan) 장치만, 같은 네트워크 안에서만.
+// (공용 Wi-Fi 는 무선이라 이 규칙에 해당하지 않는다)
+
+const USB_RULE: &str = "QuickDeck Remote USB";
+
+static USB_RULE_CACHE: Mutex<Option<(std::time::Instant, bool)>> = Mutex::new(None);
+
+/// 규칙이 있는지 (netsh 는 읽기만이라 관리자 권한이 필요 없다). 20초 동안은 기억해 둔 값을 쓴다
+fn usb_rule_exists(fresh: bool) -> bool {
+    if !fresh {
+        if let Some((at, ok)) = *USB_RULE_CACHE.lock().unwrap() {
+            if at.elapsed() < std::time::Duration::from_secs(20) {
+                return ok;
+            }
+        }
+    }
+    let ok = netsh_show_rule();
+    *USB_RULE_CACHE.lock().unwrap() = Some((std::time::Instant::now(), ok));
+    ok
+}
+
+#[cfg(windows)]
+fn netsh_show_rule() -> bool {
+    use std::os::windows::process::CommandExt;
+    std::process::Command::new("netsh")
+        .args(["advfirewall", "firewall", "show", "rule"])
+        .arg(format!("name={USB_RULE}"))
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(not(windows))]
+fn netsh_show_rule() -> bool {
+    true
+}
+
+/// netsh 에 넘길 규칙 추가 인자
+fn usb_rule_args(exe: &str, port: u16) -> String {
+    format!(
+        "advfirewall firewall add rule name=\"{USB_RULE}\" dir=in action=allow program=\"{exe}\" \
+         protocol=TCP localport={port} profile=public interfacetype=lan remoteip=localsubnet"
+    )
+}
+
+/// 관리자 확인 창(UAC)을 띄워 규칙을 추가한다. 사용자가 '아니요'를 누르면 Err.
+#[cfg(windows)]
+pub fn allow_usb(app: &AppHandle) -> Result<RemoteStatus, String> {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+
+    if usb_rule_exists(true) {
+        return Ok(status(app));
+    }
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let params = usb_rule_args(&exe.to_string_lossy(), load_settings(app).port);
+    let w = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (verb, file, params) = (w("runas"), w("netsh.exe"), w(&params));
+    let mut info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
+    info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+    info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+    info.lpVerb = verb.as_ptr();
+    info.lpFile = file.as_ptr();
+    info.lpParameters = params.as_ptr();
+    info.nShow = 0; // SW_HIDE
+    if unsafe { ShellExecuteExW(&mut info) } == 0 {
+        return Err("관리자 확인을 취소해서 허용하지 못했어요.".into());
+    }
+    let mut code = 1u32;
+    if !info.hProcess.is_null() {
+        unsafe {
+            WaitForSingleObject(info.hProcess, 30_000);
+            GetExitCodeProcess(info.hProcess, &mut code);
+            CloseHandle(info.hProcess);
+        }
+    }
+    if code != 0 || !usb_rule_exists(true) {
+        return Err("방화벽 규칙을 추가하지 못했어요. 안내대로 USB 네트워크를 '개인'으로 바꿔 보세요.".into());
+    }
+    Ok(status(app))
+}
+
+#[cfg(not(windows))]
+pub fn allow_usb(app: &AppHandle) -> Result<RemoteStatus, String> {
+    Ok(status(app))
+}
+
 /// (Wi-Fi·유선 주소, USB 테더링 주소)
 fn pick_addresses() -> (String, Option<String>) {
     let all = addresses();
@@ -243,7 +338,17 @@ pub fn status(app: &AppHandle) -> RemoteStatus {
         (Some(u), true) => self::qr_svg(u),
         _ => String::new(),
     };
-    RemoteStatus { enabled: s.enabled, running, url, qr_svg, usb_url, usb_qr_svg, error: state.error.lock().unwrap().clone() }
+    let usb_allowed = usb_url.is_none() || usb_rule_exists(false);
+    RemoteStatus {
+        enabled: s.enabled,
+        running,
+        url,
+        qr_svg,
+        usb_url,
+        usb_qr_svg,
+        usb_allowed,
+        error: state.error.lock().unwrap().clone(),
+    }
 }
 
 fn qr_svg(text: &str) -> String {
@@ -808,6 +913,9 @@ mod tests {
         assert!(!is_usb_tether("Realtek USB GbE Family Controller 이더넷", ip("10.1.2.3")));
         // 이 PC 에서 실제 주소 읽기가 깨지지 않는지
         eprintln!("이 PC 주소: {:?}", pick_addresses());
+        let args = usb_rule_args(r"C:\Users\a b\quickdeck.exe", 47823);
+        assert!(args.contains(r#"program="C:\Users\a b\quickdeck.exe""#));
+        assert!(args.contains("localport=47823") && args.contains("profile=public") && args.contains("interfacetype=lan"));
     }
 
     #[test]

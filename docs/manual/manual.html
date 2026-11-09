@@ -488,7 +488,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
       <div><b>Ⅶ</b>문제 해결</div>
     </div>
     <div class="cover-foot">
-      <span><b>QuickDeck</b> &nbsp;v0.7.5 기준 · 제작 Lee EunDeok</span>
+      <span><b>QuickDeck</b> &nbsp;v0.7.7 기준 · 제작 Lee EunDeok</span>
       <span>2026. 11.</span>
     </div>
   </div>
@@ -1029,11 +1029,12 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
         <li>휴대폰을 USB 케이블로 PC에 꽂습니다.</li>
         <li><b>안드로이드</b>: 설정 → 연결 → 모바일 핫스팟 및 테더링 → <b>USB 테더링</b>을 켭니다.<br /><b>아이폰</b>: 설정 → <b>개인용 핫스팟</b>을 켜고, PC에 ‘이 컴퓨터를 신뢰하겠습니까?’가 뜨면 <b>신뢰</b>를 누릅니다.</li>
         <li>QuickDeck 리모컨 설정에서 <b>🔌 USB로 연결</b> 탭을 고릅니다. 몇 초 안에 USB용 QR 코드가 저절로 나타나고, 탭에 초록 점이 켜집니다.</li>
+        <li><b>처음 한 번</b>은 QR 옆의 <b>🛡️ USB 연결 허용하기</b>를 누르고, 관리자 확인 창에서 <b>예</b>를 누릅니다. Windows가 USB 연결을 ‘공용 네트워크’로 보고 휴대폰 접속을 막기 때문입니다. (QuickDeck 리모컨 연결만, USB·유선 연결에서만 허용됩니다.)</li>
         <li>휴대폰 카메라로 그 QR 코드를 찍습니다. 버튼판은 와이파이로 연결할 때와 똑같습니다.</li>
       </ol></div>
-      <div class="note"><span class="box-label">알아 두기</span><p>와이파이로만 인터넷을 쓰는 노트북은 테더링을 켜는 동안 PC의 인터넷이 <b>휴대폰 데이터</b>로 바뀔 수 있습니다. 유선 랜을 쓰는 교실 PC는 보통 그대로입니다. 처음 연결할 때 Windows 방화벽 창이 다시 뜨면 <b>허용</b>을 누르세요. 아이폰은 요금제에 따라 개인용 핫스팟 메뉴가 막혀 있을 수 있습니다.</p></div>
+      <div class="note"><span class="box-label">알아 두기</span><p>와이파이로만 인터넷을 쓰는 노트북은 테더링을 켜는 동안 PC의 인터넷이 <b>휴대폰 데이터</b>로 바뀔 수 있습니다. 유선 랜을 쓰는 교실 PC는 보통 그대로입니다. 관리자 권한이 없는 PC라면 <b>설정 → 네트워크 및 인터넷 → 이더넷</b>에서 휴대폰 연결(예: ‘이더넷 3’)을 <b>개인 네트워크</b>로 바꿔도 됩니다. 아이폰은 요금제에 따라 개인용 핫스팟 메뉴가 막혀 있을 수 있습니다.</p></div>
     </div>
-    <figure><img src="assets/shot-settings-usb.png" alt="" /><figcaption><b>그림 Ⅶ-2</b>USB로 연결 탭과 USB용 QR 코드</figcaption></figure>
+    <figure><img src="assets/shot-settings-usb.png" alt="" /><figcaption><b>그림 Ⅶ-2</b>USB로 연결 탭: 처음 한 번 ‘USB 연결 허용하기’</figcaption></figure>
   </div>
 
   <h2><span class="sn">02</span>트랙패드·키보드·음악 탭</h2>
@@ -1126,6 +1127,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <tr><td>텍스트가 이상하게 입력된다</td><td>붙여넣기를 막아 둔 입력 칸일 수 있습니다. 버튼의 ‘한 글자씩 입력하기’를 켜 보세요.</td></tr>
     <tr><td>Win 키 조합이 녹화되지 않는다</td><td>Windows가 먼저 가로채는 키입니다. ✎를 눌러 <code>win+shift+s</code>처럼 글자로 입력하세요.</td></tr>
     <tr><td>휴대폰에서 주소가 열리지 않는다</td><td>PC와 휴대폰이 같은 와이파이인지 확인하세요. 회사·학교 와이파이는 기기끼리 접속을 막아 둔 경우가 많습니다. 이럴 때는 휴대폰을 <b>USB로 연결</b>하고 테더링을 켜세요(Ⅶ단원 01). Windows 방화벽에서 QuickDeck을 <b>허용</b>했는지도 확인하세요.</td></tr>
+    <tr><td>USB QR 코드를 찍으면 주소는 뜨는데 연결이 안 된다</td><td>Windows 방화벽이 USB 연결(공용 네트워크)을 막고 있습니다. QR 옆의 <b>USB 연결 허용하기</b>를 누르고 관리자 확인 창에서 <b>예</b>를 누르세요. 관리자 권한이 없으면 설정 → 네트워크 및 인터넷 → 이더넷에서 휴대폰 연결을 <b>개인 네트워크</b>로 바꾸세요.</td></tr>
     <tr><td>‘USB로 연결’ 탭에 QR 코드가 나오지 않는다</td><td>휴대폰에서 <b>USB 테더링</b>(아이폰은 개인용 핫스팟)을 켰는지 확인하세요. <b>충전 전용 케이블</b>은 데이터가 통하지 않으니 다른 케이블로 바꿔 보세요. 아이폰은 PC에 <b>Apple Devices</b>(또는 iTunes) 앱이 설치되어 있어야 USB 테더링이 잡힙니다.</td></tr>
     <tr><td>휴대폰에 “열쇠가 맞지 않아요”</td><td>PC에서 열쇠를 새로 만든 경우입니다. 새 QR 코드를 다시 찍으세요.</td></tr>
     <tr><td>창 배치 버튼이 창을 못 옮긴다</td><td>관리자 권한으로 실행된 창은 옮길 수 없습니다. 또 바로 전에 쓴 창이 없으면(바탕화면만 클릭한 경우) 옮길 창이 없다고 알려 줍니다.</td></tr>
