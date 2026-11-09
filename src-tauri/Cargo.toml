@@ -1,6 +1,6 @@
 [package]
 name = "quickdeck"
-version = "0.7.6"
+version = "0.7.7"
 description = "QuickDeck - desktop stream deck"
 authors = ["Lee EunDeok"]
 edition = "2024"
