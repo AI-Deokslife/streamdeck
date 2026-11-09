@@ -260,6 +260,51 @@ export default function App() {
   // 아이콘 크기: 창 너비만 보고 키우면 아래가 잘리므로, 모든 줄이 창 높이 안에 들어오는 크기로 맞춘다
   const gridRef = useRef<HTMLElement>(null);
   const [iconSize, setIconSize] = useState(60);
+
+  // 편집 시트 높이: 손잡이를 위아래로 끌어 바꾼다 (null = 기본 크기). 이 PC 에 기억해 둔다
+  const appRef = useRef<HTMLDivElement>(null);
+  const [sheetH, setSheetH] = useState<number | null>(() => {
+    try {
+      const v = Number(localStorage.getItem("quickdeck.sheetH"));
+      return v > 0 ? v : null;
+    } catch {
+      return null;
+    }
+  });
+  const sheetDrag = useRef<{ startY: number; startH: number } | null>(null);
+  function rememberSheet(h: number | null) {
+    try {
+      if (h) localStorage.setItem("quickdeck.sheetH", String(Math.round(h)));
+      else localStorage.removeItem("quickdeck.sheetH");
+    } catch {
+      /* 저장 못 해도 지금 크기는 그대로 */
+    }
+  }
+  function clampSheet(h: number) {
+    const total = appRef.current?.clientHeight ?? window.innerHeight;
+    // 위쪽 머리줄과 버튼 한 줄 정도는 남기고, 아래로는 손잡이와 몇 줄이 보일 만큼
+    return Math.max(140, Math.min(total - 120, h));
+  }
+  function gripDown(e: React.PointerEvent<HTMLDivElement>) {
+    const panel = e.currentTarget.parentElement;
+    if (!panel) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    sheetDrag.current = { startY: e.clientY, startH: panel.getBoundingClientRect().height };
+  }
+  function gripMove(e: React.PointerEvent<HTMLDivElement>) {
+    const d = sheetDrag.current;
+    if (!d) return;
+    setSheetH(clampSheet(d.startH + (d.startY - e.clientY)));
+  }
+  function gripUp() {
+    if (!sheetDrag.current) return;
+    sheetDrag.current = null;
+    setSheetH((h) => {
+      rememberSheet(h);
+      return h;
+    });
+  }
   const tileCount =
     (current ?? view?.buttons ?? []).length + (path.length > 0 ? 1 : 0) + (editing ? 1 : 0) + (editing && copied ? 1 : 0);
   const columns = view?.columns ?? 4;
@@ -601,7 +646,11 @@ export default function App() {
   }
 
   return (
-    <div className={"app" + (editing ? " editing" : "")} style={{ opacity: appOpacity }}>
+    <div
+      ref={appRef}
+      className={"app" + (editing ? " editing" : "") + (editing && sheetH ? " sheet-sized" : "")}
+      style={{ opacity: appOpacity }}
+    >
       {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
       <header className="navbar" data-tauri-drag-region>
         <div className="nav-side left" data-tauri-drag-region>
@@ -767,7 +816,21 @@ export default function App() {
       </main>
 
       {editing && draft && (
-        <section className="panel">
+        <section className="panel" style={sheetH ? { flex: `0 0 ${clampSheet(sheetH)}px` } : undefined}>
+          <div
+            className="sheet-grip"
+            role="separator"
+            aria-orientation="horizontal"
+            title="위아래로 끌어 크기 바꾸기 · 더블클릭하면 원래 크기"
+            onPointerDown={gripDown}
+            onPointerMove={gripMove}
+            onPointerUp={gripUp}
+            onPointerCancel={gripUp}
+            onDoubleClick={() => {
+              setSheetH(null);
+              rememberSheet(null);
+            }}
+          />
           {selected ? (
             <ButtonEditor
               key={selected.id}
