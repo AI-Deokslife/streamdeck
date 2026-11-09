@@ -1,5 +1,6 @@
 /* =====================================================================
-   QuickDeck — Apple iOS 18 스타일
+   QuickDeck — 기본 모양은 Apple iOS 18 스타일 ('애플' 테마).
+   '자동·밝게·어둡게'는 이 위에 Windows 11 스타일을 덧씌운다 (파일 아래쪽 data-style="fluent").
    색상: Apple 시스템 색상(라이트/다크), 재질: 반투명 블러, 아이콘: 둥근 사각형(squircle)
    Windows 테마(라이트/다크)를 그대로 따라간다.
    ===================================================================== */
@@ -1002,19 +1003,8 @@ kbd {
 
 /* =====================================================================
    배민 스타일 테마 (data-theme="baemin")
-   민트 한 가지 색 + 손글씨 글꼴(주아체·도현체, SIL OFL 1.1) + 흰 바탕의 단순한 모양
-   글꼴 파일: public/fonts (라이선스 파일 함께 있음)
+   민트 한 가지 색 + 흰 바탕의 단순한 모양 (글꼴은 다른 테마와 같은 기본 글꼴)
    ===================================================================== */
-@font-face {
-  font-family: "BM Jua";
-  src: url("/fonts/Jua-Regular.ttf") format("truetype");
-  font-display: swap;
-}
-@font-face {
-  font-family: "BM DoHyeon";
-  src: url("/fonts/DoHyeon-Regular.ttf") format("truetype");
-  font-display: swap;
-}
 
 :root[data-theme="baemin"] {
   --mint: #2ac1bc;
@@ -1043,8 +1033,9 @@ kbd {
   /* 흰 바탕에 민트 점무늬 */
   --wallpaper: radial-gradient(circle, rgba(42, 193, 188, 0.16) 1.1px, transparent 1.4px) 0 0 / 14px 14px, #ffffff;
   --shadow-icon: 0 2px 0 rgba(0, 0, 0, 0.06), 0 3px 8px rgba(0, 0, 0, 0.08);
-  --font-fun: "BM Jua", var(--font);
-  --font-title: "BM DoHyeon", "BM Jua", var(--font);
+  /* 예전에는 손글씨 글꼴을 썼다. 지금은 다른 테마와 같은 글꼴 (제목만 조금 굵게) */
+  --font-fun: var(--font);
+  --font-title: var(--font);
   color-scheme: light;
 }
 
@@ -1057,7 +1048,7 @@ kbd {
 }
 :root[data-theme="baemin"] .nav-title-text {
   font-family: var(--font-title);
-  font-weight: 400;
+  font-weight: 700;
   font-size: 19px;
   letter-spacing: 0;
   color: #fff;
@@ -1085,7 +1076,7 @@ kbd {
   color: var(--mint-deep);
 }
 
-/* 아이콘: 광택 없이 평평하게, 이름은 주아체 */
+/* 아이콘: 광택 없이 평평하게 */
 :root[data-theme="baemin"] .app-icon {
   background-image: none;
   border-radius: 28%;
@@ -1102,7 +1093,7 @@ kbd {
 }
 :root[data-theme="baemin"] .tile-label {
   font-family: var(--font-fun);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 12.5px;
   text-shadow: none;
 }
@@ -1113,10 +1104,10 @@ kbd {
   color: var(--mint-deep);
 }
 
-/* 버튼: 주아체, 민트 */
+/* 버튼: 민트 */
 :root[data-theme="baemin"] button {
   font-family: var(--font-fun);
-  font-weight: 400;
+  font-weight: 500;
 }
 :root[data-theme="baemin"] button.primary {
   background: var(--mint);
@@ -1125,7 +1116,7 @@ kbd {
   font-family: var(--font-fun);
 }
 
-/* 편집 팝업: 머리말은 도현체 민트색, 입력 칸 글씨는 읽기 쉬운 기본 글꼴 */
+/* 편집 팝업: 머리말은 굵은 민트색 */
 :root[data-theme="baemin"] .modal {
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
 }
@@ -1134,12 +1125,12 @@ kbd {
 }
 :root[data-theme="baemin"] .modal-title {
   font-family: var(--font-title);
-  font-weight: 400;
+  font-weight: 700;
   color: var(--mint-deep);
 }
 :root[data-theme="baemin"] .editor label {
   font-family: var(--font-title);
-  font-weight: 400;
+  font-weight: 700;
   font-size: 14px;
   color: var(--mint-deep);
 }
@@ -1850,4 +1841,184 @@ kbd {
   font-size: 11.5px;
   color: var(--label-2);
   border-top: 0.5px solid var(--separator);
+}
+
+/* =====================================================================
+   Windows 11 스타일 (자동·밝게·어둡게: html[data-style="fluent"])
+   Mica 처럼 차분한 바탕, 살짝 둥근 네모(8px 안팎) 버튼, 얇은 테두리, Windows 파랑.
+   글꼴은 다른 테마와 같은 기본 글꼴.
+   ===================================================================== */
+:root[data-style="fluent"] {
+  --bg: #202020;
+  --bg-elevated: #2b2b2b;
+  --bg-elevated-2: #323232;
+  --bg-elevated-3: #3d3d3d;
+  --label: #ffffff;
+  --label-2: rgba(255, 255, 255, 0.66);
+  --label-3: rgba(255, 255, 255, 0.36);
+  --separator: rgba(255, 255, 255, 0.09);
+  --fill: rgba(255, 255, 255, 0.11);
+  --fill-2: rgba(255, 255, 255, 0.065);
+  --fill-3: rgba(255, 255, 255, 0.045);
+  --bar: #1c1c1c;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --blue: #4cc2ff;
+  --green: #6ccb5f;
+  --red: #ff99a4;
+  --orange: #fce100;
+  --tinted-blue: rgba(76, 194, 255, 0.15);
+  --tinted-red: rgba(255, 153, 164, 0.14);
+  --on-accent: #000000;
+  /* Mica: 거의 단색이지만 위쪽이 아주 살짝 푸른 */
+  --wallpaper: linear-gradient(170deg, #232a36 0%, #202020 38%, #1d1d1d 100%);
+  --shadow-icon: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.22);
+  --radius-sheet: 8px;
+  --tile-stroke: rgba(255, 255, 255, 0.08);
+}
+:root[data-style="fluent"][data-theme="light"] {
+  --bg: #f3f3f3;
+  --bg-elevated: #fbfbfb;
+  --bg-elevated-2: #f5f5f5;
+  --bg-elevated-3: #e9e9e9;
+  --label: #1b1b1b;
+  --label-2: rgba(0, 0, 0, 0.61);
+  --label-3: rgba(0, 0, 0, 0.36);
+  --separator: rgba(0, 0, 0, 0.08);
+  --fill: rgba(0, 0, 0, 0.075);
+  --fill-2: rgba(0, 0, 0, 0.045);
+  --fill-3: rgba(0, 0, 0, 0.03);
+  --bar: #ffffff;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --blue: #005fb8;
+  --green: #0f7b0f;
+  --red: #c42b1c;
+  --orange: #9d5d00;
+  --tinted-blue: rgba(0, 95, 184, 0.1);
+  --tinted-red: rgba(196, 43, 28, 0.1);
+  --on-accent: #ffffff;
+  --wallpaper: linear-gradient(170deg, #e8eef8 0%, #f3f3f3 40%, #f0f0f0 100%);
+  --shadow-icon: 0 1px 2px rgba(0, 0, 0, 0.1), 0 2px 5px rgba(0, 0, 0, 0.07);
+  --tile-stroke: rgba(0, 0, 0, 0.06);
+}
+
+/* 머리줄: 반투명 블러 대신 단색 + 얇은 선, 제목은 조금 작게 */
+:root[data-style="fluent"] .navbar {
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--separator);
+}
+:root[data-style="fluent"] .nav-title-text {
+  font-size: 14px;
+}
+:root[data-style="fluent"] :is(.nav-btn, .nav-back, .nav-home, .nav-icon) {
+  border-radius: 4px;
+}
+
+/* 버튼 아이콘: iOS 둥근 아이콘 대신 살짝 둥근 네모, 광택 없이 얇은 테두리 */
+:root[data-style="fluent"] .app-icon {
+  border-radius: 14%;
+  background-image: none;
+  box-shadow: var(--shadow-icon), inset 0 0 0 1px var(--tile-stroke);
+}
+:root[data-style="fluent"] .app-icon.glass {
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+:root[data-style="fluent"] .tile {
+  border-radius: 6px;
+  padding: 6px 0 4px;
+}
+:root[data-style="fluent"] .tile:hover {
+  background: var(--fill-3);
+}
+:root[data-style="fluent"] .tile:active .app-icon,
+:root[data-style="fluent"] .tile.pressed .app-icon {
+  transform: scale(0.95);
+}
+:root[data-style="fluent"] .tile-label {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* 일반 버튼: Windows 버튼처럼 4px 모서리 + 얇은 테두리 */
+:root[data-style="fluent"] button {
+  border-radius: 4px;
+}
+:root[data-style="fluent"] button:not(.tile):not(.nav-btn):not(.nav-back):not(.nav-home):not(.nav-icon):not(.ghost):not(.icon):not(.chip):not(.theme-card) {
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+:root[data-style="fluent"] button.primary,
+:root[data-style="fluent"] .update-go {
+  background: var(--blue);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+:root[data-style="fluent"] .segmented {
+  border-radius: 5px;
+}
+:root[data-style="fluent"] .segmented button {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+/* 켜기/끄기 스위치: 테두리 있는 Windows 토글, 켜면 파랑 */
+:root[data-style="fluent"] .editor label.check input[type="checkbox"] {
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--label-2);
+}
+:root[data-style="fluent"] .editor label.check input[type="checkbox"]::after {
+  top: 4px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  background: var(--label-2);
+  box-shadow: none;
+}
+:root[data-style="fluent"] .editor label.check input[type="checkbox"]:checked {
+  background: var(--blue);
+  box-shadow: none;
+}
+:root[data-style="fluent"] .editor label.check input[type="checkbox"]:checked::after {
+  background: var(--on-accent);
+  transform: translateX(20px);
+}
+
+/* 팝업: 8px 모서리 + 테두리 */
+:root[data-style="fluent"] .modal {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--separator);
+}
+:root[data-style="fluent"] .modal-bg {
+  backdrop-filter: none;
+}
+:root[data-style="fluent"] .update-bar {
+  border-radius: 8px;
+  backdrop-filter: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 0 0 1px var(--separator);
+}
+
+/* 머리줄이 바탕과 이어지는 Windows 11 제목 표시줄 */
+:root[data-style="fluent"] .navbar {
+  background: transparent;
+}
+:root[data-style="fluent"] {
+  --radius-cell: 6px;
+}
+/* 슬라이더: 가는 줄 + 파란 점이 있는 동그란 손잡이 */
+:root[data-style="fluent"] .editor input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--label-3);
+}
+:root[data-style="fluent"] .editor input[type="range"]::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 5px solid var(--bg-elevated);
+  box-shadow: 0 0 0 1px var(--separator), 0 1px 3px rgba(0, 0, 0, 0.25);
 }

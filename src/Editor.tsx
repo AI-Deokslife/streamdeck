@@ -1090,10 +1090,11 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
 
 /** 테마 고르기 카드: 미리보기 색(바 / 바탕 / 포인트 / 아이콘)과 설명 */
 const THEME_CARDS: { value: Theme; name: string; bar: string; bg: string; accent: string; tile: string; desc: string }[] = [
-  { value: "auto", name: "자동", bar: "linear-gradient(90deg,#f9f9f9 50%,#1c1c1e 50%)", bg: "linear-gradient(90deg,#eef1f7 50%,#050507 50%)", accent: "#0a84ff", tile: "#8e8e93", desc: "Windows의 밝게/어둡게 설정을 따라가요." },
-  { value: "light", name: "밝게", bar: "#f9f9f9", bg: "#eef1f7", accent: "#007aff", tile: "#c7c7cc", desc: "Apple 스타일의 밝은 화면이에요." },
-  { value: "dark", name: "어둡게", bar: "#1c1c1e", bg: "#050507", accent: "#0a84ff", tile: "#3a3a3c", desc: "Apple 스타일의 어두운 화면이에요." },
-  { value: "baemin", name: "배민", bar: "#2ac1bc", bg: "#ffffff", accent: "#2ac1bc", tile: "#e4f7f6", desc: "민트색과 손글씨 글꼴(주아체·도현체), 재치 있는 말투의 테마예요." },
+  { value: "auto", name: "자동", bar: "linear-gradient(90deg,#ffffff 50%,#1c1c1c 50%)", bg: "linear-gradient(90deg,#eef1f6 50%,#202020 50%)", accent: "#0067c0", tile: "#8a8a8a", desc: "Windows 11 스타일이에요. Windows의 밝게/어둡게 설정을 따라가요." },
+  { value: "light", name: "밝게", bar: "#ffffff", bg: "#eef1f6", accent: "#005fb8", tile: "#e5e5e5", desc: "Windows 11 스타일의 밝은 화면이에요. 차분한 바탕에 살짝 둥근 네모 버튼이에요." },
+  { value: "dark", name: "어둡게", bar: "#1c1c1c", bg: "#202020", accent: "#4cc2ff", tile: "#3a3a3a", desc: "Windows 11 스타일의 어두운 화면이에요." },
+  { value: "apple", name: "애플", bar: "rgba(249,249,249,0.9)", bg: "linear-gradient(135deg,#cfe3ff,#f3d9ff)", accent: "#007aff", tile: "#ffffff", desc: "iPhone 홈 화면처럼 반투명 유리와 둥근 아이콘, 은은한 배경의 테마예요. Windows의 밝게/어둡게 설정을 따라가요." },
+  { value: "baemin", name: "배민", bar: "#2ac1bc", bg: "#ffffff", accent: "#2ac1bc", tile: "#e4f7f6", desc: "민트색 한 가지와 재치 있는 말투의 테마예요." },
   { value: "kakao", name: "카톡", bar: "#fee500", bg: "#b2c7da", accent: "#3c1e1e", tile: "#ffffff", desc: "노란 바와 하늘색 대화방 바탕의 테마예요." },
   { value: "toss", name: "토스", bar: "#ffffff", bg: "#f2f4f6", accent: "#3182f6", tile: "#ffffff", desc: "파란 포인트와 흰 카드로 깔끔한 테마예요." },
   { value: "line", name: "라인", bar: "#06c755", bg: "#ffffff", accent: "#06c755", tile: "#e7f8ee", desc: "초록 바와 흰 바탕의 산뜻한 테마예요." },

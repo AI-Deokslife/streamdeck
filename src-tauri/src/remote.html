@@ -356,10 +356,12 @@
   let version = -1;
   let path = []; // 열려 있는 폴더 id 목록
 
+  // 자동·밝게·어둡게 = Windows 11 스타일, 애플 = iOS 스타일(휴대폰의 밝게/어둡게를 따라감)
   const THEMES = {
-    light:  { bar: "rgba(249,249,249,0.92)", text: "#000", bg: "#eef1f7", accent: "#007aff", light: true },
-    dark:   {},
-    auto:   {},
+    light:  { bar: "#ffffff", text: "#1b1b1b", bg: "#f0f2f5", accent: "#005fb8", light: true, radius: "14%" },
+    dark:   { bar: "#1c1c1c", text: "#fff", bg: "#202020", accent: "#4cc2ff", radius: "14%" },
+    appleLight: { bar: "rgba(249,249,249,0.92)", text: "#000", bg: "#eef1f7", accent: "#007aff", light: true },
+    appleDark:  {},
     baemin: { bar: "#2ac1bc", text: "#fff", bg: "#ffffff", accent: "#12a8a3", light: true, radius: "28%" },
     kakao:  { bar: "#fee500", text: "#3c1e1e", bg: "#b2c7da", accent: "#3c1e1e", light: true, radius: "36%" },
     toss:   { bar: "#ffffff", text: "#191f28", bg: "#f2f4f6", accent: "#3182f6", light: true, radius: "30%" },
@@ -367,10 +369,11 @@
   };
 
   function applyTheme(name) {
-    const t = THEMES[name] || {};
     const r = document.documentElement.style;
-    const auto = name === "auto" && window.matchMedia("(prefers-color-scheme: light)").matches;
-    const use = auto ? THEMES.light : t;
+    const sysLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+    const use = name === "auto" ? (sysLight ? THEMES.light : THEMES.dark)
+      : name === "apple" ? (sysLight ? THEMES.appleLight : THEMES.appleDark)
+      : THEMES[name] || THEMES.dark;
     r.setProperty("--bar", use.bar || "rgba(22,22,24,0.9)");
     r.setProperty("--bar-text", use.text || "#fff");
     if (use.bg) r.setProperty("--bg", use.bg); else r.removeProperty("--bg");

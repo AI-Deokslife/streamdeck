@@ -236,12 +236,16 @@ export default function App() {
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: light)");
     const apply = () => {
+      const el = document.documentElement;
       if (STYLE_THEMES.includes(theme)) {
-        document.documentElement.dataset.theme = theme;
+        el.dataset.theme = theme;
+        delete el.dataset.style;
         return;
       }
-      const light = theme === "light" || (theme === "auto" && media.matches);
-      document.documentElement.dataset.theme = light ? "light" : "dark";
+      // 자동·밝게·어둡게 = Windows 11 스타일, 애플 = iOS 스타일(Windows 밝게/어둡게 설정을 따라감)
+      const light = theme === "light" || ((theme === "auto" || theme === "apple") && media.matches);
+      el.dataset.theme = light ? "light" : "dark";
+      el.dataset.style = theme === "apple" ? "apple" : "fluent";
     };
     apply();
     media.addEventListener("change", apply);

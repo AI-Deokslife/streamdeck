@@ -24,6 +24,7 @@ $shots = @(
   @{ n = "home-kakao";   v = "home";        t = "kakao"; h = 330 },
   @{ n = "home-toss";    v = "home";        t = "toss";  h = 330 },
   @{ n = "home-baemin";  v = "home";        t = "baemin"; h = 330 },
+  @{ n = "home-apple";   v = "home";        t = "apple"; h = 330 },
   @{ n = "home-line";    v = "home";        t = "line";  h = 330 },
   @{ n = "opacity";      v = "home";        t = "dark";  h = 330; q = "&op=60&bg=check" }
 )
