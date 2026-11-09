@@ -5,7 +5,7 @@ from PIL import Image
 
 ASSETS = Path(__file__).parent / "assets"
 APP_WIDTH = 840  # 420px × 배율 2
-SHEET_ONLY = {"edit-keys", "edit-folder", "edit-multi", "settings", "settings-2", "settings-remote", "settings-usb", "settings-usb-wait", "settings-look"}
+SHEET_ONLY: set[str] = set()  # 예전 아래 시트 시절에는 시트 부분만 잘랐다. 지금은 팝업이라 전체를 쓴다
 SHEET_TOP = 690  # 편집 모드에서 버튼 두 줄 + 추가 칸 아래 (배율 2 기준)
 
 for f in sorted(ASSETS.glob("shot-*.png")):

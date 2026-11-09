@@ -83,7 +83,7 @@
           if (cmd === "get_toggles") return { ...TOGGLES };
           if (cmd === "run_button" && a.id in TOGGLES) { TOGGLES[a.id] = !TOGGLES[a.id]; for (const h of L["toggle-changed"] || []) window["_" + h]({ event: "toggle-changed", payload: { id: a.id, on: TOGGLES[a.id] } }); return null; }
           if (cmd === "take_startup_notices") return [];
-          if (cmd === "plugin:app|version") return "0.7.3";
+          if (cmd === "plugin:app|version") return "0.8.0";
           if (cmd === "current_app") return view === "auto" ? { exe: "Hwp.exe", folderId: "hwp" } : { exe: "explorer.exe", folderId: null };
           if (cmd === "get_app_icon") { const c = await cfgPromise; const t = a.target.toLowerCase(); return (t.includes("hwp") ? c.buttons[0] : t.includes("starcraft") ? c.buttons[2] : c.buttons[1]).image; }
           if (cmd === "remote_status") return { enabled: true, running: true, url: "http://192.168.0.12:47823/?t=0123456789abcdef0123456789abcdef", qrSvg: QR_SAMPLE, usbUrl: view === "settings-usb" ? "http://192.168.42.129:47823/?t=0123456789abcdef0123456789abcdef" : null, usbQrSvg: view === "settings-usb" ? QR_SAMPLE : "", usbAllowed: view !== "settings-usb", error: null };
@@ -98,25 +98,27 @@
       const q = (s) => [...document.querySelectorAll(s)];
       const tile = (t) => q(".tile").find((x) => x.textContent.includes(t));
       const edit = () => q("header button").find((b) => b.title === "버튼 편집")?.click();
-      const scrollPanelTo = (el) => { const p = document.querySelector(".panel"); if (p && el) p.scrollTop = el.offsetTop - 8; };
+      const openSettings = () => [...document.querySelectorAll(".nav-btn")].find((b) => b.textContent.trim() === "설정")?.click();
+      const scrollPanelTo = (el) => { const p = document.querySelector(".modal-body"); if (p && el) p.scrollTop = el.offsetTop - 8; };
       const label = (t) => q(".editor label").find((l) => l.textContent.trim().startsWith(t));
 
       (async () => {
         await wait(900);
         if (view === "folder") tile("한글")?.click();
+        if (view === "edit-home") { edit(); }
         if (view === "edit") { edit(); await wait(150); tile("메모장")?.click(); }
         if (view === "edit-icon") { edit(); await wait(150); tile("스타크래프트")?.click(); }
         if (view === "edit-keys") { edit(); await wait(150); tile("화면 캡처")?.click(); await wait(150); scrollPanelTo(label("보낼 키")); }
         if (view === "edit-folder") { edit(); await wait(150); tile("한글")?.click(); await wait(150); scrollPanelTo(document.querySelector(".folder-info")); }
         if (view === "edit-multi") { edit(); await wait(150); tile("아침 루틴")?.click(); await wait(150); q(".step-head")[1]?.click(); await wait(100); scrollPanelTo(document.querySelector(".steps")); }
-        if (view === "settings") { edit(); await wait(250); scrollPanelTo(label("화면 테마")); }
-        if (view === "settings-2") { edit(); await wait(250); scrollPanelTo(label("프로그램 프리셋")); }
+        if (view === "settings") { edit(); await wait(250); openSettings(); await wait(200); scrollPanelTo(label("화면 테마")); }
+        if (view === "settings-2") { edit(); await wait(250); openSettings(); await wait(200); scrollPanelTo(label("프로그램 프리셋")); }
         if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }
         if (view === "update") { const h = L["update-available"]?.[0]; if (h) window["_" + h]({ event: "update-available", payload: { version: "0.7.9", current: "0.7.8", notes: "", headline: "휴대폰 리모컨 버튼 크기 조절" } }); }
-        if (view === "settings-look") { edit(); await wait(250); scrollPanelTo(label("창 투명도")); }
-        if (view === "settings-usb") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
-        if (view === "settings-usb-wait") { edit(); await wait(400); [...document.querySelectorAll(".remote-via button")][1]?.click(); await wait(150); scrollPanelTo(label("휴대폰 리모컨")); }
-        if (view === "settings-remote") { edit(); await wait(400); scrollPanelTo(label("휴대폰 리모컨")); }
+        if (view === "settings-look") { edit(); await wait(250); openSettings(); await wait(200); scrollPanelTo(label("창 투명도")); }
+        if (view === "settings-usb") { edit(); await wait(400); openSettings(); await wait(200); scrollPanelTo(label("휴대폰 리모컨")); }
+        if (view === "settings-usb-wait") { edit(); await wait(400); openSettings(); await wait(200); [...document.querySelectorAll(".remote-via button")][1]?.click(); await wait(150); scrollPanelTo(label("휴대폰 리모컨")); }
+        if (view === "settings-remote") { edit(); await wait(400); openSettings(); await wait(200); scrollPanelTo(label("휴대폰 리모컨")); }
         await wait(300);
         document.title = "READY";
       })();

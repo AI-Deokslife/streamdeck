@@ -93,6 +93,7 @@ body,
 }
 
 .app {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -256,7 +257,7 @@ button.danger {
   /* 버튼이 많아 스크롤이 생기면 auto 행이 줄어들어 겹치므로 내용 높이로 고정 */
   grid-auto-rows: min-content;
 }
-.app:not(.editing) .grid {
+.grid {
   flex: 1;
 }
 .grid::-webkit-scrollbar {
@@ -463,56 +464,6 @@ button.danger {
 .del-badge:hover {
   background: var(--red);
   color: #fff;
-}
-
-/* ---------- 편집 시트 (아래에서 올라오는 iOS 시트) ---------- */
-.panel {
-  flex: 1;
-  position: relative;
-  overflow-y: auto;
-  background: var(--bg);
-  border-top-left-radius: var(--radius-sheet);
-  border-top-right-radius: var(--radius-sheet);
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-  user-select: text;
-}
-/* 시트 손잡이: 위아래로 끌면 시트 높이가 바뀐다 */
-.sheet-grip {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  height: 17px;
-  margin-bottom: -6px;
-  cursor: ns-resize;
-  touch-action: none;
-  user-select: none;
-}
-.sheet-grip::before {
-  content: "";
-  display: block;
-  width: 36px;
-  height: 5px;
-  margin: 6px auto 0;
-  border-radius: 3px;
-  background: var(--label-3);
-  transition: width 0.15s ease, background 0.15s ease;
-}
-.sheet-grip:hover::before,
-.sheet-grip:active::before {
-  width: 48px;
-  background: var(--label-2);
-}
-/* 시트 높이를 직접 정했으면 위쪽 버튼 칸이 남은 자리를 채우고 넘치면 스크롤 */
-.app.sheet-sized .grid {
-  flex: 1;
-  min-height: 0;
-}
-.panel::-webkit-scrollbar {
-  width: 6px;
-}
-.panel::-webkit-scrollbar-thumb {
-  background: var(--fill);
-  border-radius: 3px;
 }
 
 /* 설정 앱처럼: 회색 작은 머리말 + 둥근 칸 */
@@ -1174,13 +1125,17 @@ kbd {
   font-family: var(--font-fun);
 }
 
-/* 편집 시트: 머리말은 도현체 민트색, 입력 칸 글씨는 읽기 쉬운 기본 글꼴 */
-:root[data-theme="baemin"] .panel {
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+/* 편집 팝업: 머리말은 도현체 민트색, 입력 칸 글씨는 읽기 쉬운 기본 글꼴 */
+:root[data-theme="baemin"] .modal {
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
 }
-:root[data-theme="baemin"] .sheet-grip::before {
-  background: var(--mint);
-  opacity: 0.6;
+:root[data-theme="baemin"] .modal-head {
+  border-bottom: 2px solid var(--mint);
+}
+:root[data-theme="baemin"] .modal-title {
+  font-family: var(--font-title);
+  font-weight: 400;
+  color: var(--mint-deep);
 }
 :root[data-theme="baemin"] .editor label {
   font-family: var(--font-title);
@@ -1813,4 +1768,86 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---------- 편집 팝업 (버튼 편집 · 설정) ---------- */
+.modal-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px 12px;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(3px);
+  animation: modal-fade 0.16s ease;
+}
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-sheet, 16px);
+  background: var(--bg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 0 0.5px var(--separator);
+  user-select: text;
+  animation: modal-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 10px 16px;
+  border-bottom: 0.5px solid var(--separator);
+}
+.modal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modal-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--label-2);
+}
+.modal-close {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+.modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--fill);
+  border-radius: 3px;
+}
+@keyframes modal-fade {
+  from { opacity: 0; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+
+/* 편집 중 아래쪽 한 줄 안내 */
+.edit-hint {
+  margin: 0;
+  padding: 7px 12px 9px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--label-2);
+  border-top: 0.5px solid var(--separator);
 }

@@ -261,49 +261,11 @@ export default function App() {
   const gridRef = useRef<HTMLElement>(null);
   const [iconSize, setIconSize] = useState(60);
 
-  // 편집 시트 높이: 손잡이를 위아래로 끌어 바꾼다 (null = 기본 크기). 이 PC 에 기억해 둔다
-  const appRef = useRef<HTMLDivElement>(null);
-  const [sheetH, setSheetH] = useState<number | null>(() => {
-    try {
-      const v = Number(localStorage.getItem("quickdeck.sheetH"));
-      return v > 0 ? v : null;
-    } catch {
-      return null;
-    }
-  });
-  const sheetDrag = useRef<{ startY: number; startH: number } | null>(null);
-  function rememberSheet(h: number | null) {
-    try {
-      if (h) localStorage.setItem("quickdeck.sheetH", String(Math.round(h)));
-      else localStorage.removeItem("quickdeck.sheetH");
-    } catch {
-      /* 저장 못 해도 지금 크기는 그대로 */
-    }
-  }
-  function clampSheet(h: number) {
-    const total = appRef.current?.clientHeight ?? window.innerHeight;
-    // 위쪽 머리줄과 버튼 한 줄 정도는 남기고, 아래로는 손잡이와 몇 줄이 보일 만큼
-    return Math.max(140, Math.min(total - 120, h));
-  }
-  function gripDown(e: React.PointerEvent<HTMLDivElement>) {
-    const panel = e.currentTarget.parentElement;
-    if (!panel) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    sheetDrag.current = { startY: e.clientY, startH: panel.getBoundingClientRect().height };
-  }
-  function gripMove(e: React.PointerEvent<HTMLDivElement>) {
-    const d = sheetDrag.current;
-    if (!d) return;
-    setSheetH(clampSheet(d.startH + (d.startY - e.clientY)));
-  }
-  function gripUp() {
-    if (!sheetDrag.current) return;
-    sheetDrag.current = null;
-    setSheetH((h) => {
-      rememberSheet(h);
-      return h;
-    });
+  // 편집 팝업: 버튼을 누르면 그 버튼 편집, 머리줄 '설정'을 누르면 전체 설정
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  function closeModal() {
+    setSelectedId(null);
+    setSettingsOpen(false);
   }
   const tileCount =
     (current ?? view?.buttons ?? []).length + (path.length > 0 ? 1 : 0) + (editing ? 1 : 0) + (editing && copied ? 1 : 0);
@@ -337,6 +299,15 @@ export default function App() {
 
   // 편집 중 단축키 (Ctrl+C 복사, Ctrl+V 붙여넣기, Ctrl+D 복제). 핸들러는 매 렌더마다 최신으로 바꿔 끼운다
   const editKeys = useRef<(e: KeyboardEvent) => void>(undefined);
+  const modalOpen = editing && (!!selectedId || settingsOpen);
+  useEffect(() => {
+    if (!modalOpen) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [modalOpen]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => editKeys.current?.(e);
     window.addEventListener("keydown", h);
@@ -457,7 +428,8 @@ export default function App() {
       return;
     }
     if (editing) {
-      setSelectedId(b.id === selectedId ? null : b.id);
+      setSettingsOpen(false);
+      setSelectedId(b.id);
       return;
     }
     if (b.action.type === "folder") {
@@ -505,6 +477,7 @@ export default function App() {
     setEditing(false);
     setDraft(null);
     setSelectedId(null);
+    setSettingsOpen(false);
     // 편집하는 동안 쉬었던 자동 전환을 지금 앞에 있는 프로그램 기준으로 다시 맞춘다
     editingRef.current = false;
     auto.current = null;
@@ -647,8 +620,7 @@ export default function App() {
 
   return (
     <div
-      ref={appRef}
-      className={"app" + (editing ? " editing" : "") + (editing && sheetH ? " sheet-sized" : "")}
+      className={"app" + (editing ? " editing" : "")}
       style={{ opacity: appOpacity }}
     >
       {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
@@ -689,9 +661,21 @@ export default function App() {
         </div>
         <div className="nav-side right" data-tauri-drag-region>
           {editing ? (
-            <button className="nav-btn bold" onClick={() => finishEdit(true)}>
-              {t("완료", "다 했어요")}
-            </button>
+            <>
+              <button
+                className="nav-btn"
+                title="화면 테마, 칸 수, 프리셋, 휴대폰 리모컨, 백업"
+                onClick={() => {
+                  setSelectedId(null);
+                  setSettingsOpen(true);
+                }}
+              >
+                설정
+              </button>
+              <button className="nav-btn bold" onClick={() => finishEdit(true)}>
+                {t("완료", "다 했어요")}
+              </button>
+            </>
           ) : (
             <>
               <button className="nav-btn" title="버튼 편집" onClick={() => startEdit(config)}>
@@ -815,22 +799,37 @@ export default function App() {
         )}
       </main>
 
-      {editing && draft && (
-        <section className="panel" style={sheetH ? { flex: `0 0 ${clampSheet(sheetH)}px` } : undefined}>
-          <div
-            className="sheet-grip"
-            role="separator"
-            aria-orientation="horizontal"
-            title="위아래로 끌어 크기 바꾸기 · 더블클릭하면 원래 크기"
-            onPointerDown={gripDown}
-            onPointerMove={gripMove}
-            onPointerUp={gripUp}
-            onPointerCancel={gripUp}
-            onDoubleClick={() => {
-              setSheetH(null);
-              rememberSheet(null);
-            }}
-          />
+      {editing && (
+        <p className="edit-hint">
+          버튼을 누르면 편집 창이 열려요 · 끌어서 순서 바꾸기 · 폴더는 더블클릭하면 안으로
+        </p>
+      )}
+
+      {editing && draft && (selected || settingsOpen) && (
+        <div
+          className="modal-bg"
+          onMouseDown={(e) => {
+            // 바깥(어두운 곳)을 누르면 닫는다. 팝업 안에서 끌다가 밖에서 놓은 경우는 제외
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <section className="modal" role="dialog" aria-modal="true" aria-label={selected ? "버튼 편집" : "설정"}>
+            <header className="modal-head">
+              <span className="modal-title">
+                {selected ? (
+                  <>
+                    <span className="modal-kicker">버튼 편집</span>
+                    {selected.label || "이름 없는 버튼"}
+                  </>
+                ) : (
+                  "설정"
+                )}
+              </span>
+              <button type="button" className="modal-close" onClick={closeModal} title="닫기 (Esc)">
+                닫기
+              </button>
+            </header>
+            <div className="modal-body">
           {selected ? (
             <ButtonEditor
               key={selected.id}
@@ -862,7 +861,9 @@ export default function App() {
               onPreviewOpacity={setPreviewOpacity}
             />
           )}
-        </section>
+            </div>
+          </section>
+        </div>
       )}
 
       {update && !editing && (

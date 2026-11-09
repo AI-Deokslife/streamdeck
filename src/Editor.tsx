@@ -1145,9 +1145,6 @@ export function SettingsEditor({
 
   return (
     <div className="editor">
-      <p className="hint">
-        버튼을 클릭하면 편집하고, 끌어서 순서를 바꿀 수 있어요. 폴더는 더블클릭하면 안으로 들어갑니다.
-      </p>
       <label>화면 테마</label>
       <div className="theme-grid" role="radiogroup" aria-label="화면 테마">
         {THEME_CARDS.map((c) => {
