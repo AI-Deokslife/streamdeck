@@ -56,7 +56,7 @@ export default function App() {
     };
   }, []);
   /** 새 버전 알림과 내려받는 중 진행률 */
-  const [update, setUpdate] = useState<{ version: string; current: string; notes: string } | null>(null);
+  const [update, setUpdate] = useState<{ version: string; current: string; notes: string; headline: string } | null>(null);
   const [updating, setUpdating] = useState<{ got: number; total: number | null } | null>(null);
   /** 위젯 버튼 값 (CPU·메모리, 타이머)과 시계용 현재 시각 */
   const [widgets, setWidgets] = useState<WidgetState | null>(null);
@@ -185,7 +185,7 @@ export default function App() {
   // 자동 업데이트 알림
   useEffect(() => {
     const uns = [
-      listen<{ version: string; current: string; notes: string }>("update-available", (e) => setUpdate(e.payload)),
+      listen<{ version: string; current: string; notes: string; headline: string }>("update-available", (e) => setUpdate(e.payload)),
       listen<{ text: string; kind: "info" | "error" }>("update-status", (e) => showToast(e.payload.text, e.payload.kind, 5000)),
       listen<{ got: number; total: number | null }>("update-progress", (e) => setUpdating(e.payload)),
     ];
@@ -878,11 +878,19 @@ export default function App() {
             <>
               <span className="grow" title={update.notes || undefined}>
                 🎉 새 버전 <b>v{update.version}</b>
+                {update.headline && <small className="update-what">{update.headline}</small>}
               </span>
               <button className="update-go" onClick={installUpdate}>
                 지금 업데이트
               </button>
-              <button className="update-x" onClick={() => setUpdate(null)} title="나중에">
+              <button
+                className="update-x"
+                onClick={() => {
+                  invoke("snooze_update", { version: update.version }).catch(() => {});
+                  setUpdate(null);
+                }}
+                title="나중에 (하루 동안 다시 묻지 않아요)"
+              >
                 ✕
               </button>
             </>

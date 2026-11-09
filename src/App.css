@@ -1802,3 +1802,15 @@ kbd {
 .usb-allow p {
   margin: 0;
 }
+
+/* 업데이트 알림 줄: 무엇이 바뀌었는지 한 줄 */
+.update-what {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

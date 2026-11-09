@@ -124,7 +124,7 @@ fn toggle_window(app: &AppHandle) {
     }
 }
 
-fn show_window(app: &AppHandle) {
+pub(crate) fn show_window(app: &AppHandle) {
     autohide::reveal();
     if let Some(w) = main_window(app) {
         let _ = w.show();
@@ -578,7 +578,7 @@ pub fn run() {
             remote::start_if_enabled(&handle);
             widgets::start_watcher(handle.clone());
             // 켠 뒤 잠시 있다가 새 버전 확인 (조용히: 없거나 실패하면 아무 말 안 함)
-            updates::check_in_background(handle.clone(), false, std::time::Duration::from_secs(8));
+            updates::start(handle.clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -592,6 +592,7 @@ pub fn run() {
             get_toggles,
             get_widgets,
             updates::install_update,
+            updates::snooze_update,
             activate_app,
             resolve_app_path,
             get_app_icon,
