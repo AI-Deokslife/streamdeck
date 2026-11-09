@@ -1093,7 +1093,12 @@ const THEME_CARDS: { value: Theme; name: string; bar: string; bg: string; accent
   { value: "auto", name: "자동", bar: "linear-gradient(90deg,#ffffff 50%,#1c1c1c 50%)", bg: "linear-gradient(90deg,#eef1f6 50%,#202020 50%)", accent: "#0067c0", tile: "#8a8a8a", desc: "Windows 11 스타일이에요. Windows의 밝게/어둡게 설정을 따라가요." },
   { value: "light", name: "밝게", bar: "#ffffff", bg: "#eef1f6", accent: "#005fb8", tile: "#e5e5e5", desc: "Windows 11 스타일의 밝은 화면이에요. 차분한 바탕에 살짝 둥근 네모 버튼이에요." },
   { value: "dark", name: "어둡게", bar: "#1c1c1c", bg: "#202020", accent: "#4cc2ff", tile: "#3a3a3a", desc: "Windows 11 스타일의 어두운 화면이에요." },
-  { value: "apple", name: "애플", bar: "rgba(249,249,249,0.9)", bg: "linear-gradient(135deg,#cfe3ff,#f3d9ff)", accent: "#007aff", tile: "#ffffff", desc: "iPhone 홈 화면처럼 반투명 유리와 둥근 아이콘, 은은한 배경의 테마예요. Windows의 밝게/어둡게 설정을 따라가요." },
+  { value: "chalk", name: "칠판", bar: "#7a5431", bg: "#26392e", accent: "#ffe27a", tile: "#f4f1e8", desc: "초록 칠판 바탕에 나무 테두리, 분필로 그린 듯한 버튼이에요. 교실 화면에 잘 어울려요." },
+  { value: "contrast", name: "고대비", bar: "#000000", bg: "#000000", accent: "#ffd400", tile: "#ffffff", desc: "검은 바탕에 굵은 흰 테두리와 큰 글씨로, 멀리서도 또렷하게 보여요. 프로젝터나 큰 화면에 좋아요." },
+  { value: "neon", name: "네온", bar: "#14142b", bg: "linear-gradient(135deg,#2a1450,#07071a 60%,#06283a)", accent: "#22e5ff", tile: "#ff4d8d", desc: "어두운 밤하늘에 버튼이 은은하게 빛나는 테마예요. 방송·게임·발표 무대에 어울려요." },
+  { value: "diary", name: "다이어리", bar: "repeating-linear-gradient(45deg,#f6d3c5 0 4px,#f2c6b4 4px 8px)", bg: "repeating-linear-gradient(180deg,#fbf7ee 0 7px,#d9e3ee 7px 8px)", accent: "#b5573b", tile: "#ffffff", desc: "줄 노트 위에 스티커를 붙인 듯한, 따뜻한 종이 느낌의 테마예요." },
+  { value: "pastel", name: "파스텔", bar: "linear-gradient(90deg,#ffd6e8,#e3d9ff,#d4f3ef)", bg: "linear-gradient(135deg,#ffe3ef,#e6e0ff 50%,#dff6f1)", accent: "#8b6fd6", tile: "#ffffff", desc: "연분홍·연보라·민트의 부드러운 색과 동글동글한 버튼이에요." },
+  { value: "pixel", name: "레트로 픽셀", bar: "#29366f", bg: "#1a1c2c", accent: "#ffcd75", tile: "#38b764", desc: "옛날 게임기처럼 모서리가 각진 픽셀 버튼과 입체 단추의 테마예요." },
   { value: "baemin", name: "배민", bar: "#2ac1bc", bg: "#ffffff", accent: "#2ac1bc", tile: "#e4f7f6", desc: "민트색 한 가지와 재치 있는 말투의 테마예요." },
   { value: "kakao", name: "카톡", bar: "#fee500", bg: "#b2c7da", accent: "#3c1e1e", tile: "#ffffff", desc: "노란 바와 하늘색 대화방 바탕의 테마예요." },
   { value: "toss", name: "토스", bar: "#ffffff", bg: "#f2f4f6", accent: "#3182f6", tile: "#ffffff", desc: "파란 포인트와 흰 카드로 깔끔한 테마예요." },
@@ -1149,7 +1154,7 @@ export function SettingsEditor({
       <label>화면 테마</label>
       <div className="theme-grid" role="radiogroup" aria-label="화면 테마">
         {THEME_CARDS.map((c) => {
-          const on = (config.theme ?? "auto") === c.value;
+          const on = (!config.theme || config.theme === "apple" ? "auto" : config.theme) === c.value;
           return (
             <button
               key={c.value}
@@ -1173,7 +1178,9 @@ export function SettingsEditor({
           );
         })}
       </div>
-      <p className="hint">{THEME_CARDS.find((c) => c.value === (config.theme ?? "auto"))?.desc}</p>
+      <p className="hint">
+        {THEME_CARDS.find((c) => c.value === (!config.theme || config.theme === "apple" ? "auto" : config.theme))?.desc}
+      </p>
 
       <label>
         창 투명도: {config.opacity ?? 100}%

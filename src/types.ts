@@ -64,10 +64,25 @@ export interface Config {
   autoHide?: boolean;
 }
 
-export type Theme = "auto" | "light" | "dark" | "apple" | "baemin" | "kakao" | "toss" | "line";
+/** "apple" 은 예전 버전에서 쓰던 값 (지금은 "auto" 로 다룬다) */
+export type Theme =
+  | "auto"
+  | "light"
+  | "dark"
+  | "apple"
+  | "baemin"
+  | "kakao"
+  | "toss"
+  | "line"
+  | "chalk"
+  | "contrast"
+  | "neon"
+  | "diary"
+  | "pastel"
+  | "pixel";
 
 /** 색·모양이 정해진 스타일 테마 (Windows 밝게/어둡게와 상관없이 고정) */
-export const STYLE_THEMES: Theme[] = ["baemin", "kakao", "toss", "line"];
+export const STYLE_THEMES: Theme[] = ["baemin", "kakao", "toss", "line", "chalk", "contrast", "neon", "diary", "pastel", "pixel"];
 
 export const ACTION_LABELS: Record<ActionType, string> = {
   launch: "프로그램 / 파일 실행",

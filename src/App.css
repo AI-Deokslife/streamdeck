@@ -1,6 +1,7 @@
 /* =====================================================================
-   QuickDeck — 기본 모양은 Apple iOS 18 스타일 ('애플' 테마).
-   '자동·밝게·어둡게'는 이 위에 Windows 11 스타일을 덧씌운다 (파일 아래쪽 data-style="fluent").
+   QuickDeck — 바탕이 되는 모양은 iOS 스타일(반투명 유리, 둥근 아이콘).
+   '자동·밝게·어둡게'는 이 위에 Windows 11 스타일을 덧씌우고 (파일 아래쪽 data-style="fluent"),
+   그 밖의 스타일 테마는 data-theme="..." 로 색과 모양을 바꾼다.
    색상: Apple 시스템 색상(라이트/다크), 재질: 반투명 블러, 아이콘: 둥근 사각형(squircle)
    Windows 테마(라이트/다크)를 그대로 따라간다.
    ===================================================================== */
@@ -2021,4 +2022,522 @@ kbd {
   background: var(--blue);
   border: 5px solid var(--bg-elevated);
   box-shadow: 0 0 0 1px var(--separator), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* =====================================================================
+   새 스타일 테마 6가지: 칠판 · 고대비 · 네온 · 다이어리 · 파스텔 · 레트로 픽셀
+   글꼴은 모든 테마가 같은 기본 글꼴. 모양(바탕 무늬, 모서리, 테두리, 그림자)으로 분위기를 낸다.
+   ===================================================================== */
+:root:is([data-theme="chalk"], [data-theme="contrast"], [data-theme="neon"], [data-theme="diary"], [data-theme="pastel"], [data-theme="pixel"]) .app-icon {
+  background-image: none;
+}
+:root:is([data-theme="chalk"], [data-theme="contrast"], [data-theme="neon"], [data-theme="diary"], [data-theme="pastel"], [data-theme="pixel"]) .navbar {
+  backdrop-filter: none;
+}
+:root:is([data-theme="chalk"], [data-theme="contrast"], [data-theme="neon"], [data-theme="diary"], [data-theme="pastel"], [data-theme="pixel"]) .app-icon.glass {
+  backdrop-filter: none;
+}
+
+/* ---------- 칠판: 초록 칠판 + 나무 테두리 + 분필 ---------- */
+:root[data-theme="chalk"] {
+  --chalk: #f4f1e8;
+  --chalk-yellow: #ffe27a;
+  --bg: #1f2d25;
+  --bg-elevated: #2a3b31;
+  --bg-elevated-2: #32463a;
+  --bg-elevated-3: #3c5345;
+  --label: var(--chalk);
+  --label-2: rgba(244, 241, 232, 0.66);
+  --label-3: rgba(244, 241, 232, 0.36);
+  --separator: rgba(244, 241, 232, 0.16);
+  --fill: rgba(255, 255, 255, 0.13);
+  --fill-2: rgba(255, 255, 255, 0.08);
+  --fill-3: rgba(255, 255, 255, 0.05);
+  --bar: #7a5431;
+  --glass: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(244, 241, 232, 0.4);
+  --blue: var(--chalk-yellow);
+  --green: #8fd97a;
+  --red: #ff9a8b;
+  --orange: #ffc56b;
+  --tinted-blue: rgba(255, 226, 122, 0.16);
+  --tinted-red: rgba(255, 154, 139, 0.16);
+  /* 분필 가루가 묻은 칠판 */
+  --wallpaper: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1.3px) 0 0 / 6px 6px,
+    radial-gradient(90% 70% at 25% 15%, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(160deg, #2c4636 0%, #23382c 55%, #1c2d24 100%);
+  --shadow-icon: 0 2px 4px rgba(0, 0, 0, 0.35);
+  --radius-sheet: 10px;
+  color-scheme: dark;
+}
+:root[data-theme="chalk"] .app {
+  border: 6px solid #6b4a2b;
+  border-top: none;
+}
+:root[data-theme="chalk"] .navbar {
+  background: linear-gradient(180deg, #8d6239, #6b4a2b);
+  border-bottom: 3px solid #4f361f;
+}
+:root[data-theme="chalk"] :is(.nav-title-text, .nav-btn, .nav-back, .nav-home, .nav-icon) {
+  color: #fbf3e4;
+}
+:root[data-theme="chalk"] .nav-subtitle {
+  color: rgba(251, 243, 228, 0.7);
+}
+:root[data-theme="chalk"] .nav-btn.bold {
+  color: var(--chalk-yellow);
+}
+/* 분필로 테두리를 그린 버튼 */
+:root[data-theme="chalk"] .app-icon {
+  border-radius: 16%;
+  box-shadow: 0 0 0 2px rgba(244, 241, 232, 0.55), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+:root[data-theme="chalk"] .app-icon.dashed {
+  border-color: rgba(244, 241, 232, 0.5);
+}
+:root[data-theme="chalk"] .tile-label {
+  color: var(--chalk);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 1px rgba(244, 241, 232, 0.5);
+}
+/* 고른 버튼은 노란 분필로 동그라미 */
+:root[data-theme="chalk"] .editing .tile.selected .app-icon {
+  outline: 2px dashed var(--chalk-yellow);
+  outline-offset: 4px;
+}
+:root[data-theme="chalk"] button.primary,
+:root[data-theme="chalk"] .update-go {
+  background: var(--chalk-yellow);
+  color: #2b2a1c;
+}
+:root[data-theme="chalk"] .toast,
+:root[data-theme="chalk"] .modal {
+  box-shadow: 0 0 0 2px rgba(244, 241, 232, 0.35), 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 고대비: 검정 + 굵은 흰 테두리 + 노란 강조 (명암비 7:1 이상) ---------- */
+:root[data-theme="contrast"] {
+  --hc-yellow: #ffd400;
+  --bg: #000000;
+  --bg-elevated: #000000;
+  --bg-elevated-2: #111111;
+  --bg-elevated-3: #262626;
+  --label: #ffffff;
+  --label-2: #e6e6e6;
+  --label-3: #b3b3b3;
+  --separator: #ffffff;
+  --fill: rgba(255, 255, 255, 0.24);
+  --fill-2: rgba(255, 255, 255, 0.14);
+  --fill-3: rgba(255, 255, 255, 0.08);
+  --bar: #000000;
+  --glass: #000000;
+  --glass-border: #ffffff;
+  --blue: var(--hc-yellow);
+  --green: #00e676;
+  --red: #ff6b6b;
+  --orange: #ffb74d;
+  --tinted-blue: rgba(255, 212, 0, 0.2);
+  --tinted-red: rgba(255, 107, 107, 0.2);
+  --wallpaper: #000000;
+  --shadow-icon: none;
+  --radius-cell: 6px;
+  --radius-sheet: 8px;
+  color-scheme: dark;
+}
+:root[data-theme="contrast"] .app {
+  border: 2px solid #ffffff;
+}
+:root[data-theme="contrast"] .navbar {
+  border-bottom: 2px solid #ffffff;
+}
+:root[data-theme="contrast"] .nav-title-text {
+  font-size: 17px;
+  font-weight: 800;
+}
+:root[data-theme="contrast"] .nav-subtitle {
+  color: #ffffff;
+}
+:root[data-theme="contrast"] :is(.nav-btn, .nav-back, .nav-home) {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:root[data-theme="contrast"] .app-icon {
+  border-radius: 14%;
+  box-shadow: 0 0 0 3px #ffffff;
+}
+:root[data-theme="contrast"] .app-icon.glass {
+  box-shadow: 0 0 0 3px #ffffff;
+}
+:root[data-theme="contrast"] .app-icon.dashed {
+  border: 3px dashed #ffffff;
+}
+:root[data-theme="contrast"] .tile-label {
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 800;
+  text-shadow: none;
+}
+:root[data-theme="contrast"] .tile:hover .app-icon,
+:root[data-theme="contrast"] .tile:focus-visible .app-icon {
+  box-shadow: 0 0 0 3px #000000, 0 0 0 6px var(--hc-yellow);
+}
+:root[data-theme="contrast"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 3px #000000, 0 0 0 7px var(--hc-yellow);
+}
+:root[data-theme="contrast"] .editing .tile.selected .tile-label {
+  color: var(--hc-yellow);
+}
+:root[data-theme="contrast"] button:not(.tile):not(.nav-btn):not(.nav-back):not(.nav-home):not(.nav-icon):not(.theme-card) {
+  box-shadow: inset 0 0 0 2px #ffffff;
+  font-weight: 700;
+}
+:root[data-theme="contrast"] button.primary,
+:root[data-theme="contrast"] .update-go,
+:root[data-theme="contrast"] .segmented button.on {
+  background: var(--hc-yellow);
+  color: #000000;
+  box-shadow: none;
+}
+:root[data-theme="contrast"] :focus-visible {
+  outline: 3px solid var(--hc-yellow);
+  outline-offset: 2px;
+}
+:root[data-theme="contrast"] .toast,
+:root[data-theme="contrast"] .modal,
+:root[data-theme="contrast"] .update-bar {
+  background: #000000;
+  color: #ffffff;
+  backdrop-filter: none;
+  box-shadow: 0 0 0 2px var(--hc-yellow);
+}
+
+/* ---------- 네온: 밤하늘 + 빛나는 테두리 ---------- */
+:root[data-theme="neon"] {
+  --cyan: #22e5ff;
+  --pink: #ff4d8d;
+  --violet: #8a5cff;
+  --bg: #0c0c1d;
+  --bg-elevated: #14142b;
+  --bg-elevated-2: #1b1b38;
+  --bg-elevated-3: #262649;
+  --label: #eef0ff;
+  --label-2: rgba(220, 225, 255, 0.66);
+  --label-3: rgba(220, 225, 255, 0.36);
+  --separator: rgba(140, 150, 255, 0.24);
+  --fill: rgba(150, 160, 255, 0.17);
+  --fill-2: rgba(150, 160, 255, 0.1);
+  --fill-3: rgba(150, 160, 255, 0.06);
+  --bar: rgba(10, 10, 26, 0.86);
+  --glass: rgba(120, 130, 255, 0.1);
+  --glass-border: rgba(34, 229, 255, 0.4);
+  --blue: var(--cyan);
+  --green: #39ff88;
+  --red: var(--pink);
+  --orange: #ffb84d;
+  --tinted-blue: rgba(34, 229, 255, 0.14);
+  --tinted-red: rgba(255, 77, 141, 0.16);
+  /* 보랏빛·청록빛 하늘 + 옅은 격자 */
+  --wallpaper: linear-gradient(rgba(120, 130, 255, 0.07) 1px, transparent 1px) 0 0 / 100% 26px,
+    linear-gradient(90deg, rgba(120, 130, 255, 0.07) 1px, transparent 1px) 0 0 / 26px 100%,
+    radial-gradient(80% 60% at 12% 0%, rgba(138, 92, 255, 0.38), transparent 62%),
+    radial-gradient(70% 60% at 100% 100%, rgba(0, 200, 255, 0.26), transparent 60%), #07071a;
+  --shadow-icon: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 14px rgba(34, 229, 255, 0.32);
+  --radius-sheet: 14px;
+  color-scheme: dark;
+}
+:root[data-theme="neon"] .navbar {
+  border-bottom: 1px solid rgba(34, 229, 255, 0.45);
+  box-shadow: 0 1px 14px rgba(34, 229, 255, 0.22);
+}
+:root[data-theme="neon"] .nav-title-text {
+  color: #ffffff;
+  text-shadow: 0 0 8px var(--cyan), 0 0 18px rgba(34, 229, 255, 0.5);
+}
+:root[data-theme="neon"] .app-icon {
+  border-radius: 24%;
+  filter: saturate(1.15);
+}
+:root[data-theme="neon"] .tile:hover .app-icon {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 0 22px rgba(255, 77, 141, 0.55);
+  filter: saturate(1.25) brightness(1.1);
+}
+:root[data-theme="neon"] .tile:active .app-icon,
+:root[data-theme="neon"] .tile.pressed .app-icon {
+  box-shadow: 0 0 0 2px #ffffff, 0 0 30px var(--pink);
+  filter: saturate(1.3) brightness(1.25);
+}
+:root[data-theme="neon"] .tile-label {
+  color: #dfe6ff;
+  text-shadow: 0 0 6px rgba(34, 229, 255, 0.55);
+}
+:root[data-theme="neon"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 2px var(--cyan), 0 0 20px var(--cyan);
+}
+:root[data-theme="neon"] button.primary,
+:root[data-theme="neon"] .update-go {
+  background: linear-gradient(90deg, var(--pink), var(--violet));
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 77, 141, 0.45);
+}
+:root[data-theme="neon"] .toast,
+:root[data-theme="neon"] .modal,
+:root[data-theme="neon"] .update-bar {
+  box-shadow: 0 0 0 1px rgba(34, 229, 255, 0.55), 0 0 26px rgba(34, 229, 255, 0.25), 0 14px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- 다이어리: 줄 노트 + 마스킹 테이프 + 스티커 ---------- */
+:root[data-theme="diary"] {
+  --ink: #b5573b;
+  --bg: #fbf7ee;
+  --bg-elevated: #fffdf7;
+  --bg-elevated-2: #f5efe2;
+  --bg-elevated-3: #ebe3d2;
+  --label: #3b3326;
+  --label-2: rgba(59, 51, 38, 0.6);
+  --label-3: rgba(59, 51, 38, 0.34);
+  --separator: #e3d8c3;
+  --fill: rgba(90, 70, 40, 0.11);
+  --fill-2: rgba(90, 70, 40, 0.07);
+  --fill-3: rgba(90, 70, 40, 0.045);
+  --bar: #f2c6b4;
+  --glass: rgba(255, 253, 247, 0.85);
+  --glass-border: #e3d8c3;
+  --blue: var(--ink);
+  --green: #6f9e5f;
+  --red: #c94f3a;
+  --orange: #c98a2b;
+  --tinted-blue: rgba(181, 87, 59, 0.12);
+  --tinted-red: rgba(201, 79, 58, 0.12);
+  /* 파란 줄 + 왼쪽 빨간 여백선이 있는 노트 */
+  --wallpaper: linear-gradient(90deg, transparent 30px, rgba(226, 112, 112, 0.4) 30px 31px, transparent 31px),
+    repeating-linear-gradient(180deg, transparent 0 25px, rgba(120, 150, 190, 0.24) 25px 26px), #fbf7ee;
+  --shadow-icon: 0 0 0 3px #ffffff, 1px 3px 6px rgba(60, 40, 20, 0.22);
+  --radius-sheet: 6px;
+  color-scheme: light;
+}
+:root[data-theme="diary"] .navbar {
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.3) 0 6px, transparent 6px 12px), #f2c6b4;
+  border-bottom: none;
+  box-shadow: 0 2px 4px rgba(60, 40, 20, 0.12);
+}
+:root[data-theme="diary"] :is(.nav-title-text, .nav-btn, .nav-back, .nav-home, .nav-icon) {
+  color: #5a3626;
+}
+:root[data-theme="diary"] .nav-subtitle {
+  color: rgba(90, 54, 38, 0.7);
+}
+/* 흰 테두리 스티커를 살짝 비뚤게 붙인 느낌 */
+:root[data-theme="diary"] .app-icon {
+  border-radius: 14%;
+}
+:root[data-theme="diary"] .tile:nth-child(odd) .app-icon {
+  transform: rotate(-2deg);
+}
+:root[data-theme="diary"] .tile:nth-child(even) .app-icon {
+  transform: rotate(1.6deg);
+}
+:root[data-theme="diary"] .tile:active .app-icon,
+:root[data-theme="diary"] .tile.pressed .app-icon {
+  transform: rotate(0) scale(0.92);
+}
+:root[data-theme="diary"] .app-icon.dashed {
+  border-color: rgba(181, 87, 59, 0.45);
+  box-shadow: none;
+}
+:root[data-theme="diary"] .tile-label {
+  color: #4a3f30;
+  font-weight: 600;
+  text-shadow: none;
+}
+:root[data-theme="diary"] .editing .tile.selected .app-icon {
+  outline: 2px dashed var(--ink);
+  outline-offset: 5px;
+}
+:root[data-theme="diary"] button.primary,
+:root[data-theme="diary"] .update-go {
+  background: var(--ink);
+  color: #ffffff;
+}
+:root[data-theme="diary"] .toast {
+  color: #3b3326;
+  background: #fffdf7;
+  backdrop-filter: none;
+  box-shadow: 0 0 0 1px #e3d8c3, 2px 4px 10px rgba(60, 40, 20, 0.18);
+}
+
+/* ---------- 파스텔: 연분홍·연보라·민트 + 동글동글 ---------- */
+:root[data-theme="pastel"] {
+  --lavender: #8b6fd6;
+  --bg: #fdf9ff;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #f6f0fb;
+  --bg-elevated-3: #ece3f5;
+  --label: #4b4458;
+  --label-2: rgba(75, 68, 88, 0.6);
+  --label-3: rgba(75, 68, 88, 0.32);
+  --separator: #ece3f5;
+  --fill: rgba(140, 110, 180, 0.13);
+  --fill-2: rgba(140, 110, 180, 0.08);
+  --fill-3: rgba(140, 110, 180, 0.05);
+  --bar: rgba(255, 255, 255, 0.6);
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: #ffffff;
+  --blue: var(--lavender);
+  --green: #6cc8b4;
+  --red: #f08aa2;
+  --orange: #f5b46b;
+  --tinted-blue: rgba(139, 111, 214, 0.14);
+  --tinted-red: rgba(240, 138, 162, 0.16);
+  --wallpaper: radial-gradient(60% 50% at 0% 0%, #ffe0ee 0%, transparent 70%),
+    radial-gradient(60% 55% at 100% 0%, #e4ddff 0%, transparent 70%),
+    radial-gradient(70% 60% at 50% 100%, #dcf5ef 0%, transparent 72%), #fdfaff;
+  --shadow-icon: 0 4px 12px rgba(139, 111, 214, 0.2);
+  --radius-cell: 14px;
+  --radius-sheet: 24px;
+  color-scheme: light;
+}
+:root[data-theme="pastel"] .navbar {
+  background: linear-gradient(90deg, rgba(255, 214, 232, 0.85), rgba(227, 217, 255, 0.85), rgba(212, 243, 239, 0.85));
+  border-bottom: none;
+}
+:root[data-theme="pastel"] :is(.nav-title-text, .nav-btn, .nav-back, .nav-home, .nav-icon) {
+  color: #5b4a7a;
+}
+:root[data-theme="pastel"] .app-icon {
+  border-radius: 32%;
+  filter: saturate(0.85) brightness(1.04);
+}
+:root[data-theme="pastel"] .tile-label {
+  color: #5b5270;
+  font-weight: 600;
+  text-shadow: none;
+}
+:root[data-theme="pastel"] .editing .tile.selected .app-icon {
+  box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #c9b8ff, var(--shadow-icon);
+}
+:root[data-theme="pastel"] button:not(.tile):not(.nav-btn):not(.nav-back):not(.nav-home):not(.nav-icon):not(.theme-card) {
+  border-radius: 99px;
+}
+:root[data-theme="pastel"] .theme-card {
+  border-radius: 16px;
+}
+:root[data-theme="pastel"] button.primary,
+:root[data-theme="pastel"] .update-go {
+  background: linear-gradient(90deg, #f3a6c4, #a99af0);
+  color: #ffffff;
+}
+:root[data-theme="pastel"] .toast {
+  color: #5b4a7a;
+  background: #ffffff;
+  backdrop-filter: none;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(139, 111, 214, 0.25);
+}
+
+/* ---------- 레트로 픽셀: 각진 모서리 + 입체 단추 ---------- */
+:root[data-theme="pixel"] {
+  --px-yellow: #ffcd75;
+  --px-ink: #0d0f1a;
+  --bg: #1a1c2c;
+  --bg-elevated: #262b44;
+  --bg-elevated-2: #333c57;
+  --bg-elevated-3: #3e4a6b;
+  --label: #f4f4f4;
+  --label-2: #94b0c2;
+  --label-3: #566c86;
+  --separator: #566c86;
+  --fill: rgba(148, 176, 194, 0.24);
+  --fill-2: rgba(148, 176, 194, 0.15);
+  --fill-3: rgba(148, 176, 194, 0.09);
+  --bar: #29366f;
+  --glass: #333c57;
+  --glass-border: #566c86;
+  --blue: var(--px-yellow);
+  --green: #38b764;
+  --red: #e0566e;
+  --orange: #ef7d57;
+  --tinted-blue: rgba(255, 205, 117, 0.2);
+  --tinted-red: rgba(224, 86, 110, 0.2);
+  /* 옅은 바둑판 */
+  --wallpaper: conic-gradient(#1e2134 25%, #1a1c2c 0 50%, #1e2134 0 75%, #1a1c2c 0) 0 0 / 16px 16px;
+  --shadow-icon: none;
+  --radius-cell: 0;
+  --radius-sheet: 0;
+  color-scheme: dark;
+}
+:root[data-theme="pixel"] .navbar {
+  border-bottom: 4px solid var(--px-ink);
+}
+:root[data-theme="pixel"] .nav-title-text {
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  color: var(--px-yellow);
+}
+:root[data-theme="pixel"] :is(.nav-btn, .nav-back, .nav-home, .nav-icon) {
+  border-radius: 0;
+  color: #f4f4f4;
+}
+/* 모서리를 한 칸씩 깎은 픽셀 버튼 */
+:root[data-theme="pixel"] .app-icon {
+  border-radius: 0;
+  clip-path: polygon(0 5px, 5px 5px, 5px 0, calc(100% - 5px) 0, calc(100% - 5px) 5px, 100% 5px, 100% calc(100% - 5px),
+      calc(100% - 5px) calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 5px calc(100% - 5px), 0 calc(100% - 5px));
+  box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.32), inset 4px 4px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.05s steps(1);
+}
+:root[data-theme="pixel"] .tile:active .app-icon,
+:root[data-theme="pixel"] .tile.pressed .app-icon {
+  transform: translate(2px, 2px);
+  filter: brightness(0.9);
+}
+:root[data-theme="pixel"] .app-icon.dashed {
+  clip-path: none;
+  border: 3px dashed var(--label-2);
+  box-shadow: none;
+}
+:root[data-theme="pixel"] .tile-label {
+  color: #f4f4f4;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 var(--px-ink);
+}
+:root[data-theme="pixel"] .editing .tile.selected .app-icon {
+  outline: 3px solid var(--px-yellow);
+  outline-offset: 3px;
+  clip-path: none;
+}
+:root[data-theme="pixel"] button {
+  border-radius: 0;
+}
+:root[data-theme="pixel"] button:not(.tile):not(.nav-btn):not(.nav-back):not(.nav-home):not(.nav-icon):not(.theme-card) {
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), inset 3px 3px 0 rgba(255, 255, 255, 0.14);
+}
+:root[data-theme="pixel"] button:not(.tile):not(.nav-btn):not(.nav-back):not(.nav-home):not(.nav-icon):not(.theme-card):active {
+  transform: translate(1px, 1px);
+  opacity: 1;
+}
+:root[data-theme="pixel"] button.primary,
+:root[data-theme="pixel"] .update-go {
+  background: var(--px-yellow);
+  color: var(--px-ink);
+}
+:root[data-theme="pixel"] .segmented,
+:root[data-theme="pixel"] .segmented button,
+:root[data-theme="pixel"] .theme-card,
+:root[data-theme="pixel"] .theme-preview,
+:root[data-theme="pixel"] .chip,
+:root[data-theme="pixel"] .editor :is(input, select, textarea) {
+  border-radius: 0;
+}
+:root[data-theme="pixel"] .editor label.check input[type="checkbox"],
+:root[data-theme="pixel"] .editor label.check input[type="checkbox"]::after {
+  border-radius: 0;
+}
+:root[data-theme="pixel"] .toast,
+:root[data-theme="pixel"] .modal,
+:root[data-theme="pixel"] .update-bar {
+  border-radius: 0;
+  backdrop-filter: none;
+  box-shadow: 0 0 0 3px #f4f4f4, 6px 6px 0 3px rgba(0, 0, 0, 0.45);
 }
