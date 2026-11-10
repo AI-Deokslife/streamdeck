@@ -862,6 +862,9 @@
   document.getElementById("cbClose").addEventListener("click", () => { clipBar.hidden = true; });
 
   async function handleFiles(files) {
+    // 안드로이드(갤럭시) 사진 고르기 창은 고른 순서의 반대로 파일을 넘겨준다 (실제 사용에서 확인)
+    // → 뒤집어서 고른 순서대로 보낸다. 그래야 한글·'한 장씩'도 고른 순서대로 붙는다
+    if (files.length > 1 && /Android/i.test(navigator.userAgent)) files = files.slice().reverse();
     // 문서 스캔부터 모두 끝낸 뒤 보낸다 (스캔 화면과 '보내는 중' 창이 겹치지 않게)
     const items = [];
     for (const f of files) {
