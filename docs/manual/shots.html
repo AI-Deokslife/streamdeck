@@ -114,6 +114,7 @@
         if (view === "settings") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("화면 테마")); }
         if (view === "settings-2") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("프로그램 프리셋")); }
         if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }
+        if (view === "clip-all" || view === "clip-one") { const h = L["clip-queue"]?.[0]; if (h) window["_" + h]({ event: "clip-queue", payload: view === "clip-all" ? { mode: "all", index: 0, total: 3 } : { mode: "one", index: 2, total: 3 } }); }
         if (view === "update") { const h = L["update-available"]?.[0]; if (h) window["_" + h]({ event: "update-available", payload: { version: "0.7.9", current: "0.7.8", notes: "", headline: "휴대폰 리모컨 버튼 크기 조절" } }); }
         if (view === "settings-look") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("창 투명도")); }
         if (view === "settings-usb") { edit(); await wait(400); openSettings(); await wait(700); scrollPanelTo(label("휴대폰 리모컨")); }

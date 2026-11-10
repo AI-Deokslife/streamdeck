@@ -2572,3 +2572,33 @@ kbd {
   direction: rtl;
   text-align: left;
 }
+
+/* 휴대폰에서 한꺼번에 받은 사진: 클립보드 한 장씩 넘기기 */
+.clip-pill {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  color: var(--label);
+  background: var(--bar);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3), inset 0 0 0 1px var(--blue);
+  animation: rise-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.clip-pill .grow {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clip-pill button {
+  flex-shrink: 0;
+}

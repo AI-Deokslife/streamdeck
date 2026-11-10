@@ -58,6 +58,14 @@ export default function App() {
   /** 새 버전 알림과 내려받는 중 진행률 */
   const [update, setUpdate] = useState<{ version: string; current: string; notes: string; headline: string } | null>(null);
   const [updating, setUpdating] = useState<{ got: number; total: number | null } | null>(null);
+  // 휴대폰에서 한꺼번에 받은 사진: 클립보드 '모두' / '한 장씩' 상태
+  type ClipQueue = { mode: "all" | "one" | "none"; index: number; total: number };
+  const [clipQ, setClipQ] = useState<ClipQueue | null>(null);
+  function clipStep(step: number) {
+    invoke<ClipQueue>("clip_step", { step })
+      .then(setClipQ)
+      .catch((e) => showToast(String(e)));
+  }
   /** 위젯 버튼 값 (CPU·메모리, 타이머)과 시계용 현재 시각 */
   const [widgets, setWidgets] = useState<WidgetState | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -194,11 +202,12 @@ export default function App() {
           clipKind === "image"
             ? "\n클립보드에도 넣었어요 — Ctrl+V로 붙여 넣으세요"
             : clipKind === "files"
-              ? `\n클립보드에 파일 ${clipCount}개를 넣었어요 — 메신저·탐색기에 Ctrl+V (카톡·한글은 마지막 사진 1장)`
+              ? `\n클립보드에 ${clipCount}개 모두 넣었어요 — 한글·메신저에 Ctrl+V (카톡은 아래 '한 장씩')`
               : "";
         showToast(`📥 '${name}' 받았어요` + clip, "info", 5000);
       }),
       listen<{ got: number; total: number | null }>("update-progress", (e) => setUpdating(e.payload)),
+      listen<ClipQueue>("clip-queue", (e) => setClipQ(e.payload.mode === "none" ? null : e.payload)),
     ];
     return () => {
       uns.forEach((u) => u.then((f) => f()));
@@ -879,6 +888,42 @@ export default function App() {
           )}
             </div>
           </section>
+        </div>
+      )}
+
+      {clipQ && clipQ.total > 1 && !editing && !update && (
+        <div className="clip-pill" role="group" aria-label="받은 사진 붙여 넣기">
+          <span className="grow">
+            📋{" "}
+            {clipQ.mode === "all" ? (
+              <>
+                받은 사진 <b>{clipQ.total}장 모두</b> 클립보드에
+              </>
+            ) : (
+              <>
+                한 장씩 <b>{clipQ.index}</b>/{clipQ.total}
+              </>
+            )}
+          </span>
+          <button className="small ghost" disabled={clipQ.mode === "all" || clipQ.index <= 1} onClick={() => clipStep(-1)} title="이전 사진">
+            ◀
+          </button>
+          <button
+            className="small primary"
+            disabled={clipQ.mode === "one" && clipQ.index >= clipQ.total}
+            onClick={() => clipStep(1)}
+            title="카카오톡처럼 한 장씩만 붙는 곳에: 다음 사진을 클립보드에"
+          >
+            {clipQ.mode === "all" ? "한 장씩" : "다음 ▶"}
+          </button>
+          {clipQ.mode === "one" && (
+            <button className="small ghost" onClick={() => clipStep(0)} title="다시 모든 사진을 클립보드에">
+              모두
+            </button>
+          )}
+          <button className="small ghost" onClick={() => setClipQ(null)} title="닫기 (클립보드는 그대로)">
+            ✕
+          </button>
         </div>
       )}
 

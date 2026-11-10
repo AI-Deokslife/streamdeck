@@ -394,6 +394,52 @@ pub fn set_enabled(app: &AppHandle, enabled: bool) -> RemoteStatus {
 
 /// 지금 받고 있는 '한 번에 고른 묶음' (id, 받은 파일들). 여러 개를 보내면 클립보드에 모두 넣기 위해
 static RECEIVE_BATCH: Mutex<Option<(String, Vec<PathBuf>)>> = Mutex::new(None);
+/// 묶음 클립보드 상태: None = '모두'(파일 묶음 + 웹 문서), Some(i) = '한 장씩'(파일 묶음 + i번째 사진 그림)
+static CLIP_POS: Mutex<Option<usize>> = Mutex::new(None);
+
+/// 묶음 속 사진들
+fn batch_photos(files: &[PathBuf]) -> Vec<PathBuf> {
+    files.iter().filter(|p| crate::receive::is_clip_image(p)).cloned().collect()
+}
+
+/// 묶음을 지금 상태(모두 / 한 장씩)대로 클립보드에 넣는다
+fn apply_batch_clip(files: &[PathBuf], pos: Option<usize>) -> Result<(), String> {
+    let photos = batch_photos(files);
+    match pos.and_then(|i| photos.get(i)) {
+        Some(photo) => crate::receive::copy_batch_to_clipboard(files, Some(photo), false),
+        None => crate::receive::copy_batch_to_clipboard(files, None, true),
+    }
+}
+
+/// 클립보드 상태를 화면에 알릴 값
+fn clip_state(files: &[PathBuf], pos: Option<usize>) -> Value {
+    let total = batch_photos(files).len();
+    match pos {
+        Some(i) => json!({ "ok": true, "mode": "one", "index": i + 1, "total": total, "files": files.len() }),
+        None => json!({ "ok": true, "mode": "all", "index": 0, "total": total, "files": files.len() }),
+    }
+}
+
+/// '다음 사진' 등: step = 1 다음, -1 이전, 0 '모두'로 되돌리기
+pub fn clip_step(app: &AppHandle, step: i32) -> Result<Value, String> {
+    use tauri::Emitter;
+    let files = RECEIVE_BATCH.lock().unwrap().as_ref().map(|(_, f)| f.clone()).unwrap_or_default();
+    let total = batch_photos(&files).len();
+    if total == 0 {
+        return Err("한꺼번에 보낸 사진이 없어요".into());
+    }
+    let mut pos = CLIP_POS.lock().unwrap();
+    let next = match (step, *pos) {
+        (0, _) => None,
+        (_, None) => Some(if step > 0 { 0 } else { total - 1 }), // 처음 누르면 첫 사진(이전이면 마지막)부터
+        (_, Some(i)) => Some((i as i64 + step as i64).clamp(0, total as i64 - 1) as usize),
+    };
+    apply_batch_clip(&files, next)?;
+    *pos = next;
+    let state = clip_state(&files, next);
+    let _ = app.emit("clip-queue", &state);
+    Ok(state)
+}
 
 /// 받은 파일을 둘 폴더: 정해 둔 곳, 없으면 다운로드\QuickDeck
 fn receive_dir(app: &AppHandle, s: &RemoteSettings) -> PathBuf {
@@ -495,6 +541,8 @@ trait Host: Send + Sync + 'static {
     fn widgets(&self) -> Value;
     /// '보내기' 탭에서 올린 파일 저장 (batch = 한 번에 고른 묶음의 id 와 전체 개수)
     fn receive(&self, name: &str, batch: Option<(String, u32)>, body: &mut dyn Read) -> Result<Value, String>;
+    /// 묶음 클립보드: 다음(1) / 이전(-1) / 모두(0)
+    fn clip_step(&self, step: i32) -> Result<Value, String>;
 }
 
 /// 휴대폰 트랙패드·키보드 탭에서 오는 조작
@@ -601,21 +649,37 @@ impl Host for AppHost {
                     list.push(path.clone());
                     list.clone()
                 };
-                let ok = s.clip_image && receive::copy_files_to_clipboard(&files).is_ok();
+                // 새 묶음은 '모두' 상태로 시작 (한글·메신저에는 한 번에 모두 붙는다)
+                *CLIP_POS.lock().unwrap() = None;
+                let ok = s.clip_image && apply_batch_clip(&files, None).is_ok();
                 let _ = total;
-                if ok { ("files", files.len()) } else { ("", 0) }
+                if ok {
+                    let _ = self.0.emit("clip-queue", clip_state(&files, None));
+                    ("files", files.len())
+                } else {
+                    ("", 0)
+                }
             }
             None => {
+                // 한 장만 보내면 묶음은 끝 (PC 의 '다음 사진' 표시도 닫힌다)
+                *RECEIVE_BATCH.lock().unwrap() = None;
+                *CLIP_POS.lock().unwrap() = None;
+                let _ = self.0.emit("clip-queue", json!({ "mode": "none" }));
                 let ok = s.clip_image && receive::is_clip_image(&path) && receive::copy_image_to_clipboard(&path).is_ok();
                 if ok { ("image", 1) } else { ("", 0) }
             }
         };
+        let photo_count = RECEIVE_BATCH.lock().unwrap().as_ref().map(|(_, f)| batch_photos(f).len()).unwrap_or(0);
         let info = json!({
             "ok": true, "name": saved, "path": path.display().to_string(), "dir": dir.display().to_string(),
             "clipboard": !clip_kind.is_empty(), "clipKind": clip_kind, "clipCount": clip_count,
+            "photoCount": photo_count,
         });
         let _ = self.0.emit("file-received", &info);
         Ok(info)
+    }
+    fn clip_step(&self, step: i32) -> Result<Value, String> {
+        clip_step(&self.0, step)
     }
     fn media(&self) -> Value {
         let (volume, muted) = crate::media::volume().unwrap_or((0, false));
@@ -767,6 +831,13 @@ fn handle(host: &dyn Host, mut req: Request) {
                 Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
             }
         }
+        (Method::Post, "/api/clip") => {
+            let step = get("step").and_then(|v| v.parse::<i32>().ok()).unwrap_or(1).clamp(-1, 1);
+            match host.clip_step(step) {
+                Ok(v) => respond_json(req, 200, v),
+                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+            }
+        }
         (Method::Get, "/api/media") => respond_json(req, 200, host.media()),
         (Method::Get, "/api/widgets") => respond_json(req, 200, host.widgets()),
         (Method::Post, "/api/control") => {
@@ -911,6 +982,10 @@ mod tests {
                 self.controls.lock().unwrap().push(format!("receive {name} {data}"));
                 Ok(json!({ "ok": true, "name": name }))
             }
+            fn clip_step(&self, step: i32) -> Result<Value, String> {
+                self.controls.lock().unwrap().push(format!("clip {step}"));
+                Ok(json!({ "ok": true, "mode": "one", "index": 1, "total": 2 }))
+            }
             fn control(&self, c: Control) -> Result<(), String> {
                 self.controls.lock().unwrap().push(format!("{c:?}"));
                 Ok(())
@@ -1003,7 +1078,11 @@ mod tests {
         assert!(host.controls.lock().unwrap().iter().any(|c| c == "receive 메모.txt hello"));
         assert_eq!(upload(&format!("/api/upload?t={token}&name=big.mp4"), "", 600 * 1024 * 1024).0, 413);
         assert_eq!(upload("/api/upload?t=wrong&name=a.txt", "x", 1).0, 403, "열쇠 없이는 못 올림");
-        host.controls.lock().unwrap().retain(|c| !c.starts_with("receive"));
+        let (code, body) = call("POST", &format!("/api/clip?t={token}&step=1"));
+        assert_eq!(code, 200);
+        assert!(body.contains("\"mode\":\"one\""), "{body}");
+        assert_eq!(call("POST", "/api/clip?t=wrong&step=1").0, 403);
+        host.controls.lock().unwrap().retain(|c| !c.starts_with("receive") && !c.starts_with("clip"));
         assert!(call("POST", &format!("/api/control?t={token}&op=media&cmd=next")).1.contains("\"ok\":true"));
         assert!(call("POST", &format!("/api/control?t={token}&op=volume&v=150")).1.contains("\"ok\":true"));
         assert!(call("POST", &format!("/api/control?t={token}&op=mute")).1.contains("\"ok\":true"));

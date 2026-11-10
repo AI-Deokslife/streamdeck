@@ -281,6 +281,12 @@ async fn pick_receive_dir(app: AppHandle) -> Result<remote::RemoteStatus, String
     .map_err(|e| e.to_string())?
 }
 
+/// 한꺼번에 받은 사진: 클립보드를 다음(1)·이전(-1) 사진으로, 0 이면 '모두'로
+#[tauri::command]
+fn clip_step(app: AppHandle, step: i32) -> Result<serde_json::Value, String> {
+    remote::clip_step(&app, step.clamp(-1, 1))
+}
+
 /// 받은 파일 폴더 열기
 #[tauri::command]
 fn open_receive_dir(app: AppHandle) -> Result<(), String> {
@@ -644,6 +650,7 @@ pub fn run() {
             set_remote_receive,
             pick_receive_dir,
             open_receive_dir,
+            clip_step,
             hide_window,
             set_edit_mode
         ])

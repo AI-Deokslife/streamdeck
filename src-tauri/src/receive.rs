@@ -121,23 +121,43 @@ pub fn load_upright(path: &Path) -> Result<image::RgbaImage, String> {
     Ok(img.to_rgba8())
 }
 
-/// 여러 파일을 클립보드에 '파일 묶음'으로 (탐색기에서 여러 개 복사한 것처럼)
-///
-/// 카카오톡·한글처럼 '파일 묶음' 붙여 넣기를 모르는 프로그램을 위해, 묶음 속 마지막 사진을
-/// 그림으로도 함께 넣는다. (그런 프로그램은 그림을 받고, 메신저·탐색기는 파일 묶음을 받는다)
-pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
+/// 여러 파일을 클립보드에 한꺼번에 넣는다. 받는 프로그램마다 읽는 형식이 달라서 세 가지를 함께 넣는다.
+/// - 파일 묶음: 메신저·탐색기·Claude 등은 모든 파일을 받는다
+/// - 그림 한 장(`picture`): 카카오톡·한글처럼 그림만 읽는 프로그램용 ('다음 사진'으로 바꿔 가며 붙인다)
+/// - 웹 문서(HTML, `with_html`): 사진들을 `<img>` 로 나열 — 웹 문서를 붙여 넣을 줄 아는 프로그램용
+pub fn copy_batch_to_clipboard(paths: &[PathBuf], picture: Option<&Path>, with_html: bool) -> Result<(), String> {
     use clipboard_win::{options::NoClear, raw, Clipboard};
     // 그림은 클립보드를 열기 전에 미리 만들어 둔다 (클립보드를 오래 붙잡지 않게)
-    let picture = paths.iter().rev().find(|p| is_clip_image(p)).and_then(|p| load_upright(p).ok()).map(|img| to_bmp(&img));
+    let bmp = picture.and_then(|p| load_upright(p).ok()).map(|img| to_bmp(&img));
     let names: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+    let html = with_html.then(|| images_html(paths)).filter(|h| !h.is_empty());
     let _open = Clipboard::new_attempts(10).map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
     raw::empty().map_err(|e| format!("클립보드를 비우지 못했어요: {e}"))?;
     raw::set_file_list_with(&names, NoClear).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))?;
-    if let Some(bmp) = picture {
-        // 그림을 못 넣어도 파일 묶음은 이미 들어갔으니 실패로 치지 않는다
+    // 그림·웹 문서는 못 넣어도 파일 묶음은 이미 들어갔으니 실패로 치지 않는다
+    if let Some(bmp) = bmp {
         let _ = raw::set_bitmap_with(&bmp, NoClear);
     }
+    if let (Some(html), Some(fmt)) = (html, raw::register_format("HTML Format")) {
+        let _ = raw::set_html_with(fmt.get(), &html, NoClear);
+    }
     Ok(())
+}
+
+/// 사진 파일들을 웹 문서 조각으로: <img src="file:///C:/...">
+/// 한글에 직접 Ctrl+V 하면 그림을 하나씩 앞에 끼워 넣어서 순서가 거꾸로 된다(실제로 확인).
+/// 그래서 뒤에서부터 적어 둔다 → 한글에는 보낸 순서대로 들어간다.
+pub fn images_html(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .rev()
+        .filter(|p| is_clip_image(p))
+        .map(|p| {
+            let url = p.display().to_string().replace('\\', "/").replace('%', "%25").replace(' ', "%20").replace('#', "%23");
+            format!("<p><img src=\"file:///{url}\"></p>")
+        })
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 /// RGBA 그림 → 24비트 BMP 파일 내용 (클립보드 그림 형식에 쓰인다)
@@ -238,6 +258,24 @@ mod tests {
         assert_eq!(load_upright(&plain).unwrap().dimensions(), (8, 4));
         assert_eq!(load_upright(&rotated).unwrap().dimensions(), (4, 8));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn html_lists_only_photos() {
+        let files = vec![PathBuf::from(r"C:\받은 파일\사진 1.jpg"), PathBuf::from(r"C:\a\회의록.pdf"), PathBuf::from(r"C:\a\b.png")];
+        assert_eq!(images_html(&files), "<p><img src=\"file:///C:/a/b.png\"></p><p><img src=\"file:///C:/받은%20파일/사진%201.jpg\"></p>", "뒤에서부터");
+    }
+
+    /// 손으로 돌리는 실험: QD_CLIPTEST=사진1;사진2 cargo test --lib -- --ignored clipboard_experiment
+    /// (실제 클립보드를 덮어쓴다)
+    #[test]
+    #[ignore]
+    fn clipboard_experiment() {
+        let list = std::env::var("QD_CLIPTEST").expect("QD_CLIPTEST 에 사진 경로를 ; 로 이어서");
+        let files: Vec<PathBuf> = list.split(';').map(PathBuf::from).collect();
+        let html = std::env::var("QD_CLIPTEST_HTML").map(|v| v != "0").unwrap_or(true);
+        let pic = std::env::var("QD_CLIPTEST_PIC").map(|v| v != "0").unwrap_or(true);
+        copy_batch_to_clipboard(&files, files.first().filter(|_| pic).map(|p| p.as_path()), html).unwrap();
     }
 
     #[test]
