@@ -450,6 +450,8 @@ pub enum Control {
     Move(i32, i32),
     Click(&'static str),
     Scroll(i32),
+    /// 끌어 놓기: true = 왼쪽 버튼 누른 채로, false = 놓기
+    Drag(bool),
     Type(String),
     Key(String),
     /// "toggle" / "next" / "prev"
@@ -470,6 +472,7 @@ fn parse_control(op: &str, get: &dyn Fn(&str) -> Option<String>, body: &str) -> 
             _ => Some(Control::Click("left")),
         },
         "scroll" => Some(Control::Scroll(num("dy")?)),
+        "drag" => Some(Control::Drag(get("on").as_deref() == Some("1"))),
         "type" if !body.is_empty() => Some(Control::Type(body.chars().take(5000).collect())),
         // 키 이름은 단축키 버튼과 같은 형식 (enter, ctrl+c ...). 글자·숫자·+·공백만 허용
         "key" => get("k").filter(|k| !k.is_empty() && k.len() <= 40 && k.chars().all(|c| c.is_ascii_alphanumeric() || "+ ".contains(c))).map(Control::Key),
@@ -514,6 +517,7 @@ impl Host for AppHost {
             Control::Move(dx, dy) => actions::mouse_move(dx, dy),
             Control::Click(b) => actions::mouse_click(b),
             Control::Scroll(dy) => actions::mouse_scroll(dy),
+            Control::Drag(on) => actions::mouse_drag(on),
             Control::Type(text) => actions::type_from_remote(&text),
             Control::Key(k) => actions::send_keys(&k),
             Control::Media(cmd) => crate::media::media_command(cmd),
@@ -728,6 +732,13 @@ mod tests {
         assert!(same_token("abc123", "abc123"));
         assert!(!same_token("abc123", "abc124"));
         assert!(!same_token("abc", "abc123"));
+    }
+
+    #[test]
+    fn parses_drag() {
+        let on = |v: &'static str| move |k: &str| (k == "on").then(|| v.to_string());
+        assert_eq!(parse_control("drag", &on("1"), ""), Some(Control::Drag(true)));
+        assert_eq!(parse_control("drag", &on("0"), ""), Some(Control::Drag(false)));
     }
 
     #[test]

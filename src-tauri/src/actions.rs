@@ -303,7 +303,47 @@ fn new_enigo() -> Result<Enigo, String> {
 /// 마우스를 현재 위치에서 (dx, dy) 만큼 움직인다
 pub fn mouse_move(dx: i32, dy: i32) -> Result<(), String> {
     use enigo::{Coordinate, Mouse};
+    if DRAGGING.load(std::sync::atomic::Ordering::SeqCst) {
+        *DRAG_SEEN.lock().unwrap() = Some(std::time::Instant::now());
+    }
     new_enigo()?.move_mouse(dx, dy, Coordinate::Rel).map_err(|e| format!("마우스 이동 실패: {e}"))
+}
+
+// ---------------- 휴대폰 트랙패드 끌어 놓기 ----------------
+/// 왼쪽 버튼을 누른 채인지
+static DRAGGING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// 끄는 동안 마지막으로 움직인 때
+static DRAG_SEEN: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+/// 휴대폰 연결이 끊겨 '놓기'가 오지 않아도, 이만큼 아무 움직임이 없으면 저절로 놓는다
+const DRAG_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// 끌기 시작(on=true: 왼쪽 버튼 누르기) / 놓기(on=false: 떼기)
+pub fn mouse_drag(on: bool) -> Result<(), String> {
+    use enigo::{Button, Mouse};
+    use std::sync::atomic::Ordering;
+    if DRAGGING.swap(on, Ordering::SeqCst) == on {
+        return Ok(()); // 이미 그 상태
+    }
+    let dir = if on { Direction::Press } else { Direction::Release };
+    new_enigo()?.button(Button::Left, dir).map_err(|e| format!("끌기 실패: {e}"))?;
+    if on {
+        *DRAG_SEEN.lock().unwrap() = Some(std::time::Instant::now());
+        start_drag_watchdog();
+    }
+    Ok(())
+}
+
+fn start_drag_watchdog() {
+    static STARTED: std::sync::Once = std::sync::Once::new();
+    STARTED.call_once(|| {
+        thread::spawn(|| loop {
+            thread::sleep(Duration::from_secs(2));
+            let idle = DRAG_SEEN.lock().unwrap().map(|t| t.elapsed()).unwrap_or_default();
+            if DRAGGING.load(std::sync::atomic::Ordering::SeqCst) && idle > DRAG_TIMEOUT {
+                let _ = mouse_drag(false);
+            }
+        });
+    });
 }
 
 /// "left" / "right" / "middle" / "double"(왼쪽 두 번)

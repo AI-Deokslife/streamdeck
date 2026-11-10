@@ -178,6 +178,9 @@
   }
   body.light .touch { background: rgba(0, 0, 0, 0.05); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); color: rgba(0, 0, 0, 0.4); }
   .mbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .mbtns.three { grid-template-columns: 1fr 1fr 1fr; }
+  #dragLock.on { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25); }
+  .touch.dragging { box-shadow: inset 0 0 0 2px var(--accent); }
   .mbtns button, .qkeys button, .send, .sheet button.act {
     border: 0; border-radius: 14px; padding: 14px 0;
     font: inherit; font-size: 15px; font-weight: 700;
@@ -269,9 +272,10 @@
 <main id="grid" class="pane on"><div class="msg">PC 에 연결하는 중…</div></main>
 
 <section id="pad" class="pane">
-  <div class="touch" id="touch">한 손가락으로 문지르면 마우스 이동<br />톡 = 클릭 · 두 손가락 톡 = 오른쪽 클릭<br />두 손가락으로 위아래 = 스크롤</div>
-  <div class="mbtns">
+  <div class="touch" id="touch">한 손가락으로 문지르면 마우스 이동<br />톡 = 클릭 · 두 손가락 톡 = 오른쪽 클릭<br />두 손가락으로 위아래 = 스크롤<br /><b>톡 하고 바로 다시 대고 끌기</b> = 끌어 놓기</div>
+  <div class="mbtns three">
     <button data-click="left">왼쪽 클릭</button>
+    <button id="dragLock" title="누르면 마우스 왼쪽 버튼을 누른 채로 있어요. 다 옮긴 뒤 한 번 더 누르면 놓아요">✊ 잡고 끌기</button>
     <button data-click="right">오른쪽 클릭</button>
   </div>
   <label class="speed">속도 <input type="range" id="speed" min="1" max="5" step="0.5" value="2.5" /></label>
@@ -684,8 +688,21 @@
   speed.value = store.get("speed", 2.5);
   speed.addEventListener("change", () => store.set("speed", Number(speed.value)));
   let acc = { x: 0, y: 0, s: 0 }, last = null, startT = 0, moved = 0, fingers = 0, sending = false;
+  // 순서가 중요한 조작(끌기 시작·놓기)은 줄 세워 보낸다. 그 앞까지 쌓인 움직임은 먼저 보낸다
+  const ops = [];
+  function pushOp(q) {
+    const dx = Math.round(acc.x), dy = Math.round(acc.y);
+    if (dx || dy) { ops.push(`op=move&dx=${dx}&dy=${dy}`); acc.x -= dx; acc.y -= dy; }
+    ops.push(q);
+    flush();
+  }
   function flush() {
     if (sending) return;
+    if (ops.length) {
+      sending = true;
+      api(ops.shift()).finally(() => { sending = false; flush(); });
+      return;
+    }
     const dx = Math.round(acc.x), dy = Math.round(acc.y), sc = Math.round(acc.s);
     if (!dx && !dy && !sc) return;
     acc.x -= dx; acc.y -= dy; acc.s -= sc;
@@ -693,10 +710,42 @@
     const q = sc ? `op=scroll&dy=${sc}` : `op=move&dx=${dx}&dy=${dy}`;
     api(q).finally(() => { sending = false; flush(); });
   }
+  // 끌어 놓기: ① 톡 하고 0.35초 안에 다시 대고 움직이면 끄는 동안 왼쪽 버튼을 누른 채로
+  //             ② '잡고 끌기' 버튼으로 누른 채 고정 → 한 번 더 누르면 놓기
+  const dragLock = document.getElementById("dragLock");
+  let lastTapT = 0, dragArmed = false, gestureDrag = false, locked = false;
+  function setDrag(on) {
+    pushOp(`op=drag&on=${on ? 1 : 0}`);
+    touch.classList.toggle("dragging", on);
+    if (navigator.vibrate) navigator.vibrate(on ? 20 : 8);
+  }
+  function setLock(on) {
+    if (locked === on) return;
+    locked = on;
+    dragLock.classList.toggle("on", on);
+    dragLock.textContent = on ? "🖐 놓기" : "✊ 잡고 끌기";
+    setDrag(on);
+    if (on) toast("누른 채로 있어요. 손가락으로 옮긴 뒤 '놓기'를 누르세요");
+  }
+  dragLock.addEventListener("click", () => setLock(!locked));
+  // 다른 탭으로 가거나 화면을 끄면 누른 버튼을 놓는다 (PC 에서 버튼이 눌린 채 남지 않게)
+  function releaseAll() {
+    if (locked) setLock(false);
+    if (gestureDrag) { gestureDrag = false; setDrag(false); }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
+  window.addEventListener("pagehide", releaseAll);
+  tabs.forEach((b) => b.addEventListener("click", () => { if (b.dataset.tab !== "pad") releaseAll(); }));
+
   touch.addEventListener("touchstart", (e) => {
     e.preventDefault();
     fingers = Math.max(fingers, e.touches.length);
-    if (e.touches.length === 1) { startT = Date.now(); moved = 0; fingers = 1; }
+    if (e.touches.length === 1) {
+      dragArmed = !locked && Date.now() - lastTapT < 350;
+      startT = Date.now(); moved = 0; fingers = 1;
+    } else {
+      dragArmed = false;
+    }
     last = [...e.touches].map((t) => ({ x: t.clientX, y: t.clientY }));
   }, { passive: false });
   touch.addEventListener("touchmove", (e) => {
@@ -705,6 +754,7 @@
     if (!last || cur.length !== last.length) { last = cur; return; }
     const dx = cur[0].x - last[0].x, dy = cur[0].y - last[0].y;
     moved += Math.abs(dx) + Math.abs(dy);
+    if (dragArmed && !gestureDrag && cur.length === 1 && moved > 6) { gestureDrag = true; setDrag(true); }
     const k = Number(speed.value);
     if (cur.length >= 2) acc.s += dy / 12; else { acc.x += dx * k; acc.y += dy * k; }
     last = cur;
@@ -713,10 +763,22 @@
   touch.addEventListener("touchend", (e) => {
     e.preventDefault();
     if (e.touches.length) return;
-    if (moved < 8 && Date.now() - startT < 300) {
-      if (navigator.vibrate) navigator.vibrate(8);
-      api(`op=click&btn=${fingers >= 2 ? "right" : "left"}`);
+    if (gestureDrag) {
+      gestureDrag = false;
+      setDrag(false);
+      lastTapT = 0;
+    } else if (moved < 8 && Date.now() - startT < 300) {
+      if (locked) {
+        setLock(false); // 잡고 있는 동안 톡 = 놓기
+      } else {
+        if (navigator.vibrate) navigator.vibrate(8);
+        pushOp(`op=click&btn=${fingers >= 2 ? "right" : "left"}`);
+        lastTapT = fingers >= 2 ? 0 : Date.now();
+      }
+    } else {
+      lastTapT = 0;
     }
+    dragArmed = false;
     last = null; fingers = 0;
   }, { passive: false });
   document.querySelectorAll("[data-click]").forEach((b) => b.addEventListener("click", () => {
