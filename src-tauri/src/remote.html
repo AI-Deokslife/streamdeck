@@ -222,6 +222,9 @@
   body.light .bigbtn.alt { background: rgba(0, 0, 0, 0.06); }
   .bigbtn:active { transform: scale(0.97); filter: brightness(1.1); }
   #send .srow { border-bottom: none; padding: 6px 2px 10px; }
+  .sendhead { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px 8px; font-size: 13.5px; opacity: 0.85; }
+  .sendhead[hidden] { display: none; }
+  .sendhead button { border: 0; border-radius: 99px; padding: 6px 12px; font: inherit; font-size: 13px; color: inherit; background: rgba(128, 128, 128, 0.22); }
   .sendlist { list-style: none; margin: 4px 0 0; padding: 0; }
   .sendlist li { position: relative; display: flex; gap: 8px; align-items: center; padding: 10px 12px 12px; margin-bottom: 8px; border-radius: 14px; background: rgba(128, 128, 128, 0.14); font-size: 14px; overflow: hidden; }
   .sendlist .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -381,6 +384,7 @@
   <label class="bigbtn alt" for="fileIn"><b>🖼️</b>사진·파일 고르기</label>
   <input id="fileIn" type="file" multiple hidden />
   <label class="srow"><span>문서 스캔<small>찍은 서류를 반듯하게 펴서 보내요</small></span><input type="checkbox" class="switch" id="optScan" /></label>
+  <div class="sendhead" id="sendHead" hidden><span>보낸 파일 <b id="sendCount">0</b></span><button id="sendClear">목록 지우기</button></div>
   <ul class="sendlist" id="sendList"></ul>
   <p class="hintline">보낸 파일은 PC 의 <b>다운로드\QuickDeck</b> 폴더(바꿀 수 있어요)에 저장되고, 사진은 PC 클립보드에도 들어가서 바로 붙여 넣을 수 있어요.</p>
 </section>
@@ -788,6 +792,21 @@
   camIn.addEventListener("change", () => { handleFiles([...camIn.files]); camIn.value = ""; });
   fileIn.addEventListener("change", () => { handleFiles([...fileIn.files]); fileIn.value = ""; });
 
+  // 보낸 파일 목록: 개수 표시와 '목록 지우기' (휴대폰 목록만 지운다. PC 에 저장된 파일은 그대로)
+  const sendHead = document.getElementById("sendHead");
+  const sendCount = document.getElementById("sendCount");
+  function refreshSendHead() {
+    const n = sendList.children.length;
+    sendHead.hidden = n === 0;
+    sendCount.textContent = n;
+  }
+  document.getElementById("sendClear").addEventListener("click", () => {
+    sendList.querySelectorAll("img").forEach((img) => URL.revokeObjectURL(img.src));
+    sendList.innerHTML = "";
+    refreshSendHead();
+    toast("목록을 지웠어요 (PC 에 저장된 파일은 그대로예요)");
+  });
+
   async function handleFiles(files) {
     // 문서 스캔부터 모두 끝낸 뒤 보낸다 (스캔 화면과 '보내는 중' 창이 겹치지 않게)
     const items = [];
@@ -866,7 +885,7 @@
     if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
     const where =
       last.clipKind === "image" ? "PC 클립보드에도 넣었어요\nCtrl+V로 바로 붙여 넣으세요"
-      : last.clipKind === "files" ? `PC 클립보드에 파일 ${last.clipCount}개를 넣었어요\n메신저·탐색기에 Ctrl+V`
+      : last.clipKind === "files" ? `PC 클립보드에 파일 ${last.clipCount}개를 넣었어요\n메신저·탐색기에 Ctrl+V (카톡·한글은 마지막 사진 1장)`
       : "PC 의 받은 파일 폴더에 저장했어요";
     sbShow("done", {
       icon: "✅",
@@ -883,6 +902,7 @@
       const thumb = isPreviewable(blob) ? `<img class="th" src="${URL.createObjectURL(blob)}" alt="" />` : `<span class="fi">📄</span>`;
       li.innerHTML = `${thumb}<span class="n">${esc(name)}</span><span class="st">보내는 중…</span><i class="bar"><b></b></i>`;
       sendList.prepend(li);
+      refreshSendHead();
       // 목록은 최근 20개까지만
       while (sendList.children.length > 20) {
         const old = sendList.lastElementChild;
@@ -890,6 +910,7 @@
         if (img) URL.revokeObjectURL(img.src);
         old.remove();
       }
+      refreshSendHead();
       const st = li.querySelector(".st"), bar = li.querySelector(".bar b");
       const done = (r, text) => { li.classList.add(r.ok ? "ok" : "err"); st.textContent = text; resolve(r); };
       if (blob.size > MAX_UPLOAD) return done({ ok: false, error: "파일이 너무 커요 (최대 500MB)" }, "너무 커요");

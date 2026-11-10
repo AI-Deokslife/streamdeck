@@ -194,7 +194,7 @@ export default function App() {
           clipKind === "image"
             ? "\n클립보드에도 넣었어요 — Ctrl+V로 붙여 넣으세요"
             : clipKind === "files"
-              ? `\n클립보드에 파일 ${clipCount}개를 넣었어요 — 메신저·탐색기에 Ctrl+V`
+              ? `\n클립보드에 파일 ${clipCount}개를 넣었어요 — 메신저·탐색기에 Ctrl+V (카톡·한글은 마지막 사진 1장)`
               : "";
         showToast(`📥 '${name}' 받았어요` + clip, "info", 5000);
       }),

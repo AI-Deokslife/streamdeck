@@ -122,9 +122,55 @@ pub fn load_upright(path: &Path) -> Result<image::RgbaImage, String> {
 }
 
 /// 여러 파일을 클립보드에 '파일 묶음'으로 (탐색기에서 여러 개 복사한 것처럼)
+///
+/// 카카오톡·한글처럼 '파일 묶음' 붙여 넣기를 모르는 프로그램을 위해, 묶음 속 마지막 사진을
+/// 그림으로도 함께 넣는다. (그런 프로그램은 그림을 받고, 메신저·탐색기는 파일 묶음을 받는다)
 pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
-    let mut cb = arboard::Clipboard::new().map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
-    cb.set().file_list(paths).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))
+    use clipboard_win::{options::NoClear, raw, Clipboard};
+    // 그림은 클립보드를 열기 전에 미리 만들어 둔다 (클립보드를 오래 붙잡지 않게)
+    let picture = paths.iter().rev().find(|p| is_clip_image(p)).and_then(|p| load_upright(p).ok()).map(|img| to_bmp(&img));
+    let names: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+    let _open = Clipboard::new_attempts(10).map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
+    raw::empty().map_err(|e| format!("클립보드를 비우지 못했어요: {e}"))?;
+    raw::set_file_list_with(&names, NoClear).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))?;
+    if let Some(bmp) = picture {
+        // 그림을 못 넣어도 파일 묶음은 이미 들어갔으니 실패로 치지 않는다
+        let _ = raw::set_bitmap_with(&bmp, NoClear);
+    }
+    Ok(())
+}
+
+/// RGBA 그림 → 24비트 BMP 파일 내용 (클립보드 그림 형식에 쓰인다)
+pub fn to_bmp(img: &image::RgbaImage) -> Vec<u8> {
+    let (w, h) = img.dimensions();
+    let row = (w as usize * 3).div_ceil(4) * 4; // 한 줄은 4바이트 단위로 맞춘다
+    let data_len = row * h as usize;
+    let mut out = Vec::with_capacity(54 + data_len);
+    // 파일 머리 (14바이트)
+    out.extend_from_slice(b"BM");
+    out.extend_from_slice(&((54 + data_len) as u32).to_le_bytes());
+    out.extend_from_slice(&[0, 0, 0, 0]);
+    out.extend_from_slice(&54u32.to_le_bytes());
+    // 정보 머리 (40바이트)
+    out.extend_from_slice(&40u32.to_le_bytes());
+    out.extend_from_slice(&(w as i32).to_le_bytes());
+    out.extend_from_slice(&(h as i32).to_le_bytes()); // 양수 = 아래 줄부터
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&24u16.to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&(data_len as u32).to_le_bytes());
+    out.extend_from_slice(&2835i32.to_le_bytes());
+    out.extend_from_slice(&2835i32.to_le_bytes());
+    out.extend_from_slice(&[0; 8]);
+    for y in (0..h).rev() {
+        let start = out.len();
+        for x in 0..w {
+            let p = img.get_pixel(x, y).0;
+            out.extend_from_slice(&[p[2], p[1], p[0]]);
+        }
+        out.resize(start + row, 0);
+    }
+    out
 }
 
 /// 사진을 클립보드에 넣는다 (방향을 바로 세워서)
@@ -192,6 +238,19 @@ mod tests {
         assert_eq!(load_upright(&plain).unwrap().dimensions(), (8, 4));
         assert_eq!(load_upright(&rotated).unwrap().dimensions(), (4, 8));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn bmp_for_clipboard() {
+        // 3×2, 한 줄 9바이트 → 12바이트로 맞춤, 아래 줄부터 BGR
+        let mut img = image::RgbaImage::from_pixel(3, 2, image::Rgba([1, 2, 3, 255]));
+        img.put_pixel(0, 1, image::Rgba([10, 20, 30, 255]));
+        let b = to_bmp(&img);
+        assert_eq!(&b[0..2], b"BM");
+        assert_eq!(b.len(), 54 + 12 * 2);
+        assert_eq!(u32::from_le_bytes(b[2..6].try_into().unwrap()) as usize, b.len());
+        assert_eq!(&b[54..57], &[30, 20, 10], "맨 아래 줄(y=1)의 첫 점이 먼저, BGR 순서");
+        assert_eq!(&b[66..69], &[3, 2, 1]);
     }
 
     #[test]

@@ -39,6 +39,8 @@ tiny_http = "0.12.0"
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 # 휴대폰에서 받은 사진을 클립보드에 넣을 때 읽기 (arboard 가 이미 쓰는 crate, jpeg 만 더 켬)
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# 클립보드에 파일 묶음 + 그림을 함께 넣기 (arboard 가 이미 쓰는 crate)
+clipboard-win = "5.4"
 tauri-plugin-updater = "2.14.1"
 
 

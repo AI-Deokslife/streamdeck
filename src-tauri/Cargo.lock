@@ -3061,6 +3061,7 @@ version = "0.8.5"
 dependencies = [
  "arboard",
  "base64 0.23.1",
+ "clipboard-win",
  "enigo",
  "image",
  "png",
