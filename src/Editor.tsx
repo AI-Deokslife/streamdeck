@@ -1117,7 +1117,7 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
                 checked={st.clipImage}
                 onChange={(e) => invoke<RemoteStatus>("set_remote_receive", { clipImage: e.target.checked }).then(setSt)}
               />
-              받은 사진은 클립보드에도 넣기 (Ctrl+V로 바로 붙여 넣기)
+              받은 파일을 클립보드에도 넣기 (사진 한 장은 사진으로, 여러 개는 파일 묶음으로)
             </label>
           </div>
         )}

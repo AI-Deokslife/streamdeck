@@ -392,6 +392,9 @@ pub fn set_enabled(app: &AppHandle, enabled: bool) -> RemoteStatus {
 
 // ---------------- 휴대폰에서 받은 파일 ----------------
 
+/// 지금 받고 있는 '한 번에 고른 묶음' (id, 받은 파일들). 여러 개를 보내면 클립보드에 모두 넣기 위해
+static RECEIVE_BATCH: Mutex<Option<(String, Vec<PathBuf>)>> = Mutex::new(None);
+
 /// 받은 파일을 둘 폴더: 정해 둔 곳, 없으면 다운로드\QuickDeck
 fn receive_dir(app: &AppHandle, s: &RemoteSettings) -> PathBuf {
     if !s.save_dir.trim().is_empty() {
@@ -490,8 +493,8 @@ trait Host: Send + Sync + 'static {
     fn media(&self) -> Value;
     /// 위젯 버튼 값 (CPU·메모리·타이머)
     fn widgets(&self) -> Value;
-    /// '보내기' 탭에서 올린 파일 저장
-    fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String>;
+    /// '보내기' 탭에서 올린 파일 저장 (batch = 한 번에 고른 묶음의 id 와 전체 개수)
+    fn receive(&self, name: &str, batch: Option<(String, u32)>, body: &mut dyn Read) -> Result<Value, String>;
 }
 
 /// 휴대폰 트랙패드·키보드 탭에서 오는 조작
@@ -578,19 +581,41 @@ impl Host for AppHost {
     fn widgets(&self) -> Value {
         json!(crate::widgets::snapshot())
     }
-    fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String> {
+    fn receive(&self, name: &str, batch: Option<(String, u32)>, body: &mut dyn Read) -> Result<Value, String> {
         use crate::receive;
         use tauri::Emitter;
         let s = load_settings(&self.0);
         let dir = receive_dir(&self.0, &s);
         let path = receive::save_stream(&dir, &receive::safe_name(name, &receive::stamp_now()), body)?;
         let saved = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        let clipboard = s.clip_image && receive::is_clip_image(&path) && receive::copy_image_to_clipboard(&path).is_ok();
-        let _ = self.0.emit(
-            "file-received",
-            json!({ "name": saved, "path": path.display().to_string(), "dir": dir.display().to_string(), "clipboard": clipboard }),
-        );
-        Ok(json!({ "ok": true, "name": saved, "clipboard": clipboard }))
+
+        // 클립보드: 한 장이면 사진 그대로, 여러 개를 한 번에 보내면 그 묶음 전체를 '파일 묶음'으로
+        let (clip_kind, clip_count) = match batch.filter(|(_, total)| *total > 1) {
+            Some((id, total)) => {
+                let files = {
+                    let mut b = RECEIVE_BATCH.lock().unwrap();
+                    if b.as_ref().map(|(bid, _)| bid != &id).unwrap_or(true) {
+                        *b = Some((id, Vec::new()));
+                    }
+                    let list = &mut b.as_mut().unwrap().1;
+                    list.push(path.clone());
+                    list.clone()
+                };
+                let ok = s.clip_image && receive::copy_files_to_clipboard(&files).is_ok();
+                let _ = total;
+                if ok { ("files", files.len()) } else { ("", 0) }
+            }
+            None => {
+                let ok = s.clip_image && receive::is_clip_image(&path) && receive::copy_image_to_clipboard(&path).is_ok();
+                if ok { ("image", 1) } else { ("", 0) }
+            }
+        };
+        let info = json!({
+            "ok": true, "name": saved, "path": path.display().to_string(), "dir": dir.display().to_string(),
+            "clipboard": !clip_kind.is_empty(), "clipKind": clip_kind, "clipCount": clip_count,
+        });
+        let _ = self.0.emit("file-received", &info);
+        Ok(info)
     }
     fn media(&self) -> Value {
         let (volume, muted) = crate::media::volume().unwrap_or((0, false));
@@ -734,7 +759,10 @@ fn handle(host: &dyn Host, mut req: Request) {
                 return;
             }
             let name = get("name").unwrap_or("").to_string();
-            match host.receive(&name, req.as_reader()) {
+            let batch = get("batch")
+                .filter(|b| !b.is_empty() && b.len() <= 40)
+                .map(|b| (b.to_string(), get("of").and_then(|n| n.parse().ok()).unwrap_or(1)));
+            match host.receive(&name, batch, req.as_reader()) {
                 Ok(v) => respond_json(req, 200, v),
                 Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
             }
@@ -877,7 +905,7 @@ mod tests {
             fn active_folder(&self) -> Option<String> {
                 Some("f".into())
             }
-            fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String> {
+            fn receive(&self, name: &str, _batch: Option<(String, u32)>, body: &mut dyn Read) -> Result<Value, String> {
                 let mut data = String::new();
                 body.read_to_string(&mut data).map_err(|e| e.to_string())?;
                 self.controls.lock().unwrap().push(format!("receive {name} {data}"));

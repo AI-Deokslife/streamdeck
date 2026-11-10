@@ -231,6 +231,30 @@
   .sendlist .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; }
   .sendlist .bar b { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
   .sendlist li.ok .bar, .sendlist li.err .bar { display: none; }
+  .sendlist .th { flex-shrink: 0; width: 38px; height: 38px; border-radius: 8px; object-fit: cover; background: rgba(128, 128, 128, 0.25); }
+  .sendlist .fi { flex-shrink: 0; width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; background: rgba(128, 128, 128, 0.2); }
+
+  /* 보내는 중 / 보냈어요 / 실패 — 화면 가운데 큰 창 */
+  .sendbox { position: fixed; inset: 0; z-index: 45; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(0, 0, 0, 0.55); }
+  .sendbox.on { display: flex; }
+  .sb-card { width: 100%; max-width: 340px; padding: 26px 22px 20px; border-radius: 26px; text-align: center; background: #232326; color: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); animation: sb-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+  body.light .sb-card { background: #fff; color: #111; }
+  @keyframes sb-pop { from { transform: scale(0.9); opacity: 0; } }
+  .sb-icon { font-size: 52px; line-height: 1; }
+  .sb-icon.spin { display: inline-block; animation: sb-spin 1s linear infinite; }
+  @keyframes sb-spin { to { transform: rotate(360deg); } }
+  .sb-title { margin-top: 12px; font-size: 20px; font-weight: 800; }
+  .sb-sub { margin-top: 6px; font-size: 14px; line-height: 1.5; opacity: 0.75; word-break: keep-all; overflow-wrap: anywhere; }
+  .sb-bar { height: 8px; margin-top: 16px; border-radius: 99px; overflow: hidden; background: rgba(128, 128, 128, 0.3); }
+  .sb-bar b { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+  .sb-thumb { display: block; max-width: 100%; max-height: 180px; margin: 14px auto 0; border-radius: 14px; object-fit: contain; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); }
+  .sb-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+  .sb-btns button { border: 0; border-radius: 14px; padding: 13px 0; font: inherit; font-size: 15px; font-weight: 700; color: inherit; background: rgba(128, 128, 128, 0.22); }
+  .sb-btns button.primary { background: var(--accent); color: var(--accent-text, #fff); }
+  .sendbox [hidden] { display: none !important; }
+  .sb-sub { white-space: pre-line; }
+  .sendbox.done .sb-title { color: #30d158; }
+  .sendbox.fail .sb-title { color: #ff453a; }
 
   /* 문서 스캔: 모서리 맞추기 화면 */
   .scan { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; background: #000; color: #fff; }
@@ -384,6 +408,16 @@
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
 </div>
 <div class="toast" id="toast"></div>
+<div class="sendbox" id="sendBox">
+  <div class="sb-card">
+    <div class="sb-icon" id="sbIcon">⏳</div>
+    <div class="sb-title" id="sbTitle">PC로 보내는 중…</div>
+    <div class="sb-sub" id="sbSub"></div>
+    <div class="sb-bar" id="sbBar"><b></b></div>
+    <img class="sb-thumb" id="sbThumb" alt="" hidden />
+    <div class="sb-btns" id="sbBtns" hidden><button id="sbClose">닫기</button><button id="sbRetry" class="primary">다시 보내기</button></div>
+  </div>
+</div>
 <div class="scan" id="scan">
   <div class="scan-top">파란 점 4개를 서류의 네 모서리에 맞춰 주세요<small>점을 끌어서 옮겨요</small></div>
   <div class="scan-stage"><div class="scan-wrap" id="scanWrap"><canvas id="scanCv"></canvas><svg><polygon id="scanPoly" fill="rgba(10,132,255,0.18)" stroke="#0a84ff" stroke-width="2.5" /></svg></div></div>
@@ -755,46 +789,131 @@
   fileIn.addEventListener("change", () => { handleFiles([...fileIn.files]); fileIn.value = ""; });
 
   async function handleFiles(files) {
+    // 문서 스캔부터 모두 끝낸 뒤 보낸다 (스캔 화면과 '보내는 중' 창이 겹치지 않게)
+    const items = [];
     for (const f of files) {
       // 문서 스캔은 브라우저가 그릴 수 있는 사진만 (아이폰 HEIC 등은 원본 그대로)
       if (optScan.checked && /^image\/(jpeg|png|webp)$/.test(f.type)) {
         const out = await scanFlow(f);
         if (out === null) continue;
-        await upload(out, out === f ? f.name : "scan.jpg");
+        items.push({ blob: out, name: out === f ? f.name : "scan.jpg" });
       } else {
-        await upload(f, f.name || "file");
+        items.push({ blob: f, name: f.name || "file" });
       }
     }
+    if (items.length) await sendItems(items);
   }
 
-  function upload(blob, name) {
+  // ----- 가운데 큰 창 -----
+  const sendBox = document.getElementById("sendBox");
+  const sb = {
+    icon: document.getElementById("sbIcon"), title: document.getElementById("sbTitle"), sub: document.getElementById("sbSub"),
+    bar: document.getElementById("sbBar"), fill: document.querySelector("#sbBar b"), thumb: document.getElementById("sbThumb"),
+    btns: document.getElementById("sbBtns"), close: document.getElementById("sbClose"), retry: document.getElementById("sbRetry"),
+  };
+  let sbTimer = 0;
+  function sbShow(state, { icon, title, sub = "", pct = null, thumb = null, buttons = false }) {
+    clearTimeout(sbTimer);
+    sendBox.className = "sendbox on " + state;
+    sb.icon.textContent = icon;
+    sb.icon.classList.toggle("spin", state === "sending");
+    sb.title.textContent = title;
+    sb.sub.textContent = sub;
+    sb.bar.hidden = pct === null;
+    if (pct !== null) sb.fill.style.width = pct + "%";
+    sb.thumb.hidden = !thumb;
+    if (thumb) sb.thumb.src = thumb;
+    sb.btns.hidden = !buttons;
+  }
+  const sbHide = () => { clearTimeout(sbTimer); sendBox.classList.remove("on"); };
+  sendBox.addEventListener("click", (e) => { if (e.target === sendBox && !sendBox.classList.contains("sending")) sbHide(); });
+  sb.close.addEventListener("click", sbHide);
+  sb.thumb.addEventListener("click", sbHide);
+  const isPreviewable = (blob) => /^image\/(jpeg|png|webp|gif)$/.test(blob.type || "");
+
+  async function sendItems(items) {
+    const n = items.length;
+    // 한 번에 고른 묶음 표시 → PC 는 묶음 전체를 클립보드에 '파일 묶음'으로 넣는다
+    const batch = n > 1 ? Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : "";
+    const failed = [];
+    let last = null, lastImage = null;
+    for (let i = 0; i < n; i++) {
+      const it = items[i];
+      const count = n > 1 ? `${i + 1}/${n}개 · ` : "";
+      sbShow("sending", { icon: "⏳", title: "PC로 보내는 중…", sub: count + it.name, pct: 0 });
+      const r = await upload(it.blob, it.name, { batch, of: n }, (pct) => {
+        sb.fill.style.width = pct + "%";
+        sb.sub.textContent = `${count}${it.name} · ${pct}%`;
+      });
+      if (r.ok) {
+        last = { ...r, blob: it.blob };
+        if (isPreviewable(it.blob)) lastImage = it.blob;
+      }
+      else failed.push({ ...it, error: r.error });
+    }
+    if (failed.length) {
+      if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
+      const okCount = n - failed.length;
+      sbShow("fail", {
+        icon: "❌",
+        title: okCount ? `${okCount}개 보냄 · ${failed.length}개 실패` : "보내지 못했어요",
+        sub: failed[0].error || "다시 시도해 주세요",
+        buttons: true,
+      });
+      sb.retry.onclick = () => sendItems(failed.map(({ blob, name }) => ({ blob, name })));
+      return;
+    }
+    if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+    const where =
+      last.clipKind === "image" ? "PC 클립보드에도 넣었어요\nCtrl+V로 바로 붙여 넣으세요"
+      : last.clipKind === "files" ? `PC 클립보드에 파일 ${last.clipCount}개를 넣었어요\n메신저·탐색기에 Ctrl+V`
+      : "PC 의 받은 파일 폴더에 저장했어요";
+    sbShow("done", {
+      icon: "✅",
+      title: n > 1 ? `${n}개를 PC로 보냈어요` : "PC로 보냈어요",
+      sub: where,
+      thumb: lastImage ? URL.createObjectURL(lastImage) : null,
+    });
+    sbTimer = setTimeout(sbHide, 2600);
+  }
+
+  function upload(blob, name, meta, onProgress) {
     return new Promise((resolve) => {
       const li = document.createElement("li");
-      li.innerHTML = `<span class="n">${esc(name)}</span><span class="st">보내는 중…</span><i class="bar"><b></b></i>`;
+      const thumb = isPreviewable(blob) ? `<img class="th" src="${URL.createObjectURL(blob)}" alt="" />` : `<span class="fi">📄</span>`;
+      li.innerHTML = `${thumb}<span class="n">${esc(name)}</span><span class="st">보내는 중…</span><i class="bar"><b></b></i>`;
       sendList.prepend(li);
+      // 목록은 최근 20개까지만
+      while (sendList.children.length > 20) {
+        const old = sendList.lastElementChild;
+        const img = old.querySelector("img");
+        if (img) URL.revokeObjectURL(img.src);
+        old.remove();
+      }
       const st = li.querySelector(".st"), bar = li.querySelector(".bar b");
-      const done = (ok, text) => { li.classList.add(ok ? "ok" : "err"); st.textContent = text; resolve(); };
-      if (blob.size > MAX_UPLOAD) return done(false, "너무 커요 (최대 500MB)");
+      const done = (r, text) => { li.classList.add(r.ok ? "ok" : "err"); st.textContent = text; resolve(r); };
+      if (blob.size > MAX_UPLOAD) return done({ ok: false, error: "파일이 너무 커요 (최대 500MB)" }, "너무 커요");
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `/api/upload?t=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}`);
+      const q = `t=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}` + (meta.batch ? `&batch=${meta.batch}&of=${meta.of}` : "");
+      xhr.open("POST", `/api/upload?${q}`);
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
         const pct = Math.round((e.loaded / e.total) * 100);
         bar.style.width = pct + "%";
         st.textContent = pct + "%";
+        onProgress(pct);
       };
       xhr.onload = () => {
         let j = {};
         try { j = JSON.parse(xhr.responseText); } catch {}
         if (j.ok) {
           li.querySelector(".n").textContent = j.name || name;
-          if (navigator.vibrate) navigator.vibrate(15);
-          done(true, j.clipboard ? "✓ 보냄 · 클립보드" : "✓ 보냄");
+          done(j, j.clipKind ? "✓ 보냄 · 클립보드" : "✓ 보냄");
         } else {
-          done(false, j.error || "보내지 못했어요");
+          done({ ok: false, error: j.error || "보내지 못했어요" }, "실패");
         }
       };
-      xhr.onerror = () => { setOnline(false); done(false, "PC 와 연결이 끊겼어요"); };
+      xhr.onerror = () => { setOnline(false); done({ ok: false, error: "PC 와 연결이 끊겼어요. 같은 와이파이(또는 USB)인지 확인해 주세요" }, "실패"); };
       xhr.send(blob);
     });
   }

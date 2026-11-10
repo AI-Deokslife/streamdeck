@@ -104,9 +104,32 @@ pub fn is_clip_image(path: &Path) -> bool {
     )
 }
 
-/// 사진을 클립보드에 넣는다
+/// 사진을 읽고, 사진 안의 방향 정보(EXIF)대로 돌려 세운다.
+/// 휴대폰은 세로로 찍어도 가로로 저장하고 '90도 돌려서 보여 주세요'만 적어 두기 때문.
+pub fn load_upright(path: &Path) -> Result<image::RgbaImage, String> {
+    use image::{DynamicImage, ImageDecoder, ImageReader};
+    let err = |e: image::ImageError| format!("사진을 읽지 못했어요: {e}");
+    let mut decoder = ImageReader::open(path)
+        .map_err(|e| format!("사진을 열지 못했어요: {e}"))?
+        .with_guessed_format()
+        .map_err(|e| format!("사진을 열지 못했어요: {e}"))?
+        .into_decoder()
+        .map_err(err)?;
+    let orientation = decoder.orientation().unwrap_or(image::metadata::Orientation::NoTransforms);
+    let mut img = DynamicImage::from_decoder(decoder).map_err(err)?;
+    img.apply_orientation(orientation);
+    Ok(img.to_rgba8())
+}
+
+/// 여러 파일을 클립보드에 '파일 묶음'으로 (탐색기에서 여러 개 복사한 것처럼)
+pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
+    let mut cb = arboard::Clipboard::new().map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
+    cb.set().file_list(paths).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))
+}
+
+/// 사진을 클립보드에 넣는다 (방향을 바로 세워서)
 pub fn copy_image_to_clipboard(path: &Path) -> Result<(), String> {
-    let img = image::open(path).map_err(|e| format!("사진을 읽지 못했어요: {e}"))?.to_rgba8();
+    let img = load_upright(path)?;
     let (w, h) = img.dimensions();
     let mut cb = arboard::Clipboard::new().map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
     cb.set_image(arboard::ImageData { width: w as usize, height: h as usize, bytes: img.into_raw().into() })
@@ -137,6 +160,38 @@ mod tests {
         assert_eq!(safe_name("", s), "파일_2026-11-10_143012");
         assert_eq!(safe_name("con.txt", s), "_con.txt");
         assert_eq!(safe_name("...", s), "파일_2026-11-10_143012");
+    }
+
+    /// 방향 정보(Orientation=6, 시계 방향 90도)가 든 EXIF 조각을 JPEG 앞부분에 끼워 넣는다
+    fn with_exif_orientation(jpeg: &[u8], orientation: u8) -> Vec<u8> {
+        let tiff: Vec<u8> = vec![
+            b'M', b'M', 0, 42, 0, 0, 0, 8, // 빅엔디언 TIFF 머리, 첫 IFD 는 8번째 바이트
+            0, 1, // 항목 1개
+            0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, orientation, 0, 0, // Orientation(0x0112), SHORT, 1개, 값
+            0, 0, 0, 0, // 다음 IFD 없음
+        ];
+        let mut app1 = b"Exif\0\0".to_vec();
+        app1.extend_from_slice(&tiff);
+        let len = (app1.len() + 2) as u16;
+        let mut out = vec![0xFF, 0xD8, 0xFF, 0xE1];
+        out.extend_from_slice(&len.to_be_bytes());
+        out.extend_from_slice(&app1);
+        out.extend_from_slice(&jpeg[2..]); // 원래 SOI(FFD8) 뒤부터
+        out
+    }
+
+    #[test]
+    fn portrait_photos_stand_upright() {
+        let dir = std::env::temp_dir().join(format!("qd-orient-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        // 가로 8×4 로 저장됐지만 '90도 돌려서 보기'가 적힌 사진 → 세로 4×8 로 읽혀야 한다
+        let plain = dir.join("plain.jpg");
+        image::RgbImage::from_pixel(8, 4, image::Rgb([10, 20, 30])).save(&plain).unwrap();
+        let rotated = dir.join("rotated.jpg");
+        fs::write(&rotated, with_exif_orientation(&fs::read(&plain).unwrap(), 6)).unwrap();
+        assert_eq!(load_upright(&plain).unwrap().dimensions(), (8, 4));
+        assert_eq!(load_upright(&rotated).unwrap().dimensions(), (4, 8));
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
