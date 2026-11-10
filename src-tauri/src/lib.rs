@@ -6,6 +6,7 @@ mod config;
 mod favicon;
 mod icon;
 mod media;
+mod receive;
 mod remote;
 mod widgets;
 mod updates;
@@ -252,6 +253,40 @@ fn set_remote(app: AppHandle, enabled: bool) -> remote::RemoteStatus {
 #[tauri::command]
 fn regenerate_remote_key(app: AppHandle) -> remote::RemoteStatus {
     remote::regenerate(&app)
+}
+
+/// 휴대폰에서 받은 파일: 폴더·클립보드 설정
+#[tauri::command]
+fn set_remote_receive(app: AppHandle, clip_image: Option<bool>, reset_dir: Option<bool>) -> remote::RemoteStatus {
+    remote::set_receive(&app, reset_dir.filter(|r| *r).map(|_| String::new()), clip_image)
+}
+
+/// 받을 폴더 고르기 (취소하면 그대로)
+#[tauri::command]
+async fn pick_receive_dir(app: AppHandle) -> Result<remote::RemoteStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+        let start = remote::receive_dir_now(&app).ok();
+        let mut dlg = app.dialog().file().set_title("휴대폰에서 받은 파일을 둘 폴더");
+        if let Some(d) = start {
+            dlg = dlg.set_directory(d);
+        }
+        if let Some(folder) = dlg.blocking_pick_folder() {
+            let path = folder.into_path().map_err(|e| e.to_string())?;
+            return Ok(remote::set_receive(&app, Some(path.display().to_string()), None));
+        }
+        Ok(remote::status(&app))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// 받은 파일 폴더 열기
+#[tauri::command]
+fn open_receive_dir(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = remote::receive_dir_now(&app)?;
+    app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| e.to_string())
 }
 
 /// USB 테더링 연결에서도 휴대폰이 접속할 수 있게 방화벽 규칙 추가 (관리자 확인 창이 뜬다)
@@ -606,6 +641,9 @@ pub fn run() {
             set_remote,
             regenerate_remote_key,
             allow_usb_remote,
+            set_remote_receive,
+            pick_receive_dir,
+            open_receive_dir,
             hide_window,
             set_edit_mode
         ])

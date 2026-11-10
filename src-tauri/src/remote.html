@@ -150,8 +150,8 @@
   body { padding-bottom: calc(env(safe-area-inset-bottom) + 64px); }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px);
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 6px 4px calc(env(safe-area-inset-bottom) + 6px);
     background: var(--bar); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   }
   .tabbar button {
@@ -179,7 +179,7 @@
   body.light .touch { background: rgba(0, 0, 0, 0.05); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); color: rgba(0, 0, 0, 0.4); }
   .mbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
   .mbtns.three { grid-template-columns: 1fr 1fr 1fr; }
-  #dragLock.on { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25); }
+  #dragLock.on { background: var(--accent); color: var(--accent-text, #fff); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25); }
   .touch.dragging { box-shadow: inset 0 0 0 2px var(--accent); }
   .mbtns button, .qkeys button, .send, .sheet button.act {
     border: 0; border-radius: 14px; padding: 14px 0;
@@ -200,13 +200,55 @@
     background: rgba(255, 255, 255, 0.1); color: var(--label); outline: none;
   }
   body.light #keys textarea { background: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
-  .send { width: 100%; margin-top: 10px; background: var(--accent); color: #fff; }
+  .send { width: 100%; margin-top: 10px; background: var(--accent); color: var(--accent-text, #fff); }
   .qkeys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
   .qkeys button { padding: 12px 0; font-size: 13px; }
   .hintline { margin: 10px 2px 0; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
 
   /* ---------- 음악 ---------- */
   #music { padding: 18px 20px; text-align: center; }
+  /* ---------- 보내기 (휴대폰 → PC 사진·파일) ---------- */
+  #send { padding: 14px; }
+  .bigbtn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-height: 120px; margin-bottom: 12px; border-radius: 22px;
+    font-size: 19px; font-weight: 700; color: var(--accent-text, #fff); background: var(--accent);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  }
+  .bigbtn b { font-size: 34px; line-height: 1; }
+  .bigbtn small { font-size: 12.5px; font-weight: 500; opacity: 0.85; }
+  .bigbtn.alt { min-height: 84px; flex-direction: row; gap: 10px; font-size: 17px; color: var(--label); background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+  .bigbtn.alt b { font-size: 24px; }
+  body.light .bigbtn.alt { background: rgba(0, 0, 0, 0.06); }
+  .bigbtn:active { transform: scale(0.97); filter: brightness(1.1); }
+  #send .srow { border-bottom: none; padding: 6px 2px 10px; }
+  .sendlist { list-style: none; margin: 4px 0 0; padding: 0; }
+  .sendlist li { position: relative; display: flex; gap: 8px; align-items: center; padding: 10px 12px 12px; margin-bottom: 8px; border-radius: 14px; background: rgba(128, 128, 128, 0.14); font-size: 14px; overflow: hidden; }
+  .sendlist .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sendlist .st { flex-shrink: 0; font-size: 12.5px; opacity: 0.75; }
+  .sendlist li.ok .st { color: #30d158; opacity: 1; font-weight: 700; }
+  .sendlist li.err .st { color: #ff453a; opacity: 1; font-weight: 700; }
+  .sendlist .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; }
+  .sendlist .bar b { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+  .sendlist li.ok .bar, .sendlist li.err .bar { display: none; }
+
+  /* 문서 스캔: 모서리 맞추기 화면 */
+  .scan { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; background: #000; color: #fff; }
+  .scan.on { display: flex; }
+  .scan-top { padding: calc(env(safe-area-inset-top) + 12px) 16px 10px; text-align: center; font-size: 14.5px; }
+  .scan-top small { display: block; margin-top: 3px; font-size: 12px; opacity: 0.65; }
+  .scan-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 18px; }
+  .scan-wrap { position: relative; touch-action: none; }
+  .scan-wrap canvas { display: block; max-width: calc(100vw - 36px); max-height: calc(100vh - 230px); }
+  .scan-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .scan-h { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 3px solid #fff; background: rgba(10, 132, 255, 0.55); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); touch-action: none; }
+  .scan-opts { display: flex; justify-content: center; gap: 8px; padding: 0 16px 10px; }
+  .scan-opts button { border: 0; border-radius: 99px; padding: 8px 16px; font: inherit; font-size: 13.5px; color: #fff; background: rgba(255, 255, 255, 0.14); }
+  .scan-opts button.on { background: #fff; color: #000; font-weight: 700; }
+  .scan-btns { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 8px; padding: 0 14px calc(env(safe-area-inset-bottom) + 14px); }
+  .scan-btns button { border: 0; border-radius: 14px; padding: 15px 0; font: inherit; font-size: 15px; font-weight: 600; color: #fff; background: rgba(255, 255, 255, 0.14); }
+  .scan-btns button.primary { background: var(--accent); }
+
   .art {
     width: min(70vw, 300px); aspect-ratio: 1; margin: 6px auto 16px;
     border-radius: 18px; overflow: hidden;
@@ -218,7 +260,7 @@
   .singer { font-size: 14px; opacity: 0.65; margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .transport { display: flex; justify-content: center; align-items: center; gap: 26px; margin: 22px 0; }
   .transport button { border: 0; background: none; color: var(--label); font-size: 30px; padding: 6px; }
-  .transport .play { width: 72px; height: 72px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 30px; }
+  .transport .play { width: 72px; height: 72px; border-radius: 50%; background: var(--accent); color: var(--accent-text, #fff); font-size: 30px; }
   .transport button:active { transform: scale(0.92); }
   .vol { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
   .vol input { flex: 1; height: 30px; accent-color: var(--accent); }
@@ -308,11 +350,23 @@
   </div>
 </section>
 
+
+<section id="send" class="pane">
+  <label class="bigbtn" for="camIn"><b>📷</b>사진 찍어 보내기<small>찍자마자 PC 로 가요</small></label>
+  <input id="camIn" type="file" accept="image/*" capture="environment" hidden />
+  <label class="bigbtn alt" for="fileIn"><b>🖼️</b>사진·파일 고르기</label>
+  <input id="fileIn" type="file" multiple hidden />
+  <label class="srow"><span>문서 스캔<small>찍은 서류를 반듯하게 펴서 보내요</small></span><input type="checkbox" class="switch" id="optScan" /></label>
+  <ul class="sendlist" id="sendList"></ul>
+  <p class="hintline">보낸 파일은 PC 의 <b>다운로드\QuickDeck</b> 폴더(바꿀 수 있어요)에 저장되고, 사진은 PC 클립보드에도 들어가서 바로 붙여 넣을 수 있어요.</p>
+</section>
+
 <nav class="tabbar">
   <button class="on" data-tab="grid"><b>▦</b>버튼</button>
   <button data-tab="pad"><b>☝︎</b>트랙패드</button>
   <button data-tab="keys"><b>⌨︎</b>키보드</button>
   <button data-tab="music"><b>♫</b>음악</button>
+  <button data-tab="send"><b>⇪</b>보내기</button>
 </nav>
 
 <div class="sheet-bg" id="sheetBg"></div>
@@ -330,6 +384,12 @@
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
 </div>
 <div class="toast" id="toast"></div>
+<div class="scan" id="scan">
+  <div class="scan-top">파란 점 4개를 서류의 네 모서리에 맞춰 주세요<small>점을 끌어서 옮겨요</small></div>
+  <div class="scan-stage"><div class="scan-wrap" id="scanWrap"><canvas id="scanCv"></canvas><svg><polygon id="scanPoly" fill="rgba(10,132,255,0.18)" stroke="#0a84ff" stroke-width="2.5" /></svg></div></div>
+  <div class="scan-opts"><button data-f="color" class="on">컬러</button><button data-f="bw">선명한 흑백</button></div>
+  <div class="scan-btns"><button id="scanCancel">취소</button><button id="scanRaw">원본 그대로</button><button id="scanOk" class="primary">펴서 보내기</button></div>
+</div>
 
 <script>
 (() => {
@@ -363,13 +423,13 @@
   // 자동·밝게·어둡게 = Windows 11 스타일 (자동은 휴대폰의 밝게/어둡게를 따라감). 예전 '애플'은 자동으로
   const THEMES = {
     light:  { bar: "#ffffff", text: "#1b1b1b", bg: "#f0f2f5", accent: "#005fb8", light: true, radius: "14%" },
-    dark:   { bar: "#1c1c1c", text: "#fff", bg: "#202020", accent: "#4cc2ff", radius: "14%" },
-    chalk:    { bar: "#7a5431", text: "#fbf3e4", bg: "#26392e", accent: "#ffe27a", radius: "16%" },
-    contrast: { bar: "#000000", text: "#ffffff", bg: "#000000", accent: "#ffd400", radius: "14%" },
-    neon:     { bar: "#0c0c1d", text: "#ffffff", bg: "#0a0a1f", accent: "#22e5ff", radius: "24%" },
+    dark:   { bar: "#1c1c1c", text: "#fff", bg: "#202020", accent: "#4cc2ff", radius: "14%", accentText: "#000" },
+    chalk:    { bar: "#7a5431", text: "#fbf3e4", bg: "#26392e", accent: "#ffe27a", radius: "16%", accentText: "#2b2a1c" },
+    contrast: { bar: "#000000", text: "#ffffff", bg: "#000000", accent: "#ffd400", radius: "14%", accentText: "#000" },
+    neon:     { bar: "#0c0c1d", text: "#ffffff", bg: "#0a0a1f", accent: "#22e5ff", radius: "24%", accentText: "#001a20" },
     diary:    { bar: "#f2c6b4", text: "#5a3626", bg: "#fbf7ee", accent: "#b5573b", light: true, radius: "14%" },
     pastel:   { bar: "#efe3ff", text: "#5b4a7a", bg: "#fdf6ff", accent: "#8b6fd6", light: true, radius: "32%" },
-    pixel:    { bar: "#29366f", text: "#ffcd75", bg: "#1a1c2c", accent: "#ffcd75", radius: "0" },
+    pixel:    { bar: "#29366f", text: "#ffcd75", bg: "#1a1c2c", accent: "#ffcd75", radius: "0", accentText: "#1a1c2c" },
     baemin: { bar: "#2ac1bc", text: "#fff", bg: "#ffffff", accent: "#12a8a3", light: true, radius: "28%" },
     kakao:  { bar: "#fee500", text: "#3c1e1e", bg: "#b2c7da", accent: "#3c1e1e", light: true, radius: "36%" },
     toss:   { bar: "#ffffff", text: "#191f28", bg: "#f2f4f6", accent: "#3182f6", light: true, radius: "30%" },
@@ -385,6 +445,7 @@
     r.setProperty("--bar-text", use.text || "#fff");
     if (use.bg) r.setProperty("--bg", use.bg); else r.removeProperty("--bg");
     r.setProperty("--accent", use.accent || "#0a84ff");
+    r.setProperty("--accent-text", use.accentText || "#fff");
     r.setProperty("--radius", use.radius || "22.5%");
     document.body.classList.toggle("light", !!use.light);
     document.querySelector('meta[name="theme-color"]').content = use.bar && !use.bar.startsWith("rgba") ? use.bar : (use.light ? "#f9f9f9" : "#000000");
@@ -593,7 +654,7 @@
     tabs.forEach((b) => b.classList.toggle("on", b.dataset.tab === id));
     document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === id));
     back.style.visibility = id === "grid" ? "" : "hidden";
-    title.textContent = id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : (title.dataset.deck || "QuickDeck");
+    title.textContent = id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : id === "send" ? "보내기" : (title.dataset.deck || "QuickDeck");
     if (id === "music") pollMedia();
     store.set("tab", id);
   }
@@ -680,6 +741,215 @@
     } else if (autoFrom !== null) {
       path = autoFrom; autoFrom = null; render();
     }
+  }
+
+  // ================= 보내기: 휴대폰 → PC 사진·파일 =================
+  const camIn = document.getElementById("camIn");
+  const fileIn = document.getElementById("fileIn");
+  const optScan = document.getElementById("optScan");
+  const sendList = document.getElementById("sendList");
+  const MAX_UPLOAD = 500 * 1024 * 1024;
+  optScan.checked = store.get("scan", false);
+  optScan.addEventListener("change", () => store.set("scan", optScan.checked));
+  camIn.addEventListener("change", () => { handleFiles([...camIn.files]); camIn.value = ""; });
+  fileIn.addEventListener("change", () => { handleFiles([...fileIn.files]); fileIn.value = ""; });
+
+  async function handleFiles(files) {
+    for (const f of files) {
+      // 문서 스캔은 브라우저가 그릴 수 있는 사진만 (아이폰 HEIC 등은 원본 그대로)
+      if (optScan.checked && /^image\/(jpeg|png|webp)$/.test(f.type)) {
+        const out = await scanFlow(f);
+        if (out === null) continue;
+        await upload(out, out === f ? f.name : "scan.jpg");
+      } else {
+        await upload(f, f.name || "file");
+      }
+    }
+  }
+
+  function upload(blob, name) {
+    return new Promise((resolve) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="n">${esc(name)}</span><span class="st">보내는 중…</span><i class="bar"><b></b></i>`;
+      sendList.prepend(li);
+      const st = li.querySelector(".st"), bar = li.querySelector(".bar b");
+      const done = (ok, text) => { li.classList.add(ok ? "ok" : "err"); st.textContent = text; resolve(); };
+      if (blob.size > MAX_UPLOAD) return done(false, "너무 커요 (최대 500MB)");
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/upload?t=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}`);
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const pct = Math.round((e.loaded / e.total) * 100);
+        bar.style.width = pct + "%";
+        st.textContent = pct + "%";
+      };
+      xhr.onload = () => {
+        let j = {};
+        try { j = JSON.parse(xhr.responseText); } catch {}
+        if (j.ok) {
+          li.querySelector(".n").textContent = j.name || name;
+          if (navigator.vibrate) navigator.vibrate(15);
+          done(true, j.clipboard ? "✓ 보냄 · 클립보드" : "✓ 보냄");
+        } else {
+          done(false, j.error || "보내지 못했어요");
+        }
+      };
+      xhr.onerror = () => { setOnline(false); done(false, "PC 와 연결이 끊겼어요"); };
+      xhr.send(blob);
+    });
+  }
+
+  // ---------- 문서 스캔: 네 모서리를 맞추면 반듯한 직사각형으로 편다 ----------
+  const scanEl = document.getElementById("scan");
+  const scanCv = document.getElementById("scanCv");
+  const scanWrap = document.getElementById("scanWrap");
+  const scanPoly = document.getElementById("scanPoly");
+  let scanMode = store.get("scanMode", "color");
+  const modeBtns = [...scanEl.querySelectorAll(".scan-opts button")];
+  const paintMode = () => modeBtns.forEach((b) => b.classList.toggle("on", b.dataset.f === scanMode));
+  modeBtns.forEach((b) => b.addEventListener("click", () => { scanMode = b.dataset.f; store.set("scanMode", scanMode); paintMode(); }));
+  paintMode();
+
+  function loadImage(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); res(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("사진을 열지 못했어요")); };
+      img.src = url;
+    });
+  }
+
+  async function scanFlow(file) {
+    let img;
+    try { img = await loadImage(file); } catch { toast("이 사진은 스캔할 수 없어서 원본을 보내요"); return file; }
+    // 작업용 원본: 긴 쪽 2400px 까지 (휴대폰 사진은 너무 커서 펴는 계산이 느려진다)
+    const k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const W = Math.round(img.naturalWidth * k), H = Math.round(img.naturalHeight * k);
+    const src = document.createElement("canvas");
+    src.width = W; src.height = H;
+    src.getContext("2d").drawImage(img, 0, 0, W, H);
+    // 보여 주기용
+    scanCv.width = W; scanCv.height = H;
+    scanCv.getContext("2d").drawImage(src, 0, 0);
+    const ins = 0.07;
+    const pts = [[W * ins, H * ins], [W * (1 - ins), H * ins], [W * (1 - ins), H * (1 - ins)], [W * ins, H * (1 - ins)]];
+    scanEl.classList.add("on");
+    scanWrap.querySelectorAll(".scan-h").forEach((h) => h.remove());
+    const handles = pts.map((_, i) => {
+      const h = document.createElement("i");
+      h.className = "scan-h";
+      scanWrap.appendChild(h);
+      h.addEventListener("pointerdown", (e) => { try { h.setPointerCapture(e.pointerId); } catch {} h.dataset.drag = "1"; });
+      h.addEventListener("pointermove", (e) => {
+        if (!h.dataset.drag) return;
+        const r = scanCv.getBoundingClientRect();
+        pts[i] = [Math.max(0, Math.min(W, ((e.clientX - r.left) / r.width) * W)), Math.max(0, Math.min(H, ((e.clientY - r.top) / r.height) * H))];
+        place();
+      });
+      h.addEventListener("pointerup", () => { delete h.dataset.drag; });
+      return h;
+    });
+    function place() {
+      const r = scanCv.getBoundingClientRect();
+      const sx = r.width / W, sy = r.height / H;
+      handles.forEach((h, i) => { h.style.left = pts[i][0] * sx + "px"; h.style.top = pts[i][1] * sy + "px"; });
+      scanPoly.setAttribute("points", pts.map((p) => `${p[0] * sx},${p[1] * sy}`).join(" "));
+    }
+    requestAnimationFrame(place);
+    window.addEventListener("resize", place);
+
+    return new Promise((resolve) => {
+      const finish = (v) => {
+        scanEl.classList.remove("on");
+        window.removeEventListener("resize", place);
+        ok.onclick = raw.onclick = cancel.onclick = null;
+        resolve(v);
+      };
+      const ok = document.getElementById("scanOk"), raw = document.getElementById("scanRaw"), cancel = document.getElementById("scanCancel");
+      cancel.onclick = () => finish(null);
+      raw.onclick = () => finish(file);
+      ok.onclick = () => {
+        ok.textContent = "펴는 중…";
+        setTimeout(() => {
+          const out = warp(src, pts, scanMode === "bw");
+          ok.textContent = "펴서 보내기";
+          out.toBlob((b) => finish(b || file), "image/jpeg", 0.9);
+        }, 30);
+      };
+    });
+  }
+
+  /** 네 점(왼위·오른위·오른아래·왼아래)을 직사각형으로 펴기 (투영 변환 + 이중 선형 보간) */
+  function warp(src, q, bw) {
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    let ow = Math.max(d(q[0], q[1]), d(q[3], q[2])), oh = Math.max(d(q[0], q[3]), d(q[1], q[2]));
+    const lim = Math.min(1, 2400 / Math.max(ow, oh));
+    ow = Math.max(1, Math.round(ow * lim)); oh = Math.max(1, Math.round(oh * lim));
+    const h = homography([[0, 0], [ow, 0], [ow, oh], [0, oh]], q);
+    const sw = src.width, sh = src.height;
+    const sd = src.getContext("2d").getImageData(0, 0, sw, sh).data;
+    const out = document.createElement("canvas");
+    out.width = ow; out.height = oh;
+    const octx = out.getContext("2d");
+    const od = octx.createImageData(ow, oh);
+    const o = od.data;
+    for (let y = 0; y < oh; y++) {
+      for (let x = 0; x < ow; x++) {
+        const z = h[6] * x + h[7] * y + 1;
+        let u = (h[0] * x + h[1] * y + h[2]) / z, v = (h[3] * x + h[4] * y + h[5]) / z;
+        u = Math.max(0, Math.min(sw - 1.001, u)); v = Math.max(0, Math.min(sh - 1.001, v));
+        const x0 = u | 0, y0 = v | 0, fx = u - x0, fy = v - y0;
+        const i00 = (y0 * sw + x0) * 4, i10 = i00 + 4, i01 = i00 + sw * 4, i11 = i01 + 4;
+        const j = (y * ow + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const top = sd[i00 + c] + (sd[i10 + c] - sd[i00 + c]) * fx;
+          const bot = sd[i01 + c] + (sd[i11 + c] - sd[i01 + c]) * fx;
+          o[j + c] = top + (bot - top) * fy;
+        }
+        o[j + 3] = 255;
+      }
+    }
+    if (bw) toCrispGray(o);
+    octx.putImageData(od, 0, 0);
+    return out;
+  }
+
+  /** 종이는 하얗게, 글씨는 진하게: 밝기 분포에서 아래 4%·위 10% 를 기준으로 늘린다 */
+  function toCrispGray(o) {
+    const n = o.length / 4, hist = new Uint32Array(256), g = new Uint8ClampedArray(n);
+    for (let i = 0; i < n; i++) { const v = 0.299 * o[i * 4] + 0.587 * o[i * 4 + 1] + 0.114 * o[i * 4 + 2]; g[i] = v; hist[g[i]]++; }
+    const at = (p) => { let s = 0; for (let v = 0; v < 256; v++) { s += hist[v]; if (s >= n * p) return v; } return 255; };
+    const lo = at(0.04), hi = Math.max(lo + 1, at(0.9));
+    for (let i = 0; i < n; i++) {
+      let t = (g[i] - lo) / (hi - lo);
+      t = Math.max(0, Math.min(1, t));
+      const v = Math.pow(t, 1.6) * 255;
+      o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = v;
+    }
+  }
+
+  /** from 네 점 → to 네 점으로 보내는 3×3 투영 행렬(8개 값) */
+  function homography(from, to) {
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = from[i], [u, v] = to[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+    }
+    // 가우스 소거
+    for (let c = 0; c < 8; c++) {
+      let p = c;
+      for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      for (let r = 0; r < 8; r++) {
+        if (r === c || !A[c][c]) continue;
+        const f = A[r][c] / A[c][c];
+        for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+        b[r] -= f * b[c];
+      }
+    }
+    return b.map((v, i) => v / A[i][i]);
   }
 
   // --- 트랙패드 ---

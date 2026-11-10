@@ -924,6 +924,9 @@ interface RemoteStatus {
   usbQrSvg: string;
   /** USB 연결(공용 네트워크)에서 오는 접속을 방화벽이 허용하는지 */
   usbAllowed: boolean;
+  /** 휴대폰에서 받은 파일을 두는 폴더 */
+  saveDir: string;
+  clipImage: boolean;
   error: string | null;
 }
 
@@ -1081,6 +1084,43 @@ function RemoteSection({ onNotice }: { onNotice: (text: string, kind?: "error" |
           </p>
         )}
         {st.error && <span className="keycap-hint warn">{st.error}</span>}
+        {st.enabled && (
+          <div className="recv-box">
+            <div className="recv-title">📥 휴대폰에서 받은 파일</div>
+            <p className="hint">휴대폰 리모컨의 <b>보내기</b> 탭에서 사진·파일을 보내면 아래 폴더에 저장돼요.</p>
+            <div className="recv-dir" title={st.saveDir}>
+              {st.saveDir}
+            </div>
+            <div className="row">
+              <button type="button" className="small" onClick={() => invoke("open_receive_dir").catch((e) => onNotice(String(e)))}>
+                폴더 열기
+              </button>
+              <button
+                type="button"
+                className="small ghost"
+                onClick={() => invoke<RemoteStatus>("pick_receive_dir").then(setSt).catch((e) => onNotice(String(e)))}
+              >
+                다른 폴더로
+              </button>
+              <button
+                type="button"
+                className="small ghost"
+                onClick={() => invoke<RemoteStatus>("set_remote_receive", { resetDir: true }).then(setSt)}
+                title="다운로드\QuickDeck 폴더로 되돌리기"
+              >
+                기본 폴더
+              </button>
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={st.clipImage}
+                onChange={(e) => invoke<RemoteStatus>("set_remote_receive", { clipImage: e.target.checked }).then(setSt)}
+              />
+              받은 사진은 클립보드에도 넣기 (Ctrl+V로 바로 붙여 넣기)
+            </label>
+          </div>
+        )}
       </div>
     </>
   );

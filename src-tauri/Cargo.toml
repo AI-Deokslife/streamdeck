@@ -37,6 +37,8 @@ url = "2.5.8"
 windows = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_Shell_Common", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Media_Control", "Foundation", "Foundation_Collections", "Storage_Streams"] }
 tiny_http = "0.12.0"
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
+# 휴대폰에서 받은 사진을 클립보드에 넣을 때 읽기 (arboard 가 이미 쓰는 crate, jpeg 만 더 켬)
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 tauri-plugin-updater = "2.14.1"
 
 

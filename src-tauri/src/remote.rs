@@ -37,11 +37,21 @@ pub struct RemoteSettings {
     pub enabled: bool,
     pub port: u16,
     pub token: String,
+    /// 휴대폰에서 받은 파일을 둘 폴더 (비우면 다운로드\QuickDeck)
+    #[serde(default)]
+    pub save_dir: String,
+    /// 받은 사진을 클립보드에도 넣을지
+    #[serde(default = "yes")]
+    pub clip_image: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for RemoteSettings {
     fn default() -> Self {
-        Self { enabled: false, port: DEFAULT_PORT, token: new_token() }
+        Self { enabled: false, port: DEFAULT_PORT, token: new_token(), save_dir: String::new(), clip_image: true }
     }
 }
 
@@ -67,6 +77,9 @@ pub struct RemoteStatus {
     pub usb_qr_svg: String,
     /// USB 테더링 연결(공용 네트워크)에서 들어오는 접속을 방화벽이 허용하는지
     pub usb_allowed: bool,
+    /// 받은 파일을 두는 폴더 (실제 경로)
+    pub save_dir: String,
+    pub clip_image: bool,
     pub error: Option<String>,
 }
 
@@ -347,6 +360,8 @@ pub fn status(app: &AppHandle) -> RemoteStatus {
         usb_url,
         usb_qr_svg,
         usb_allowed,
+        save_dir: receive_dir(app, &s).display().to_string(),
+        clip_image: s.clip_image,
         error: state.error.lock().unwrap().clone(),
     }
 }
@@ -373,6 +388,39 @@ pub fn set_enabled(app: &AppHandle, enabled: bool) -> RemoteStatus {
         start(app);
     }
     status(app)
+}
+
+// ---------------- 휴대폰에서 받은 파일 ----------------
+
+/// 받은 파일을 둘 폴더: 정해 둔 곳, 없으면 다운로드\QuickDeck
+fn receive_dir(app: &AppHandle, s: &RemoteSettings) -> PathBuf {
+    if !s.save_dir.trim().is_empty() {
+        return PathBuf::from(s.save_dir.trim());
+    }
+    app.path()
+        .download_dir()
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join("QuickDeck")
+}
+
+/// 받는 폴더·클립보드 설정 바꾸기 (None 은 그대로)
+pub fn set_receive(app: &AppHandle, save_dir: Option<String>, clip_image: Option<bool>) -> RemoteStatus {
+    let mut s = load_settings(app);
+    if let Some(d) = save_dir {
+        s.save_dir = d;
+    }
+    if let Some(c) = clip_image {
+        s.clip_image = c;
+    }
+    save_settings(app, &s);
+    status(app)
+}
+
+/// 받는 폴더 (없으면 만든다)
+pub fn receive_dir_now(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = receive_dir(app, &load_settings(app));
+    fs::create_dir_all(&dir).map_err(|e| format!("폴더를 만들지 못했어요: {e}"))?;
+    Ok(dir)
 }
 
 /// 열쇠를 새로 만든다 (이전에 연결한 휴대폰은 더 이상 조작할 수 없다)
@@ -442,6 +490,8 @@ trait Host: Send + Sync + 'static {
     fn media(&self) -> Value;
     /// 위젯 버튼 값 (CPU·메모리·타이머)
     fn widgets(&self) -> Value;
+    /// '보내기' 탭에서 올린 파일 저장
+    fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String>;
 }
 
 /// 휴대폰 트랙패드·키보드 탭에서 오는 조작
@@ -527,6 +577,20 @@ impl Host for AppHost {
     }
     fn widgets(&self) -> Value {
         json!(crate::widgets::snapshot())
+    }
+    fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String> {
+        use crate::receive;
+        use tauri::Emitter;
+        let s = load_settings(&self.0);
+        let dir = receive_dir(&self.0, &s);
+        let path = receive::save_stream(&dir, &receive::safe_name(name, &receive::stamp_now()), body)?;
+        let saved = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let clipboard = s.clip_image && receive::is_clip_image(&path) && receive::copy_image_to_clipboard(&path).is_ok();
+        let _ = self.0.emit(
+            "file-received",
+            json!({ "name": saved, "path": path.display().to_string(), "dir": dir.display().to_string(), "clipboard": clipboard }),
+        );
+        Ok(json!({ "ok": true, "name": saved, "clipboard": clipboard }))
     }
     fn media(&self) -> Value {
         let (volume, muted) = crate::media::volume().unwrap_or((0, false));
@@ -654,6 +718,24 @@ fn handle(host: &dyn Host, mut req: Request) {
             };
             match host.press(&id, get("long") == Some("1")) {
                 Ok(()) => respond_json(req, 200, json!({ "ok": true })),
+                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+            }
+        }
+        (Method::Post, "/api/upload") => {
+            let too_big = req
+                .headers()
+                .iter()
+                .find(|h| h.field.equiv("Content-Length"))
+                .and_then(|h| h.value.as_str().parse::<u64>().ok())
+                .is_some_and(|n| n > crate::receive::MAX_BYTES);
+            if too_big {
+                let mb = crate::receive::MAX_BYTES / 1024 / 1024;
+                respond_json(req, 413, json!({ "ok": false, "error": format!("파일이 너무 커요 (최대 {mb}MB)") }));
+                return;
+            }
+            let name = get("name").unwrap_or("").to_string();
+            match host.receive(&name, req.as_reader()) {
+                Ok(v) => respond_json(req, 200, v),
                 Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
             }
         }
@@ -795,6 +877,12 @@ mod tests {
             fn active_folder(&self) -> Option<String> {
                 Some("f".into())
             }
+            fn receive(&self, name: &str, body: &mut dyn Read) -> Result<Value, String> {
+                let mut data = String::new();
+                body.read_to_string(&mut data).map_err(|e| e.to_string())?;
+                self.controls.lock().unwrap().push(format!("receive {name} {data}"));
+                Ok(json!({ "ok": true, "name": name }))
+            }
             fn control(&self, c: Control) -> Result<(), String> {
                 self.controls.lock().unwrap().push(format!("{c:?}"));
                 Ok(())
@@ -869,6 +957,25 @@ mod tests {
         assert!(call("POST", &format!("/api/control?t={token}&op=key&k=ctrl%2Bc")).1.contains("\"ok\":true"));
         assert_eq!(call("POST", &format!("/api/control?t={token}&op=key&k=%3Cscript%3E")).0, 400, "이상한 키 이름은 거절");
         assert_eq!(call("POST", &format!("/api/control?t={token}&op=nope")).0, 400);
+
+        // 보내기 탭: 본문 그대로 받고, 너무 크다고 적힌 요청은 바로 거절
+        let upload = |path: &str, body: &str, len: usize| -> (u16, String) {
+            let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            write!(s, "POST {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n{body}").unwrap();
+            // 보낼 것은 다 보냈다고 알린다 (본문이 모자란 '너무 큰 파일' 요청에서 서버가 기다리지 않게)
+            let _ = s.shutdown(std::net::Shutdown::Write);
+            let mut out = String::new();
+            let _ = s.read_to_string(&mut out);
+            let code = out.split_whitespace().nth(1).unwrap_or("0").parse().unwrap_or(0);
+            (code, out.split("\r\n\r\n").nth(1).unwrap_or("").to_string())
+        };
+        let (code, body) = upload(&format!("/api/upload?t={token}&name=%EB%A9%94%EB%AA%A8.txt"), "hello", 5);
+        assert_eq!(code, 200);
+        assert!(body.contains("\"ok\":true"), "{body}");
+        assert!(host.controls.lock().unwrap().iter().any(|c| c == "receive 메모.txt hello"));
+        assert_eq!(upload(&format!("/api/upload?t={token}&name=big.mp4"), "", 600 * 1024 * 1024).0, 413);
+        assert_eq!(upload("/api/upload?t=wrong&name=a.txt", "x", 1).0, 403, "열쇠 없이는 못 올림");
+        host.controls.lock().unwrap().retain(|c| !c.starts_with("receive"));
         assert!(call("POST", &format!("/api/control?t={token}&op=media&cmd=next")).1.contains("\"ok\":true"));
         assert!(call("POST", &format!("/api/control?t={token}&op=volume&v=150")).1.contains("\"ok\":true"));
         assert!(call("POST", &format!("/api/control?t={token}&op=mute")).1.contains("\"ok\":true"));

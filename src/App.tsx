@@ -187,6 +187,14 @@ export default function App() {
     const uns = [
       listen<{ version: string; current: string; notes: string; headline: string }>("update-available", (e) => setUpdate(e.payload)),
       listen<{ text: string; kind: "info" | "error" }>("update-status", (e) => showToast(e.payload.text, e.payload.kind, 5000)),
+      // 휴대폰 '보내기' 탭에서 파일이 왔을 때
+      listen<{ name: string; dir: string; clipboard: boolean }>("file-received", (e) =>
+        showToast(
+          `📥 '${e.payload.name}' 받았어요` + (e.payload.clipboard ? "\n클립보드에도 넣었어요 — Ctrl+V로 붙여 넣으세요" : ""),
+          "info",
+          5000,
+        ),
+      ),
       listen<{ got: number; total: number | null }>("update-progress", (e) => setUpdating(e.payload)),
     ];
     return () => {
