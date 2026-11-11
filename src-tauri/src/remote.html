@@ -166,9 +166,18 @@
   main.pane.on { display: grid; }
 
   /* ---------- 트랙패드 ---------- */
+  /* 트랙패드 탭은 머리줄과 아래 탭 사이를 꽉 채운다 (높이는 fitPad() 가 실제 화면을 재서 정한다).
+     트랙패드 판이 남는 자리를 차지하고, 클릭 버튼·속도는 항상 아래 탭 바로 위에 보이게 */
   #pad { padding: 14px; }
+  #pad.on {
+    display: flex; flex-direction: column;
+    height: calc(100vh - 130px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 130px - env(safe-area-inset-bottom));
+  }
+  #pad .mbtns, #pad .speed { flex-shrink: 0; }
+  .touch-hint { padding: 0 12px; pointer-events: none; }
   .touch {
-    height: calc(100vh - 230px); min-height: 220px;
+    flex: 1 1 auto; min-height: 110px;
     border-radius: 22px;
     background: rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
@@ -276,7 +285,7 @@
   .scan-top small { display: block; margin-top: 3px; font-size: 12px; opacity: 0.65; }
   .scan-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 18px; }
   .scan-wrap { position: relative; touch-action: none; }
-  .scan-wrap canvas { display: block; max-width: calc(100vw - 36px); max-height: calc(100vh - 230px); }
+  .scan-wrap canvas { display: block; max-width: calc(100vw - 36px); max-height: calc(100vh - 230px); max-height: calc(100dvh - 230px); }
   .scan-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .scan-h { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 3px solid #fff; background: rgba(10, 132, 255, 0.55); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); touch-action: none; }
   .scan-opts { display: flex; justify-content: center; gap: 8px; padding: 0 16px 10px; }
@@ -338,7 +347,18 @@
     header { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 6px; }
     main { gap: 12px 10px; padding-top: 12px; }
     .label { font-size: calc(var(--label-size, 12.5px) - 1px); }
-    .touch { height: calc(100vh - 170px); }
+  }
+  /* 세로가 짧은 화면(가로 모드·작은 휴대폰): 트랙패드 판을 넓게 두고 버튼·여백을 줄인다 */
+  @media (max-height: 640px) {
+    #pad { padding: 10px 12px; }
+    #pad .mbtns { margin-top: 8px; gap: 8px; }
+    #pad .mbtns button { padding: 10px 0; font-size: 14px; }
+    #pad .speed { margin-top: 6px; }
+    .touch { font-size: 12.5px; line-height: 1.5; }
+  }
+  @media (max-height: 420px) {
+    .touch { font-size: 11.5px; }
+    #pad .speed { display: none; }
   }
 </style>
 </head>
@@ -351,7 +371,7 @@
 <main id="grid" class="pane on"><div class="msg">PC 에 연결하는 중…</div></main>
 
 <section id="pad" class="pane">
-  <div class="touch" id="touch">한 손가락으로 문지르면 마우스 이동<br />톡 = 클릭 · 두 손가락 톡 = 오른쪽 클릭<br />두 손가락으로 위아래 = 스크롤<br /><b>톡 하고 바로 다시 대고 끌기</b> = 끌어 놓기</div>
+  <div class="touch" id="touch"><span class="touch-hint">한 손가락으로 문지르면 마우스 이동<br />톡 = 클릭 · 두 손가락 톡 = 오른쪽 클릭<br />두 손가락으로 위아래 = 스크롤<br /><b>톡 하고 바로 다시 대고 끌기</b> = 끌어 놓기</span></div>
   <div class="mbtns three">
     <button data-click="left">왼쪽 클릭</button>
     <button id="dragLock" title="누르면 마우스 왼쪽 버튼을 누른 채로 있어요. 다 옮긴 뒤 한 번 더 누르면 놓아요">✊ 잡고 끌기</button>
@@ -710,8 +730,22 @@
     back.style.visibility = id === "grid" ? "" : "hidden";
     title.textContent = id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : id === "send" ? "보내기" : (title.dataset.deck || "QuickDeck");
     if (id === "music") pollMedia();
+    if (id === "pad") { window.scrollTo(0, 0); requestAnimationFrame(fitPad); }
     store.set("tab", id);
   }
+  // 트랙패드 높이 = 머리줄 아래부터 아래 탭 바로 위까지 (주소창이 나타나고 사라지는 것까지 실제로 재서)
+  const padEl = document.getElementById("pad");
+  const tabbarEl = document.querySelector(".tabbar");
+  function fitPad() {
+    if (!padEl.classList.contains("on")) return;
+    const top = padEl.getBoundingClientRect().top;
+    const bottom = tabbarEl.getBoundingClientRect().top;
+    const h = Math.round(bottom - top);
+    if (h > 150) padEl.style.height = h + "px";
+  }
+  window.addEventListener("resize", fitPad);
+  window.addEventListener("orientationchange", () => setTimeout(fitPad, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", fitPad);
   tabs.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
   // --- 설정 시트 ---
