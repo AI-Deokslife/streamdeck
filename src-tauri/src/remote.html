@@ -145,6 +145,9 @@
   .hright { justify-self: end; display: flex; align-items: center; gap: 12px; }
   .hright .dot { justify-self: auto; }
   .gear { border: 0; background: none; color: var(--bar-text); font-size: 20px; padding: 2px 4px; line-height: 1; }
+  .gear[hidden] { display: none; }
+  .gear.fs { font-size: 19px; }
+  .gear.fs.on { color: var(--accent); }
 
   /* ---------- 아래 탭 ---------- */
   body { padding-bottom: calc(env(safe-area-inset-bottom) + 64px); }
@@ -366,7 +369,7 @@
 <header>
   <button class="back" id="back"><b>‹</b><span id="backText">뒤로</span></button>
   <h1 id="title">QuickDeck</h1>
-  <span class="hright"><span class="dot" id="dot" title="PC 연결 상태"></span><button class="gear" id="gear" aria-label="설정">⚙︎</button></span>
+  <span class="hright"><span class="dot" id="dot" title="PC 연결 상태"></span><button class="gear fs" id="fsBtn" aria-label="전체 화면" title="전체 화면 (주소창 숨기기)" hidden>⛶</button><button class="gear" id="gear" aria-label="설정">⚙︎</button></span>
 </header>
 <main id="grid" class="pane on"><div class="msg">PC 에 연결하는 중…</div></main>
 
@@ -443,6 +446,7 @@
       <button data-size="s">작게</button><button data-size="m">보통</button><button data-size="l">크게</button><button data-size="xl">아주 크게</button>
     </div>
   </div>
+  <label class="srow" id="fullRow"><span>전체 화면으로 보기<small id="fullNote">주소창 없이 꽉 차게 봐요. 켜 두면 다음에 열 때 화면을 한 번 누르면 전체 화면이 돼요</small></span><input type="checkbox" class="switch" id="optFull" /></label>
   <label class="srow"><span>화면 켜두기<small>리모컨을 보는 동안 화면이 꺼지지 않게</small></span><input type="checkbox" class="switch" id="optAwake" /></label>
   <div class="srow"><span>이 기기의 시작 화면<small id="startInfo">처음 화면</small></span></div>
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
@@ -768,6 +772,49 @@
     paintSize();
     render();
   }));
+  // --- 전체 화면 (주소창 숨기기): 위쪽 ⛶ 버튼으로 켜고 끄기, 설정에서 '다음에도 전체 화면' ---
+  const fsBtn = document.getElementById("fsBtn");
+  const optFull = document.getElementById("optFull");
+  const docEl = document.documentElement;
+  const canFs = !!(docEl.requestFullscreen || docEl.webkitRequestFullscreen);
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  async function enterFs() {
+    try {
+      if (docEl.requestFullscreen) await docEl.requestFullscreen({ navigationUI: "hide" });
+      else docEl.webkitRequestFullscreen();
+    } catch { toast("이 브라우저에서는 전체 화면을 쓸 수 없어요"); }
+  }
+  function exitFs() {
+    try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch {}
+  }
+  function paintFs() {
+    const on = isFs();
+    fsBtn.classList.toggle("on", on);
+    fsBtn.textContent = on ? "⊡" : "⛶";
+    fsBtn.title = on ? "전체 화면 끝내기" : "전체 화면 (주소창 숨기기)";
+    if (typeof fitPad === "function") setTimeout(fitPad, 150);
+  }
+  if (canFs) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener("click", () => (isFs() ? exitFs() : enterFs()));
+    document.addEventListener("fullscreenchange", paintFs);
+    document.addEventListener("webkitfullscreenchange", paintFs);
+    optFull.checked = store.get("full", false);
+    optFull.addEventListener("change", () => {
+      store.set("full", optFull.checked);
+      if (optFull.checked && !isFs()) enterFs();
+      if (!optFull.checked && isFs()) exitFs();
+    });
+    // 브라우저는 화면을 누른 뒤에만 전체 화면을 허락한다 → 켜 두었으면 처음 누를 때 전체 화면으로
+    if (optFull.checked) {
+      document.addEventListener("pointerdown", (e) => { if (!isFs() && !e.target.closest("#fsBtn, #optFull")) enterFs(); }, { once: true, capture: true });
+    }
+  } else {
+    // 아이폰 사파리는 웹 페이지 전체 화면을 지원하지 않는다
+    optFull.disabled = true;
+    document.getElementById("fullNote").textContent = "아이폰에서는 공유 버튼 → '홈 화면에 추가'로 만든 아이콘으로 열면 주소창 없이 보여요";
+  }
+
   optAwake.checked = store.get("awake", false);
   optAwake.addEventListener("change", () => { store.set("awake", optAwake.checked); keepAwake(optAwake.checked); });
   document.getElementById("setStart").addEventListener("click", () => {
