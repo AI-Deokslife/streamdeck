@@ -1,0 +1,15 @@
+{
+  "version": "0.9.1",
+  "notes": "휴대폰 리모컨 전체 화면",
+  "pub_date": "2026-11-12T14:43:38.865Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYWgyanRQM1ZNcnlSNmtsTmlvdURyaSsrOFF2L29sMzMwTWdSZnRFLzB2UFNReXBDejBqbFNLenlLcG1ndngvWVcra0N4ODA5YUhmVEJCcEhWcTJRbmd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDk0NjE1CWZpbGU6UXVpY2tEZWNrXzAuOS4xX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjkuMQo0YXVYRnM2U3hlM0x0UldvaElSN3ZYLzFuMDlWZVNsaVJuN0hYSG9hN1BCWmk2N0tPcE1YUDgxS1dqS3p1TnQrWmxCTGFvT0ViRmkzS0ZqNUYwNktCZz09Cg==",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/739844419"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYWgyanRQM1ZNcnlSNmtsTmlvdURyaSsrOFF2L29sMzMwTWdSZnRFLzB2UFNReXBDejBqbFNLenlLcG1ndngvWVcra0N4ODA5YUhmVEJCcEhWcTJRbmd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDk0NjE1CWZpbGU6UXVpY2tEZWNrXzAuOS4xX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjkuMQo0YXVYRnM2U3hlM0x0UldvaElSN3ZYLzFuMDlWZVNsaVJuN0hYSG9hN1BCWmk2N0tPcE1YUDgxS1dqS3p1TnQrWmxCTGFvT0ViRmkzS0ZqNUYwNktCZz09Cg==",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/739844419"
+    }
+  }
+}
