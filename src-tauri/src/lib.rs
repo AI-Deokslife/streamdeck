@@ -266,7 +266,9 @@ fn set_window_glass(app: AppHandle, blur: bool) -> Result<(), String> {
 fn apply_window_glass(app: &AppHandle, blur: bool) -> Result<(), String> {
     use tauri::window::{Effect, EffectsBuilder};
     let w = main_window(app).ok_or("창 없음")?;
-    let effects = blur.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build());
+    // 아크릴(Acrylic)은 Windows 11 에서 창이 활성일 때만 보이는데, QuickDeck 은 일부러 활성 창이 되지 않는다
+    // (입력 중인 창의 포커스를 뺏지 않으려고) → 활성 여부와 상관없이 보이는 Blur 효과를 쓴다
+    let effects = blur.then(|| EffectsBuilder::new().effect(Effect::Blur).build());
     w.set_effects(effects).map_err(|e| format!("창 효과를 바꾸지 못했어요: {e}"))
 }
 
@@ -621,6 +623,10 @@ pub fn run() {
             let state = app.state::<AppState>();
             autohide::set_enabled(cfg.auto_hide);
             autohide::start();
+            let hover_app = handle.clone();
+            winutil::start_hover_watcher(move |inside| {
+                let _ = hover_app.emit("mouse-inside", inside);
+            });
             if cfg.glass == "blur" {
                 let _ = apply_window_glass(&handle, true);
             }

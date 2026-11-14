@@ -241,14 +241,18 @@ export default function App() {
   const [hovered, setHovered] = useState(false);
   const [previewOpacity, setPreviewOpacity] = useState<number | null>(null);
   useEffect(() => {
+    // 들어올 때는 화면 이벤트로 바로 반응하고, 나갔는지는 PC 가 실제 마우스 위치로 알려 준다
+    // (창이 단축키·자동 숨김으로 사라지면 mouseleave 가 오지 않아 선명한 채로 멈추던 문제)
     const root = document.documentElement;
     const enter = () => setHovered(true);
     const leave = () => setHovered(false);
     root.addEventListener("mouseenter", enter);
     root.addEventListener("mouseleave", leave);
+    const un = listen<boolean>("mouse-inside", (e) => setHovered(e.payload));
     return () => {
       root.removeEventListener("mouseenter", enter);
       root.removeEventListener("mouseleave", leave);
+      un.then((f) => f());
     };
   }, []);
 

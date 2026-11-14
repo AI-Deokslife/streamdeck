@@ -41,7 +41,9 @@
   font-size: 13px;
   letter-spacing: -0.01em;
   color: var(--label);
-  background: var(--bg);
+  /* 창 자체는 투명해야 투명도를 낮췄을 때 뒤가 비친다 (바탕은 .app::before 가 그린다).
+     예전에는 여기서 불투명한 바탕을 칠해서, 투명도를 낮춰도 이 색만 비쳐 흐릿하게 보였다 */
+  background: transparent;
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
 }

@@ -47,6 +47,41 @@ pub fn own_hwnd() -> isize {
     OWN_HWND.load(Ordering::SeqCst)
 }
 
+/// 마우스가 지금 우리 창 안에 있는지 (창이 보일 때만)
+pub fn cursor_in_own_window() -> bool {
+    use windows_sys::Win32::{
+        Foundation::{POINT, RECT},
+        UI::WindowsAndMessaging::{GetCursorPos, GetWindowRect},
+    };
+    let h = own_hwnd() as HWND;
+    if h.is_null() || unsafe { IsWindowVisible(h) } == 0 {
+        return false;
+    }
+    let mut r: RECT = unsafe { std::mem::zeroed() };
+    let mut p = POINT { x: 0, y: 0 };
+    unsafe {
+        GetWindowRect(h, &mut r);
+        GetCursorPos(&mut p);
+    }
+    p.x >= r.left && p.x < r.right && p.y >= r.top && p.y < r.bottom
+}
+
+/// 마우스가 창에 들어오고 나가는 것을 지켜본다. 웹 화면의 mouseleave 는 창이 숨겨질 때 오지 않아서
+/// ('마우스를 올리면 선명하게'가 선명한 채로 멈추던 문제) 실제 마우스 위치로 판단한다.
+pub fn start_hover_watcher(on_change: impl Fn(bool) + Send + 'static) {
+    thread::spawn(move || {
+        let mut inside = false;
+        loop {
+            let now = cursor_in_own_window();
+            if now != inside {
+                inside = now;
+                on_change(inside);
+            }
+            thread::sleep(Duration::from_millis(150));
+        }
+    });
+}
+
 pub fn set_own_hwnd(hwnd: isize) {
     OWN_HWND.store(hwnd, Ordering::SeqCst);
 }
