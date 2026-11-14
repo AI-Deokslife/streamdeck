@@ -607,6 +607,10 @@ impl Host for AppHost {
         crate::press_from_remote(&self.0, id, long)
     }
     fn active_folder(&self) -> Option<String> {
+        // 프로그램을 닫아서 뒤 창이 앞에 온 것이면 그 창의 폴더로 따라가지 않는다
+        if crate::winutil::last_switch_was_close() {
+            return None;
+        }
         let exe = crate::winutil::last_app();
         let state = self.0.state::<crate::AppState>();
         let cfg = state.config.lock().unwrap();

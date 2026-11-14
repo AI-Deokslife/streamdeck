@@ -99,9 +99,30 @@ body,
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: opacity 0.25s ease;
-  background: var(--wallpaper);
+  /* 바탕은 아래 ::before 가 그린다 → 투명도를 낮추면 바탕만 비치고 버튼·글자는 또렷하게 남는다 */
+  isolation: isolate;
+  background: none;
   border: 0.5px solid var(--separator);
+}
+.app::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--wallpaper);
+  opacity: var(--bg-alpha, 1);
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+/* 투명도를 낮췄을 때: 머리줄 바탕도 같은 만큼 비치게 (테마마다 다른 바 색은 그대로 두고 진하기만) */
+.app.see-through .navbar {
+  background: color-mix(in srgb, var(--bar) calc(var(--bg-alpha, 1) * 100%), transparent) !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+/* 뒤가 비쳐도 이름 글씨가 읽히게 */
+.app.see-through .tile-label {
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* ---------- 공통 버튼 (iOS: filled / tinted / plain) ---------- */

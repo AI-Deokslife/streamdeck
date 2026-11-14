@@ -85,7 +85,8 @@ export default function App() {
   const applyFocus = useCallback((ev: AppFocus) => {
     const cfg = configRef.current;
     if (!cfg || editingRef.current) return;
-    const target = ev.folderId ? pathToFolder(cfg.buttons, ev.folderId) : null;
+    // 프로그램을 닫아서 뒤에 있던 창(예: 탐색기)이 앞에 온 것이면, 그 창의 폴더로 가지 않고 처음 화면으로
+    const target = ev.folderId && !ev.closed ? pathToFolder(cfg.buttons, ev.folderId) : null;
     const now = pathRef.current;
 
     if (target) {
@@ -645,8 +646,9 @@ export default function App() {
 
   return (
     <div
-      className={"app" + (editing ? " editing" : "")}
-      style={{ opacity: appOpacity }}
+      className={"app" + (editing ? " editing" : "") + (appOpacity < 1 ? " see-through" : "")}
+      // 투명도는 바탕에만 (버튼·글자는 또렷하게) — App.css 의 .app::before
+      style={{ "--bg-alpha": appOpacity } as React.CSSProperties}
     >
       {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
       <header className="navbar" data-tauri-drag-region>

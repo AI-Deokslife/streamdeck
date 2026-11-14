@@ -201,4 +201,6 @@ export interface RunningApp {
 export interface AppFocus {
   exe: string;
   folderId: string | null;
+  /** 앞에 있던 프로그램 창이 닫혀서 이 프로그램이 앞에 온 경우 */
+  closed?: boolean;
 }

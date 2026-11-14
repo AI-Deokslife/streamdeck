@@ -25,7 +25,9 @@
     --cols: 4;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; }
+  html { height: 100%; }
+  /* body 높이를 화면에 묶으면 내용이 길 때 sticky 머리줄이 같이 밀려 올라간다(가로 모드) → 최소 높이만 */
+  body { margin: 0; min-height: 100%; }
   body {
     font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
     background: var(--bg);
@@ -668,6 +670,7 @@
       path.push(id);
       render();
       window.scrollTo(0, 0);
+      armBack();
     }
     try {
       const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}${long ? "&long=1" : ""}`, { method: "POST" });
@@ -759,7 +762,7 @@
   const optAwake = document.getElementById("optAwake");
   const startInfo = document.getElementById("startInfo");
   const openSheet = (on) => { sheet.classList.toggle("on", on); sheetBg.classList.toggle("on", on); };
-  document.getElementById("gear").addEventListener("click", () => openSheet(true));
+  document.getElementById("gear").addEventListener("click", () => { openSheet(true); armBack(); });
   sheetBg.addEventListener("click", () => openSheet(false));
   optFollow.checked = store.get("follow", true);
   optFollow.addEventListener("change", () => store.set("follow", optFollow.checked));
@@ -1114,6 +1117,7 @@
     const ins = 0.07;
     const pts = [[W * ins, H * ins], [W * (1 - ins), H * ins], [W * (1 - ins), H * (1 - ins)], [W * ins, H * (1 - ins)]];
     scanEl.classList.add("on");
+    armBack();
     scanWrap.querySelectorAll(".scan-h").forEach((h) => h.remove());
     const handles = pts.map((_, i) => {
       const h = document.createElement("i");
@@ -1403,6 +1407,32 @@
     press(tile);
   });
   back.addEventListener("click", () => { autoFrom = null; path.pop(); render(); });
+
+  // ================= 휴대폰 '뒤로 가기' =================
+  // 리모컨은 한 페이지라서, 그냥 두면 뒤로 가기를 누르는 순간 리모컨에서 나가 버린다.
+  // 그래서 '되돌아갈 곳'이 있을 때 방어용 기록을 하나 쌓아 두고, 뒤로 가기를 누르면
+  // 열린 창 닫기 → 폴더 한 단계 위로 → 버튼 탭으로 순서대로 되돌린다.
+  // 처음 화면에서는 한 번 더 누르면 나간다.
+  function armBack() {
+    if (!history.state || history.state.qd !== "guard") history.pushState({ qd: "guard" }, "");
+  }
+  function handleBack() {
+    if (sheet.classList.contains("on")) { openSheet(false); return true; }
+    if (scanEl.classList.contains("on")) { document.getElementById("scanCancel").click(); return true; }
+    if (sendBox.classList.contains("on") && !sendBox.classList.contains("sending")) { sbHide(); return true; }
+    if (path.length) { autoFrom = null; path.pop(); render(); return true; }
+    const onTab = tabs.find((b) => b.classList.contains("on"));
+    if (onTab && onTab.dataset.tab !== "grid") { showTab("grid"); return true; }
+    return false;
+  }
+  window.addEventListener("popstate", () => {
+    if (handleBack()) { armBack(); return; }
+    toast("한 번 더 누르면 리모컨에서 나가요");
+  });
+  history.replaceState({ qd: "base" }, "");
+  armBack();
+  // 다른 탭으로 가거나 화면에 무언가를 열면 다시 방어 기록을 쌓는다 (나가기 직전 상태에서 돌아왔을 때)
+  tabs.forEach((b) => b.addEventListener("click", armBack));
   document.addEventListener("visibilitychange", poll);
   window.addEventListener("resize", render);
 

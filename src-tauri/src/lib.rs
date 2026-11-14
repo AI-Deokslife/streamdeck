@@ -188,6 +188,8 @@ struct AppFocusEvent {
     exe: String,
     /// 그 프로그램에 연결된 폴더 (없으면 null)
     folder_id: Option<String>,
+    /// 앞에 있던 프로그램 창이 닫혀서 이 프로그램이 앞에 온 경우 → 화면은 처음으로 돌아간다
+    closed: bool,
 }
 
 // ---------------- 프론트엔드에서 호출하는 명령 ----------------
@@ -321,7 +323,7 @@ async fn test_action(app: AppHandle, action: Action, inherited_apps: Vec<String>
 fn current_app(state: State<AppState>) -> AppFocusEvent {
     let exe = winutil::last_app();
     let folder_id = config::folder_for_app(&state.config.lock().unwrap().buttons, &exe);
-    AppFocusEvent { exe, folder_id }
+    AppFocusEvent { exe, folder_id, closed: false }
 }
 
 /// 지금 창이 열려 있는 프로그램 목록 (프로그램 연결할 때 고르기용)
@@ -589,13 +591,13 @@ pub fn run() {
             }
             // 활성 프로그램이 바뀌면 화면에 알린다 (연결된 폴더 자동 열기 = 스마트 프로필)
             let tracker_app = handle.clone();
-            winutil::start_foreground_tracker(move |exe| {
+            winutil::start_foreground_tracker(move |exe, closed| {
                 let folder_id = {
                     let state = tracker_app.state::<AppState>();
                     let cfg = state.config.lock().unwrap();
                     config::folder_for_app(&cfg.buttons, &exe)
                 };
-                let _ = tracker_app.emit("app-focus", AppFocusEvent { exe, folder_id });
+                let _ = tracker_app.emit("app-focus", AppFocusEvent { exe, folder_id, closed });
             });
 
             let mut notices = register_on_startup(&handle, &mut cfg);

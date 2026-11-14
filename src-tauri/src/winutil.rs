@@ -36,6 +36,13 @@ pub fn last_app() -> String {
     LAST_EXE.lock().unwrap().clone()
 }
 
+/// 마지막으로 앞에 온 프로그램이 '앞 창이 닫혀서' 온 것인지 (그럴 땐 휴대폰도 자동 전환하지 않는다)
+static LAST_SWITCH_CLOSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn last_switch_was_close() -> bool {
+    LAST_SWITCH_CLOSED.load(Ordering::SeqCst)
+}
+
 pub fn own_hwnd() -> isize {
     OWN_HWND.load(Ordering::SeqCst)
 }
@@ -170,7 +177,9 @@ pub fn is_window_visible(hwnd: isize) -> bool {
 
 /// 백그라운드에서 활성 창을 계속 기록하고, 활성 프로그램이 바뀌면 `on_app_change(exe 이름)`을 부른다.
 /// 우리 창이 앞에 올 때는 무시한다.
-pub fn start_foreground_tracker(on_app_change: impl Fn(String) + Send + 'static) {
+/// on_app_change(프로그램 이름, closed): closed 는 '앞에 있던 창이 닫혀서' 다른 창이 앞에 온 경우
+/// (예: 파워포인트를 닫았더니 뒤에 있던 탐색기가 앞에 옴 — 사용자가 탐색기로 간 게 아니다)
+pub fn start_foreground_tracker(on_app_change: impl Fn(String, bool) + Send + 'static) {
     thread::spawn(move || {
         let mut last_hwnd = 0isize;
         let mut last_exe = String::new();
@@ -179,13 +188,17 @@ pub fn start_foreground_tracker(on_app_change: impl Fn(String) + Send + 'static)
             if fg != 0 && fg != OWN_HWND.load(Ordering::SeqCst) {
                 LAST_FOREIGN.store(fg, Ordering::SeqCst);
                 if fg != last_hwnd {
+                    let prev = last_hwnd;
                     last_hwnd = fg;
                     if let Some(path) = exe_path_of(fg as HWND) {
                         let exe = file_name(&path).to_string();
                         if exe != last_exe {
                             last_exe = exe.clone();
                             *LAST_EXE.lock().unwrap() = exe.clone();
-                            on_app_change(exe);
+                            // 앞에 있던 창이 없어졌거나 숨었으면 '닫혀서 넘어온 것'
+                            let closed = prev != 0 && !is_window_visible(prev);
+                            LAST_SWITCH_CLOSED.store(closed, Ordering::SeqCst);
+                            on_app_change(exe, closed);
                         }
                     }
                 }
