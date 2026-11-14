@@ -2626,3 +2626,32 @@ kbd {
 .clip-pill button {
   flex-shrink: 0;
 }
+
+/* ---------- 미니 모드: 창을 아주 작게 줄였을 때 (아이콘만 띠처럼) ---------- */
+.app.mini .navbar {
+  min-height: 24px;
+  padding: 1px 4px;
+}
+.app.mini .nav-title-text {
+  font-size: 11px;
+}
+.app.mini .nav-subtitle,
+.app.mini .tile-label {
+  display: none;
+}
+.app.mini :is(.nav-btn, .nav-back) {
+  font-size: 11px;
+  padding: 1px 4px;
+}
+.app.mini .nav-icon {
+  width: 20px;
+  height: 20px;
+}
+.app.mini .grid {
+  gap: 4px;
+  padding: 4px;
+}
+.app.mini .tile {
+  padding: 0;
+  gap: 0;
+}

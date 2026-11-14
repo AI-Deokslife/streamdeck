@@ -72,6 +72,23 @@
     gap: 18px 10px;
     padding: 20px 14px calc(env(safe-area-inset-bottom) + 24px);
   }
+  /* 페이지 넘기기: 버튼이 한 화면에 다 안 들어가면 옆으로 넘기는 페이지로 나눈다 (아이폰 홈 화면처럼) */
+  #grid.paged.on { display: flex; flex-direction: column; padding: 0; gap: 0; overflow: hidden; }
+  .pages {
+    flex: 1 1 auto; min-height: 0; display: flex;
+    overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .pages::-webkit-scrollbar { display: none; }
+  .page {
+    flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
+    display: grid; grid-template-columns: repeat(var(--cols), 1fr); grid-auto-rows: min-content;
+    align-content: start; gap: 18px 10px; padding: 20px 14px 6px;
+  }
+  .dots { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; gap: 8px; height: 26px; }
+  .dots i { width: 7px; height: 7px; border-radius: 4px; background: var(--label); opacity: 0.28; transition: width 0.2s, opacity 0.2s; }
+  .dots i.on { width: 20px; opacity: 0.85; }
   .tile {
     display: flex;
     flex-direction: column;
@@ -168,6 +185,32 @@
   .tabbar button.on { opacity: 1; }
   .pane { display: none; }
   .pane.on { display: block; }
+  /* ---------- 패드처럼 넓은 화면: 아래 탭 → 왼쪽 옆 메뉴 ---------- */
+  body.rail { padding-bottom: 0; padding-left: 88px; }
+  body.rail .tabbar {
+    top: 0; right: auto; bottom: 0; width: 88px;
+    grid-template-columns: 1fr; grid-auto-rows: 74px; align-content: center; gap: 6px;
+    padding: calc(env(safe-area-inset-top) + 8px) 6px calc(env(safe-area-inset-bottom) + 8px);
+  }
+  body.rail .tabbar button { font-size: 12.5px; border-radius: 16px; }
+  body.rail .tabbar button b { font-size: 24px; }
+  body.rail .tabbar button.on { background: rgba(128, 128, 128, 0.18); }
+  body.rail header { padding-left: 18px; padding-right: 18px; }
+  body.rail .label { font-size: calc(var(--label-size, 12.5px) + 1px); }
+  body.rail #keys, body.rail #music, body.rail #send { max-width: 760px; margin: 0 auto; }
+
+  /* ---------- 가로로 둔 패드: 왼쪽 버튼판 + 오른쪽 트랙패드(또는 키보드·음악·보내기) ---------- */
+  body.split .tabbar button[data-tab="grid"] { display: none; }
+  body.split main#grid.pane {
+    display: flex; flex-direction: column;
+    position: fixed; z-index: 1; left: 88px; top: var(--hdr, 60px); bottom: 0;
+    width: calc((100vw - 88px) * 0.56);
+    border-right: 1px solid rgba(128, 128, 128, 0.22);
+  }
+  body.split main#grid.pane:not(.paged) { display: grid; overflow-y: auto; padding-bottom: 24px; }
+  body.split .pane:not(#grid) { margin-left: calc((100vw - 88px) * 0.56); }
+  body.split #keys, body.split #music, body.split #send { max-width: none; }
+
   main.pane.on { display: grid; }
 
   /* ---------- 트랙패드 ---------- */
@@ -330,7 +373,11 @@
     border-radius: 20px 20px 0 0;
     background: #1c1c1e; color: #fff;
     transform: translateY(105%); transition: transform 0.25s ease;
+    /* 작은 휴대폰·가로 모드에서도 위가 잘리지 않게: 화면의 88% 까지, 넘치면 안에서 스크롤 */
+    max-height: 88vh; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain;
   }
+  /* 패드처럼 넓은 화면에서는 가운데에 적당한 폭으로 */
+  body.rail .sheet { left: 50%; right: auto; width: min(560px, 92vw); margin-left: calc(min(560px, 92vw) / -2); }
   body.light .sheet { background: #fff; color: #191f28; }
   .sheet.on { transform: translateY(0); }
   .sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: rgba(128, 128, 128, 0.5); margin: 0 auto 12px; }
@@ -449,6 +496,7 @@
     </div>
   </div>
   <label class="srow" id="fullRow"><span>전체 화면으로 보기<small id="fullNote">주소창 없이 꽉 차게 봐요. 켜 두면 다음에 열 때 화면을 한 번 누르면 전체 화면이 돼요</small></span><input type="checkbox" class="switch" id="optFull" /></label>
+  <label class="srow"><span>옆으로 넘기기<small>버튼이 한 화면에 다 안 들어가면 페이지로 나눠서 옆으로 넘겨요. 끄면 아래로 내려 봐요</small></span><input type="checkbox" class="switch" id="optPaging" /></label>
   <label class="srow"><span>화면 켜두기<small>리모컨을 보는 동안 화면이 꺼지지 않게</small></span><input type="checkbox" class="switch" id="optAwake" /></label>
   <div class="srow"><span>이 기기의 시작 화면<small id="startInfo">처음 화면</small></span></div>
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
@@ -599,9 +647,76 @@
       grid.innerHTML = '<div class="empty">이 화면에는 버튼이 없어요.<br>PC 의 QuickDeck 에서 버튼을 추가해 보세요.</div>';
       return;
     }
-    grid.innerHTML = list.map((b) =>
-      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}" data-min="${b.minutes || 0}" data-long="${b.hasLong ? 1 : 0}">${iconHtml(b)}<span class="label">${esc(shown(b).label)}</span></button>`).join("");
+    const tiles = list.map((b) =>
+      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}" data-min="${b.minutes || 0}" data-long="${b.hasLong ? 1 : 0}">${iconHtml(b)}<span class="label">${esc(shown(b).label)}</span></button>`);
+    renderPages(tiles, cols);
     paintWidgets();
+  }
+
+  // ---------- 페이지 넘기기 ----------
+  let pageIndex = 0, pageKey = "";
+  function pagingOn() {
+    try { return JSON.parse(localStorage.getItem("qd.paging") ?? "true"); } catch { return true; }
+  }
+  // 버튼 화면 높이 = 머리줄 아래부터 아래 탭(또는 화면 끝) 위까지
+  function fitGrid() {
+    if (!grid.classList.contains("paged") || !grid.classList.contains("on")) { grid.style.height = ""; return; }
+    const top = grid.getBoundingClientRect().top;
+    const bar = document.querySelector(".tabbar").getBoundingClientRect();
+    const bottom = bar.width < bar.height ? window.innerHeight : bar.top; // 옆 메뉴(패드)면 화면 끝까지
+    grid.style.height = Math.max(160, Math.round(bottom - top)) + "px";
+  }
+  function renderPages(tiles, cols) {
+    const key = path.join("/");
+    if (key !== pageKey) { pageKey = key; pageIndex = 0; }
+    // 다른 탭을 보고 있으면(크기를 잴 수 없음) 그냥 한 덩어리로 두고, 버튼 탭으로 돌아올 때 다시 나눈다
+    if (!pagingOn() || !grid.classList.contains("on")) {
+      grid.classList.remove("paged");
+      grid.style.height = "";
+      grid.innerHTML = tiles.join("");
+      return;
+    }
+    grid.classList.add("paged");
+    grid.style.removeProperty("--icon-max");
+    window.scrollTo(0, 0);
+    fitGrid();
+    // 버튼 하나를 그려서 한 줄 높이를 잰 뒤, 한 페이지에 몇 줄이 들어가는지 계산
+    grid.innerHTML = `<div class="pages"><div class="page">${tiles[0]}</div></div>`;
+    const page = grid.querySelector(".page");
+    const cs = getComputedStyle(page);
+    let tileH = page.firstElementChild.getBoundingClientRect().height || 100;
+    const gapY = parseFloat(cs.rowGap) || 0;
+    const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const avail = grid.clientHeight - 26; // 아래 점 자리
+    let rows = Math.max(1, Math.floor((avail - padY + gapY) / (tileH + gapY)));
+    // 세로가 짧아(가로 모드) 한 줄밖에 안 들어가면, 아이콘을 조금 줄여서 두 줄이 들어가게
+    if (rows < 2 && tiles.length > cols) {
+      const iconH = page.querySelector(".icon").getBoundingClientRect().height;
+      const labelPart = tileH - iconH;
+      const fit = Math.floor((avail - padY - gapY) / 2 - labelPart);
+      if (fit >= 40) {
+        grid.style.setProperty("--icon-max", fit + "px");
+        tileH = page.firstElementChild.getBoundingClientRect().height;
+        rows = Math.max(1, Math.floor((avail - padY + gapY) / (tileH + gapY)));
+      }
+    }
+    const per = Math.max(1, rows * cols);
+    const pages = [];
+    for (let i = 0; i < tiles.length; i += per) pages.push(tiles.slice(i, i + per));
+    pageIndex = Math.min(pageIndex, pages.length - 1);
+    grid.innerHTML = `<div class="pages">${pages.map((p) => `<div class="page">${p.join("")}</div>`).join("")}</div>` +
+      (pages.length > 1 ? `<div class="dots">${pages.map((_, i) => `<i data-p="${i}" class="${i === pageIndex ? "on" : ""}"></i>`).join("")}</div>` : "");
+    const strip = grid.querySelector(".pages");
+    strip.scrollLeft = pageIndex * strip.clientWidth;
+    strip.addEventListener("scroll", () => {
+      const i = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));
+      if (i === pageIndex) return;
+      pageIndex = i;
+      grid.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i));
+    }, { passive: true });
+    grid.querySelectorAll(".dots i").forEach((d) => d.addEventListener("click", () => {
+      strip.scrollTo({ left: Number(d.dataset.p) * strip.clientWidth, behavior: "smooth" });
+    }));
   }
 
   // ---------- 위젯: 1초마다 시각·사용률·타이머 남은 시간 ----------
@@ -731,13 +846,38 @@
 
   // --- 탭 ---
   const tabs = [...document.querySelectorAll(".tabbar button")];
+  // ---------- 화면 모양: 패드처럼 넓으면 왼쪽 옆 메뉴, 가로로 넓으면 버튼판 + 오른쪽 탭 나눠 보기 ----------
+  const isSplit = () => document.body.classList.contains("split");
+  let rightTab = "pad"; // 나눠 보기에서 오른쪽에 띄울 탭
+  function applyLayout() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const rail = w >= 768;
+    const split = rail && w >= 960 && w > h * 1.15;
+    const wasSplit = isSplit();
+    document.body.classList.toggle("rail", rail);
+    document.body.classList.toggle("split", split);
+    const hdr = document.querySelector("header");
+    if (hdr) document.documentElement.style.setProperty("--hdr", hdr.getBoundingClientRect().height + "px");
+    if (split !== wasSplit && typeof showTab === "function" && tabs.length) {
+      const on = tabs.find((b) => b.classList.contains("on"));
+      showTab(split ? (on && on.dataset.tab !== "grid" ? on.dataset.tab : rightTab) : (on ? on.dataset.tab : "grid"));
+    }
+  }
+
   function showTab(id) {
+    if (isSplit()) {
+      // 나눠 보기: 버튼판은 늘 왼쪽에 있고, 오른쪽만 바꾼다
+      if (id === "grid") id = rightTab;
+      rightTab = id;
+    }
     tabs.forEach((b) => b.classList.toggle("on", b.dataset.tab === id));
-    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === id));
-    back.style.visibility = id === "grid" ? "" : "hidden";
-    title.textContent = id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : id === "send" ? "보내기" : (title.dataset.deck || "QuickDeck");
+    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === id || (isSplit() && p.id === "grid")));
+    const gridShown = id === "grid" || isSplit();
+    back.style.visibility = gridShown ? "" : "hidden";
+    title.textContent = gridShown ? (title.dataset.deck || "QuickDeck") : id === "pad" ? "트랙패드" : id === "keys" ? "키보드" : id === "music" ? "음악" : id === "send" ? "보내기" : "QuickDeck";
     if (id === "music") pollMedia();
     if (id === "pad") { window.scrollTo(0, 0); requestAnimationFrame(fitPad); }
+    if (gridShown) requestAnimationFrame(render);
     store.set("tab", id);
   }
   // 트랙패드 높이 = 머리줄 아래부터 아래 탭 바로 위까지 (주소창이 나타나고 사라지는 것까지 실제로 재서)
@@ -746,11 +886,13 @@
   function fitPad() {
     if (!padEl.classList.contains("on")) return;
     const top = padEl.getBoundingClientRect().top;
-    const bottom = tabbarEl.getBoundingClientRect().top;
+    const bar = tabbarEl.getBoundingClientRect();
+    const bottom = bar.width < bar.height ? window.innerHeight : bar.top; // 옆 메뉴(패드)면 화면 끝까지
     const h = Math.round(bottom - top);
     if (h > 150) padEl.style.height = h + "px";
   }
-  window.addEventListener("resize", fitPad);
+  window.addEventListener("resize", () => { applyLayout(); fitPad(); });
+  applyLayout();
   window.addEventListener("orientationchange", () => setTimeout(fitPad, 250));
   if (window.visualViewport) window.visualViewport.addEventListener("resize", fitPad);
   tabs.forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -818,6 +960,9 @@
     document.getElementById("fullNote").textContent = "아이폰에서는 공유 버튼 → '홈 화면에 추가'로 만든 아이콘으로 열면 주소창 없이 보여요";
   }
 
+  const optPaging = document.getElementById("optPaging");
+  optPaging.checked = store.get("paging", true);
+  optPaging.addEventListener("change", () => { store.set("paging", optPaging.checked); render(); });
   optAwake.checked = store.get("awake", false);
   optAwake.addEventListener("change", () => { store.set("awake", optAwake.checked); keepAwake(optAwake.checked); });
   document.getElementById("setStart").addEventListener("click", () => {
@@ -1438,7 +1583,7 @@
     if (sendBox.classList.contains("on") && !sendBox.classList.contains("sending")) { sbHide(); return true; }
     // 다른 탭에 있으면 먼저 버튼 탭으로 (폴더는 버튼 탭에서만 보이니까)
     const onTab = tabs.find((b) => b.classList.contains("on"));
-    if (onTab && onTab.dataset.tab !== "grid") { showTab("grid"); return true; }
+    if (!isSplit() && onTab && onTab.dataset.tab !== "grid") { showTab("grid"); return true; }
     if (path.length) { autoFrom = null; path.pop(); render(); return true; }
     return false;
   }
@@ -1456,6 +1601,7 @@
   // 버튼 탭 ↔ 다른 탭: 다른 탭으로 갈 때 기록 하나, 버튼 탭으로 직접 돌아오면 지운다
   let tabPushed = false;
   tabs.forEach((b) => b.addEventListener("click", () => {
+    if (isSplit()) return; // 나눠 보기에서는 오른쪽 탭만 바뀐다 (되돌아갈 곳이 아님)
     if (b.dataset.tab !== "grid" && !tabPushed) { tabPushed = true; pushBack(); }
     else if (b.dataset.tab === "grid" && tabPushed) { tabPushed = false; consumeBack(); }
   }));

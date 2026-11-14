@@ -291,6 +291,15 @@ export default function App() {
   const gridRef = useRef<HTMLElement>(null);
   const [iconSize, setIconSize] = useState(60);
 
+  // 미니 모드: 창을 아주 작게 줄이면 머리줄을 얇게, 이름을 숨겨서 아이콘만 띠처럼 보여 준다
+  const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const on = () => setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  const mini = !editing && (winSize.h < 170 || winSize.w < 230);
+
   // 편집 팝업: 버튼을 누르면 그 버튼 편집, 머리줄 '설정'을 누르면 전체 설정
   const [settingsOpen, setSettingsOpen] = useState(false);
   function closeModal() {
@@ -299,7 +308,13 @@ export default function App() {
   }
   const tileCount =
     (current ?? view?.buttons ?? []).length + (path.length > 0 ? 1 : 0) + (editing ? 1 : 0) + (editing && copied ? 1 : 0);
-  const columns = view?.columns ?? 4;
+  // 미니 모드에서는 창 모양에 맞춰 칸 수를 바꾼다: 가로로 긴 띠면 한두 줄에 모두, 세로로 긴 띠면 한두 칸
+  const MINI_CELL = 40;
+  const columns = mini
+    ? Math.max(1, winSize.w >= winSize.h
+        ? Math.ceil(tileCount / Math.max(1, Math.floor((winSize.h - 26) / MINI_CELL)))
+        : Math.floor(winSize.w / MINI_CELL))
+    : (view?.columns ?? 4);
   useEffect(() => {
     const el = gridRef.current;
     if (!el) return;
@@ -315,17 +330,17 @@ export default function App() {
       if (!editing) {
         // 편집 중이 아닐 때는 높이도 고려: 아이콘 + 이름(약 19px) 이 모든 줄에 들어가야 함
         const rows = Math.max(1, Math.ceil(tileCount / columns));
-        const byHeight = (el.clientHeight - padY - rowGap * (rows - 1)) / rows - LABEL_SPACE;
+        const byHeight = (el.clientHeight - padY - rowGap * (rows - 1)) / rows - (mini ? 0 : LABEL_SPACE);
         size = Math.min(byWidth, byHeight);
       }
-      // 너무 작으면 글자가 안 보이므로 하한을 두고(그땐 스크롤), 너무 커도 어색하므로 상한
-      setIconSize(Math.round(Math.max(MIN_ICON, Math.min(MAX_ICON, editing ? Math.min(size, 64) : size))));
+      // 너무 작으면 글자가 안 보이므로 하한을 두고(그땐 스크롤), 너무 커도 어색하므로 상한 (미니 모드는 이름이 없어 더 작게까지)
+      setIconSize(Math.round(Math.max(mini ? 22 : MIN_ICON, Math.min(MAX_ICON, editing ? Math.min(size, 64) : size))));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [tileCount, columns, editing]);
+  }, [tileCount, columns, editing, mini]);
 
   // 편집 중 단축키 (Ctrl+C 복사, Ctrl+V 붙여넣기, Ctrl+D 복제). 핸들러는 매 렌더마다 최신으로 바꿔 끼운다
   const editKeys = useRef<(e: KeyboardEvent) => void>(undefined);
@@ -658,7 +673,7 @@ export default function App() {
 
   return (
     <div
-      className={"app" + (editing ? " editing" : "") + (appOpacity < 1 && !fadeAll ? " see-through" : "")}
+      className={"app" + (editing ? " editing" : "") + (mini ? " mini" : "") + (appOpacity < 1 && !fadeAll ? " see-through" : "")}
       // '버튼·글자도 같이 흐리게'(기본): 창 전체를 흐리게 → 주변에서 잘 안 보이게
       // 끄면 바탕만 비치고 버튼·글자는 또렷하게 (App.css 의 .app::before)
       style={(fadeAll ? { opacity: appOpacity } : { "--bg-alpha": appOpacity }) as React.CSSProperties}
@@ -736,7 +751,7 @@ export default function App() {
         className="grid"
         style={
           {
-            gridTemplateColumns: `repeat(${view.columns}, 1fr)`,
+            gridTemplateColumns: `repeat(${columns}, 1fr)`,
             "--icon-size": `${iconSize}px`,
           } as React.CSSProperties
         }
