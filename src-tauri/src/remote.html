@@ -670,7 +670,7 @@
       path.push(id);
       render();
       window.scrollTo(0, 0);
-      armBack();
+      pushBack();
     }
     try {
       const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}${long ? "&long=1" : ""}`, { method: "POST" });
@@ -762,8 +762,8 @@
   const optAwake = document.getElementById("optAwake");
   const startInfo = document.getElementById("startInfo");
   const openSheet = (on) => { sheet.classList.toggle("on", on); sheetBg.classList.toggle("on", on); };
-  document.getElementById("gear").addEventListener("click", () => { openSheet(true); armBack(); });
-  sheetBg.addEventListener("click", () => openSheet(false));
+  document.getElementById("gear").addEventListener("click", () => { openSheet(true); pushBack(); });
+  sheetBg.addEventListener("click", () => { openSheet(false); consumeBack(); });
   optFollow.checked = store.get("follow", true);
   optFollow.addEventListener("change", () => store.set("follow", optFollow.checked));
   const sizeBtns = [...document.querySelectorAll("#optSize button")];
@@ -1117,7 +1117,7 @@
     const ins = 0.07;
     const pts = [[W * ins, H * ins], [W * (1 - ins), H * ins], [W * (1 - ins), H * (1 - ins)], [W * ins, H * (1 - ins)]];
     scanEl.classList.add("on");
-    armBack();
+    pushBack();
     scanWrap.querySelectorAll(".scan-h").forEach((h) => h.remove());
     const handles = pts.map((_, i) => {
       const h = document.createElement("i");
@@ -1145,6 +1145,7 @@
     return new Promise((resolve) => {
       const finish = (v) => {
         scanEl.classList.remove("on");
+        if (scanClosingByBack) scanClosingByBack = false; else consumeBack();
         window.removeEventListener("resize", place);
         ok.onclick = raw.onclick = cancel.onclick = null;
         resolve(v);
@@ -1406,33 +1407,63 @@
     if (holdFired) { holdFired = false; return; }
     press(tile);
   });
-  back.addEventListener("click", () => { autoFrom = null; path.pop(); render(); });
+  back.addEventListener("click", () => { autoFrom = null; path.pop(); render(); consumeBack(); });
 
   // ================= 휴대폰 '뒤로 가기' =================
   // 리모컨은 한 페이지라서, 그냥 두면 뒤로 가기를 누르는 순간 리모컨에서 나가 버린다.
-  // 그래서 '되돌아갈 곳'이 있을 때 방어용 기록을 하나 쌓아 두고, 뒤로 가기를 누르면
-  // 열린 창 닫기 → 폴더 한 단계 위로 → 버튼 탭으로 순서대로 되돌린다.
-  // 처음 화면에서는 한 번 더 누르면 나간다.
-  function armBack() {
-    if (!history.state || history.state.qd !== "guard") history.pushState({ qd: "guard" }, "");
+  // 그래서 무언가를 열 때마다(설정·폴더·스캔·다른 탭) 뒤로 가기 기록을 하나씩 쌓고,
+  // 뒤로 가기를 누르면 그 순서대로 닫는다. 처음 화면에서는 한 번 더 누르면 나간다.
+  // ※ 크롬은 '화면을 누르지 않은 상태'에서 쌓은 기록을 뒤로 가기에서 건너뛴다 →
+  //    기록은 반드시 사용자가 누르는 순간에 쌓는다 (페이지를 열자마자 쌓으면 소용없다)
+  let backStack = 0;      // 우리가 쌓은 기록 수 (열린 것들)
+  let homeGuard = false;  // 처음 화면용 '한 번 더 누르면 나가요' 기록
+  let ignorePop = 0;      // 화면에서 직접 닫으면서 기록을 지운 것 (그때 오는 popstate 는 무시)
+  let scanClosingByBack = false;
+  function pushBack() {
+    backStack++;
+    history.pushState({ qd: "open", n: backStack }, "");
   }
+  // 뒤로 가기 대신 화면 버튼으로 닫았을 때: 쌓아 둔 기록 하나를 조용히 지운다
+  function consumeBack() {
+    if (backStack > 0) { backStack--; ignorePop++; history.back(); }
+  }
+  function armHomeGuard() {
+    if (!homeGuard && backStack === 0) { homeGuard = true; history.pushState({ qd: "home" }, ""); }
+  }
+  // 처음 화면 기록도 사용자가 처음 누르는 순간에
+  document.addEventListener("pointerdown", armHomeGuard, true);
   function handleBack() {
     if (sheet.classList.contains("on")) { openSheet(false); return true; }
-    if (scanEl.classList.contains("on")) { document.getElementById("scanCancel").click(); return true; }
+    if (scanEl.classList.contains("on")) { scanClosingByBack = true; document.getElementById("scanCancel").click(); return true; }
     if (sendBox.classList.contains("on") && !sendBox.classList.contains("sending")) { sbHide(); return true; }
-    if (path.length) { autoFrom = null; path.pop(); render(); return true; }
+    // 다른 탭에 있으면 먼저 버튼 탭으로 (폴더는 버튼 탭에서만 보이니까)
     const onTab = tabs.find((b) => b.classList.contains("on"));
     if (onTab && onTab.dataset.tab !== "grid") { showTab("grid"); return true; }
+    if (path.length) { autoFrom = null; path.pop(); render(); return true; }
     return false;
   }
   window.addEventListener("popstate", () => {
-    if (handleBack()) { armBack(); return; }
-    toast("한 번 더 누르면 리모컨에서 나가요");
+    if (ignorePop > 0) { ignorePop--; return; }
+    if (backStack > 0) {
+      backStack--;
+      handleBack();
+      return;
+    }
+    // 처음 화면 기록이 빠졌다: 무언가 열려 있으면 닫고, 아니면 안내 (한 번 더 누르면 정말 나간다)
+    homeGuard = false;
+    if (!handleBack()) toast("한 번 더 누르면 리모컨에서 나가요");
   });
-  history.replaceState({ qd: "base" }, "");
-  armBack();
-  // 다른 탭으로 가거나 화면에 무언가를 열면 다시 방어 기록을 쌓는다 (나가기 직전 상태에서 돌아왔을 때)
-  tabs.forEach((b) => b.addEventListener("click", armBack));
+  // 버튼 탭 ↔ 다른 탭: 다른 탭으로 갈 때 기록 하나, 버튼 탭으로 직접 돌아오면 지운다
+  let tabPushed = false;
+  tabs.forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.tab !== "grid" && !tabPushed) { tabPushed = true; pushBack(); }
+    else if (b.dataset.tab === "grid" && tabPushed) { tabPushed = false; consumeBack(); }
+  }));
+  // 뒤로 가기로 버튼 탭에 돌아왔을 때도 표시를 풀어 둔다
+  window.addEventListener("popstate", () => {
+    const onTab = tabs.find((b) => b.classList.contains("on"));
+    if (onTab && onTab.dataset.tab === "grid") tabPushed = false;
+  });
   document.addEventListener("visibilitychange", poll);
   window.addEventListener("resize", render);
 
