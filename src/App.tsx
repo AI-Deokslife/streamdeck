@@ -367,6 +367,12 @@ export default function App() {
     h.last = draft;
   }, [draft, editing]);
 
+  // 뒤가 비치는 모양: 흐린 유리면 Windows 아크릴 효과를 창 뒤에 깐다 (편집 중에는 고르는 즉시 미리 보이게 draft 기준)
+  const glassBlur = view?.glass === "blur";
+  useEffect(() => {
+    invoke("set_window_glass", { blur: glassBlur }).catch(() => {});
+  }, [glassBlur]);
+
   if (!config || !view) return <div className="loading">불러오는 중…</div>;
 
   const buttons = current ?? view.buttons;

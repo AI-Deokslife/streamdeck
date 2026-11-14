@@ -58,6 +58,8 @@ export interface Config {
   theme?: Theme;
   /** 창 투명도 20~100 (100 = 불투명) */
   opacity?: number;
+  /** 투명도를 낮췄을 때 뒤가 비치는 모양: clear 맑게(기본) / blur 흐린 유리 */
+  glass?: "clear" | "blur";
   /** 마우스를 올렸을 때만 선명하게 */
   clearOnHover?: boolean;
   /** 화면 가장자리에 붙이면 자동으로 숨기기 */

@@ -159,6 +159,9 @@ pub struct Config {
     /// 화면 가장자리에 붙이면 마우스가 떠날 때 숨기기
     #[serde(default)]
     pub auto_hide: bool,
+    /// 투명도를 낮췄을 때 뒤가 비치는 모양: "clear"(맑게, 기본) / "blur"(흐린 유리)
+    #[serde(default)]
+    pub glass: String,
 }
 
 fn default_opacity() -> u32 {
@@ -197,6 +200,7 @@ impl Default for Config {
             opacity: default_opacity(),
             clear_on_hover: false,
             auto_hide: false,
+            glass: String::new(),
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),

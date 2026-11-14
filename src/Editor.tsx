@@ -1240,6 +1240,34 @@ export function SettingsEditor({
           onBlur={() => onPreviewOpacity(null)}
         />
       </label>
+      <label>뒤가 비치는 모양</label>
+      <div className="segmented" role="radiogroup" aria-label="뒤가 비치는 모양">
+        {(
+          [
+            ["clear", "맑게"],
+            ["blur", "흐린 유리"],
+          ] as const
+        ).map(([v, name]) => {
+          const on = (config.glass ?? "clear") === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className={on ? "on" : ""}
+              onClick={() => onChange({ ...config, glass: v })}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+      <p className="hint">
+        {(config.glass ?? "clear") === "blur"
+          ? "뒤에 있는 화면이 뿌옇게 흐려져 비쳐요 (Windows 설정의 '투명 효과'가 켜져 있어야 해요). 투명도를 낮출수록 더 많이 비쳐요."
+          : "뒤에 있는 화면이 또렷하게 비쳐요. 투명도를 낮출수록 더 많이 비쳐요."}
+      </p>
       <label className="check">
         <input
           type="checkbox"
@@ -1250,7 +1278,7 @@ export function SettingsEditor({
       </label>
       <p className="hint">
         슬라이더를 움직이는 동안 미리 보여요. 편집하는 동안은 항상 선명하게 보입니다. ‘마우스를 올리면 선명하게’를 켜면
-        평소엔 흐릿하다가 마우스를 올리는 순간 또렷해져요.
+        평소엔 뒤가 비치다가 마우스를 올리는 순간 불투명해져요.
       </p>
 
       <label className="check">

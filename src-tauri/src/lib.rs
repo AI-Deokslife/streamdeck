@@ -257,6 +257,19 @@ fn regenerate_remote_key(app: AppHandle) -> remote::RemoteStatus {
     remote::regenerate(&app)
 }
 
+/// 투명도를 낮췄을 때 뒤가 비치는 모양: blur = 흐린 유리(Windows 아크릴 효과), 아니면 맑게
+#[tauri::command]
+fn set_window_glass(app: AppHandle, blur: bool) -> Result<(), String> {
+    apply_window_glass(&app, blur)
+}
+
+fn apply_window_glass(app: &AppHandle, blur: bool) -> Result<(), String> {
+    use tauri::window::{Effect, EffectsBuilder};
+    let w = main_window(app).ok_or("창 없음")?;
+    let effects = blur.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build());
+    w.set_effects(effects).map_err(|e| format!("창 효과를 바꾸지 못했어요: {e}"))
+}
+
 /// 휴대폰에서 받은 파일: 폴더·클립보드 설정
 #[tauri::command]
 fn set_remote_receive(app: AppHandle, clip_image: Option<bool>, reset_dir: Option<bool>) -> remote::RemoteStatus {
@@ -608,6 +621,9 @@ pub fn run() {
             let state = app.state::<AppState>();
             autohide::set_enabled(cfg.auto_hide);
             autohide::start();
+            if cfg.glass == "blur" {
+                let _ = apply_window_glass(&handle, true);
+            }
             // 저장된 위치가 화면 밖이면 안으로 (부팅 직후엔 모니터가 늦게 잡힐 수 있어 몇 번 더 확인)
             thread::spawn(|| {
                 for secs in [0u64, 2, 6, 15] {
@@ -649,6 +665,7 @@ pub fn run() {
             set_remote,
             regenerate_remote_key,
             allow_usb_remote,
+            set_window_glass,
             set_remote_receive,
             pick_receive_dir,
             open_receive_dir,
