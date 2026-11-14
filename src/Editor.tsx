@@ -1240,6 +1240,14 @@ export function SettingsEditor({
           onBlur={() => onPreviewOpacity(null)}
         />
       </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={config.fadeAll ?? true}
+          onChange={(e) => onChange({ ...config, fadeAll: e.target.checked })}
+        />
+        버튼과 글자도 같이 흐리게 (주변 사람에게 잘 안 보이게)
+      </label>
       <label>뒤가 비치는 모양</label>
       <div className="segmented" role="radiogroup" aria-label="뒤가 비치는 모양">
         {(

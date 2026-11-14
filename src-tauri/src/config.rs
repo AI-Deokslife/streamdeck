@@ -162,6 +162,13 @@ pub struct Config {
     /// 투명도를 낮췄을 때 뒤가 비치는 모양: "clear"(맑게, 기본) / "blur"(흐린 유리)
     #[serde(default)]
     pub glass: String,
+    /// 투명도를 낮추면 버튼·글자도 같이 흐리게 (기본 켜짐. 끄면 바탕만 비침)
+    #[serde(default = "default_fade_all")]
+    pub fade_all: bool,
+}
+
+fn default_fade_all() -> bool {
+    true
 }
 
 fn default_opacity() -> u32 {
@@ -201,6 +208,7 @@ impl Default for Config {
             clear_on_hover: false,
             auto_hide: false,
             glass: String::new(),
+            fade_all: true,
             buttons: vec![
                 btn("b1", "메모장", "📝", "#2b6cb0", "", Action::Launch { target: "notepad.exe".into(), args: String::new() }),
                 btn("b2", "계산기", "🧮", "#2f855a", "", Action::Launch { target: "calc.exe".into(), args: String::new() }),

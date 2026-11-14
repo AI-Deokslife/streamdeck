@@ -60,6 +60,8 @@ export interface Config {
   opacity?: number;
   /** 투명도를 낮췄을 때 뒤가 비치는 모양: clear 맑게(기본) / blur 흐린 유리 */
   glass?: "clear" | "blur";
+  /** 투명도를 낮추면 버튼·글자도 같이 흐리게 (없으면 켜짐) */
+  fadeAll?: boolean;
   /** 마우스를 올렸을 때만 선명하게 */
   clearOnHover?: boolean;
   /** 화면 가장자리에 붙이면 자동으로 숨기기 */

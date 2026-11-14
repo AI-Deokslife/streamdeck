@@ -393,6 +393,8 @@ export default function App() {
         ? 1
         : baseOpacity;
 
+  const fadeAll = view.fadeAll ?? true;
+
   function undo(redo = false) {
     const h = history.current;
     const from = redo ? h.future : h.past;
@@ -656,9 +658,10 @@ export default function App() {
 
   return (
     <div
-      className={"app" + (editing ? " editing" : "") + (appOpacity < 1 ? " see-through" : "")}
-      // 투명도는 바탕에만 (버튼·글자는 또렷하게) — App.css 의 .app::before
-      style={{ "--bg-alpha": appOpacity } as React.CSSProperties}
+      className={"app" + (editing ? " editing" : "") + (appOpacity < 1 && !fadeAll ? " see-through" : "")}
+      // '버튼·글자도 같이 흐리게'(기본): 창 전체를 흐리게 → 주변에서 잘 안 보이게
+      // 끄면 바탕만 비치고 버튼·글자는 또렷하게 (App.css 의 .app::before)
+      style={(fadeAll ? { opacity: appOpacity } : { "--bg-alpha": appOpacity }) as React.CSSProperties}
     >
       {/* iOS 내비게이션 바: 왼쪽 뒤로/취소, 가운데 제목, 오른쪽 편집/완료 */}
       <header className="navbar" data-tauri-drag-region>
