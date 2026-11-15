@@ -82,6 +82,38 @@ function AppPicker({ onPick, label = "실행 중인 프로그램에서 선택" }
 }
 
 /** 키/텍스트를 보낼 프로그램 */
+/** 비밀 텍스트 입력: ●●● 로 가리고, 눈 버튼을 누르는 동안만 보여준다 */
+function SecretTextField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [show, setShow] = useState(false);
+  return (
+    <label>
+      비밀 텍스트
+      <span className="secret-field">
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="비밀번호 등"
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="secret-eye"
+          aria-label={show ? "가리기" : "보기"}
+          title={show ? "가리기" : "보기"}
+          onClick={(e) => {
+            e.preventDefault();
+            setShow((v) => !v);
+          }}
+        >
+          {show ? "🙈" : "👁"}
+        </button>
+      </span>
+    </label>
+  );
+}
+
 function TargetAppField({
   value,
   inherited,
@@ -168,10 +200,25 @@ function ActionFields({
     case "text":
       return (
         <>
-          <label>
-            입력할 텍스트
-            <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+          {a.secret ? (
+            <SecretTextField value={a.text} onChange={(text) => set({ text })} />
+          ) : (
+            <label>
+              입력할 텍스트
+              <textarea rows={3} value={a.text} onChange={(e) => set({ text: e.target.value })} />
+            </label>
+          )}
+          <label className="check">
+            <input type="checkbox" checked={!!a.secret} onChange={(e) => set({ secret: e.target.checked })} />
+            비밀 텍스트 (비밀번호용)
           </label>
+          {a.secret && (
+            <p className="hint">
+              🔒 설정 파일·백업·내보내기 파일에는 이 PC의 Windows 계정으로만 풀 수 있게 잠가서 저장해요. 붙여넣을 때도
+              클립보드 기록(Win+V)과 동기화에 남지 않고, 휴대폰 리모컨에는 이 버튼이 보이지 않아요. 다른 PC로 설정을
+              옮기면 비밀 텍스트는 다시 입력해야 해요.
+            </p>
+          )}
           <label className="check">
             <input type="checkbox" checked={!!a.typing} onChange={(e) => set({ typing: e.target.checked })} />
             한 글자씩 입력하기 (붙여넣기가 막힌 프로그램용)
@@ -1160,6 +1207,19 @@ interface SettingsProps {
   onPreviewOpacity: (v: number | null) => void;
 }
 
+/** 비어 있는 비밀 텍스트 개수 (가져온 설정에서 풀지 못한 것) */
+function countEmptySecrets(buttons: DeckButton[]): number {
+  const count = (a: Action | null | undefined): number => {
+    if (!a) return 0;
+    if (a.type === "text") return a.secret && !a.text ? 1 : 0;
+    if (a.type === "multi") return a.steps.reduce((n, s) => n + count(s), 0);
+    if (a.type === "toggle") return count(a.first) + count(a.second);
+    if (a.type === "folder") return countEmptySecrets(a.buttons);
+    return 0;
+  };
+  return buttons.reduce((n, b) => n + count(b.action) + count(b.longAction), 0);
+}
+
 export function SettingsEditor({
   config,
   onChange,
@@ -1183,7 +1243,13 @@ export function SettingsEditor({
       const cfg = await invoke<Config | null>("import_config");
       if (!cfg) return;
       onChange(cfg);
-      onNotice("설정을 불러왔어요. 확인하고 위의 '저장'을 누르면 적용돼요 (취소하면 원래대로)", "info");
+      const lost = countEmptySecrets(cfg.buttons);
+      onNotice(
+        lost
+          ? `설정을 불러왔어요. 다른 PC·계정에서 만든 비밀 텍스트 ${lost}개는 풀 수 없어서 비워 두었어요. 다시 입력한 뒤 '저장'을 눌러 주세요`
+          : "설정을 불러왔어요. 확인하고 위의 '저장'을 누르면 적용돼요 (취소하면 원래대로)",
+        lost ? "error" : "info",
+      );
     } catch (e) {
       onNotice(String(e));
     }

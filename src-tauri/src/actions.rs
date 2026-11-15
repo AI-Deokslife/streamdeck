@@ -55,13 +55,13 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_apps: 
             prepare_input(from_hotkey, &pick_targets(target, inherited_apps))?;
             send_keys(keys)
         }
-        Action::Text { text, app: target, typing } => {
+        Action::Text { text, app: target, typing, secret } => {
             prepare_input(from_hotkey, &pick_targets(target, inherited_apps))?;
             if *typing {
                 let mut enigo = new_enigo()?;
                 enigo.text(text).map_err(|e| format!("텍스트 입력 실패: {e}"))
             } else {
-                paste_text(text)
+                paste_text(text, *secret)
             }
         }
     }
@@ -79,10 +79,17 @@ const PASTE_SETTLE_MS: u64 = 400;
 
 /// 텍스트를 클립보드에 넣고 Ctrl+V. 원래 클립보드 내용(글자/이미지)은 끝나고 되돌려 놓는다.
 /// 한 글자씩 키를 보내는 방식과 달리 한글 입력기 상태와 상관없이 그대로 들어간다.
-fn paste_text(text: &str) -> Result<(), String> {
+/// secret 이면 Windows 클립보드 기록(Win+V)·다른 기기 동기화·클립보드 감시 프로그램에 남지 않게 표시해서 넣는다
+fn paste_text(text: &str, secret: bool) -> Result<(), String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| format!("클립보드를 열지 못했어요: {e}"))?;
     let saved = save_clipboard(&mut cb);
-    cb.set_text(text.to_string()).map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))?;
+    if secret {
+        use arboard::SetExtWindows;
+        cb.set().exclude_from_history().exclude_from_cloud().exclude_from_monitoring().text(text.to_string())
+    } else {
+        cb.set_text(text.to_string())
+    }
+    .map_err(|e| format!("클립보드에 넣지 못했어요: {e}"))?;
     thread::sleep(Duration::from_millis(30));
     let result = send_keys("ctrl+v");
     thread::sleep(Duration::from_millis(PASTE_SETTLE_MS));
@@ -371,7 +378,7 @@ pub fn mouse_scroll(dy: i32) -> Result<(), String> {
 /// 휴대폰 키보드로 친 글을 지금 앞에 있는 창에 붙여넣는다 (한글도 그대로)
 pub fn type_from_remote(text: &str) -> Result<(), String> {
     winutil::restore_foreign_focus();
-    paste_text(text)
+    paste_text(text, false)
 }
 
 /// "ctrl+shift+esc" 형식 문자열을 키 입력으로 보낸다.

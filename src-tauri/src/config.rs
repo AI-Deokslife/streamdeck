@@ -31,6 +31,9 @@ pub enum Action {
         /// 기본(false)은 클립보드에 넣고 Ctrl+V — 한글·긴 글도 깨지지 않는다
         #[serde(default)]
         typing: bool,
+        /// 비밀 텍스트(비밀번호 등): 파일에는 잠가서 저장, 클립보드 기록에 안 남김, 휴대폰 리모컨에서 못 누름
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        secret: bool,
     },
     /// PowerShell 명령 실행
     Script { command: String },
@@ -271,8 +274,14 @@ pub fn load(app: &AppHandle) -> (Config, Option<String>) {
                  QuickDeck 을 종료했다가 다시 실행해 주세요. 그 전에는 편집·저장하지 않는 게 좋아요."
             )),
         ),
-        Ok(text) => match parse(&text) {
-            Ok(cfg) => (cfg, None),
+        Ok(text) => match parse_full(&text) {
+            Ok((cfg, 0)) => (cfg, None),
+            Ok((cfg, n)) => (
+                cfg,
+                Some(format!(
+                    "비밀 텍스트 {n}개를 풀지 못해서 비워 두었어요. 다른 PC나 다른 Windows 계정에서 만든 비밀 텍스트는                      옮겨지지 않아요. 편집에서 다시 입력해 주세요."
+                )),
+            ),
             Err(e) => {
                 let broken = path.with_file_name(format!("config.broken-{}.json", timestamp()));
                 let _ = fs::rename(&path, &broken);
@@ -309,16 +318,27 @@ fn read_with_retry(path: &std::path::Path) -> std::io::Result<String> {
 
 /// JSON 문자열 → 설정 (가져오기에서도 사용)
 pub fn parse(text: &str) -> Result<Config, String> {
+    parse_full(text).map(|(cfg, _)| cfg)
+}
+
+/// JSON 문자열 → 설정 + 풀지 못한 비밀 텍스트 개수 (풀지 못한 것은 비워 둔다)
+pub fn parse_full(text: &str) -> Result<(Config, usize), String> {
     let mut cfg: Config = serde_json::from_str(text).map_err(|e| format!("QuickDeck 설정 형식이 아니에요: {e}"))?;
     cfg.columns = cfg.columns.clamp(1, 12);
     cfg.opacity = cfg.opacity.clamp(20, 100);
-    Ok(cfg)
+    let failed = crate::secret::unseal(&mut cfg);
+    Ok((cfg, failed))
+}
+
+/// 파일에 쓸 JSON (비밀 텍스트는 잠근다). 저장·내보내기에서 사용
+pub fn to_file_text(cfg: &Config) -> Result<String, String> {
+    serde_json::to_string_pretty(&crate::secret::sealed(cfg)?).map_err(|e| e.to_string())
 }
 
 /// 저장: 이전 파일은 backups 폴더에 남기고, 임시 파일에 쓴 뒤 바꿔치기해서 저장 도중 꺼져도 파일이 깨지지 않게 한다.
 pub fn save(app: &AppHandle, cfg: &Config) -> Result<(), String> {
     let path = config_path(app)?;
-    let text = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    let text = to_file_text(cfg)?;
     if path.is_file() {
         if let Ok(dir) = backup_dir(app) {
             let _ = fs::copy(&path, dir.join(format!("config-{}.json", timestamp())));

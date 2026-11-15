@@ -43,6 +43,7 @@
           k("cap", "화면 캡처", "✂️", "#30d158", "win+shift+s"),
           k("vol", "볼륨 +", "🔊", "#5e5ce6", "volumeup"),
           k("mute", "음소거", "🔇", "#ff453a", "mute"),
+          ...(view === "edit-secret" ? [{ id: "pw", label: "업무포털 비번", icon: "🔑", color: "#5856d6", hotkey: "", action: { type: "text", text: "sample-pass", app: "", secret: true } }] : []),
         ],
       }));
 
@@ -111,6 +112,7 @@
         if (view === "edit-keys") { edit(); await wait(150); tile("화면 캡처")?.click(); await wait(150); scrollPanelTo(label("보낼 키")); }
         if (view === "edit-folder") { edit(); await wait(150); tile("한글")?.click(); await wait(150); scrollPanelTo(document.querySelector(".folder-info")); }
         if (view === "edit-multi") { edit(); await wait(150); tile("아침 루틴")?.click(); await wait(150); q(".step-head")[1]?.click(); await wait(100); scrollPanelTo(document.querySelector(".steps")); }
+        if (view === "edit-secret") { edit(); await wait(150); tile("업무포털 비번")?.click(); await wait(150); scrollPanelTo(label("비밀 텍스트")); }
         if (view === "settings") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("화면 테마")); }
         if (view === "settings-2") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("프로그램 프리셋")); }
         if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }

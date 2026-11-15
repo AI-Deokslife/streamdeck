@@ -3,7 +3,7 @@ export type Action =
   | { type: "launch"; target: string; args: string }
   | { type: "keys"; keys: string; app: string }
   | { type: "url"; url: string }
-  | { type: "text"; text: string; app: string; typing?: boolean }
+  | { type: "text"; text: string; app: string; typing?: boolean; secret?: boolean }
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
   | { type: "multi"; steps: Action[] }
@@ -130,6 +130,7 @@ export function summarizeAction(a: Action): string {
     case "url":
       return a.url;
     case "text":
+      if (a.secret) return a.text ? "🔒 비밀 텍스트" : "🔒 (내용 없음)";
       return a.text ? `"${a.text.slice(0, 20)}${a.text.length > 20 ? "…" : ""}"` : "(내용 없음)";
     case "script":
       return a.command.slice(0, 30) || "(명령 없음)";

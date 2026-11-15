@@ -8,6 +8,7 @@ mod icon;
 mod media;
 mod receive;
 mod remote;
+mod secret;
 mod widgets;
 mod updates;
 mod winutil;
@@ -216,6 +217,15 @@ fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Ve
 
 /// 휴대폰 리모컨에서 버튼을 눌렀을 때 (PC 의 버튼 클릭과 같은 동작)
 fn press_from_remote(app: &AppHandle, id: &str, long: bool) -> Result<(), String> {
+    // 비밀 텍스트(비밀번호 등)가 든 버튼은 휴대폰에서 누를 수 없다 (리모컨 화면에도 안 보인다)
+    let secret = {
+        let state = app.state::<AppState>();
+        let cfg = state.config.lock().unwrap();
+        config::find_button(&cfg.buttons, id).is_some_and(|(b, _)| secret::button_has_secret(b))
+    };
+    if secret {
+        return Err("비밀 텍스트 버튼은 PC에서만 누를 수 있어요".into());
+    }
     if long {
         return execute(app, id, true, false);
     }
@@ -412,7 +422,7 @@ async fn export_config(app: AppHandle, cfg: Config) -> Result<Option<String>, St
             return Ok(None);
         };
         let path = file.into_path().map_err(|e| e.to_string())?;
-        let text = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+        let text = config::to_file_text(&cfg)?;
         std::fs::write(&path, text).map_err(|e| format!("내보내기 실패: {e}"))?;
         Ok(Some(path.display().to_string()))
     })

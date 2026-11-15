@@ -637,6 +637,23 @@ button.danger {
   line-height: 1.45;
 }
 
+/* 비밀 텍스트 입력 (●●● + 보기 버튼) */
+.secret-field {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.secret-field input {
+  flex: 1;
+  min-width: 0;
+}
+.secret-field .secret-eye {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 0;
+  font-size: 16px;
+}
+
 /* 색상 고르기 */
 .colors {
   display: flex;

@@ -865,6 +865,8 @@ fn handle(host: &dyn Host, mut req: Request) {
 fn deck_json(cfg: &config::Config, version: u64, toggles: &std::collections::HashMap<String, bool>) -> Value {
     fn strip(list: &[config::Button], toggles: &std::collections::HashMap<String, bool>) -> Vec<Value> {
         list.iter()
+            // 비밀 텍스트(비밀번호 등)가 든 버튼은 휴대폰 리모컨에 보이지 않는다
+            .filter(|b| !crate::secret::button_has_secret(b))
             .map(|b| {
                 let (kind, children) = match &b.action {
                     config::Action::Folder { buttons, .. } => ("folder", strip(buttons, toggles)),
@@ -950,6 +952,22 @@ mod tests {
         assert!(!text.contains("Hwp.exe"));
         assert!(text.contains("\"kind\":\"folder\""));
         assert!(text.contains("저장"));
+    }
+
+    #[test]
+    fn deck_hides_secret_buttons() {
+        let cfg: config::Config = serde_json::from_str(
+            r#"{"toggleHotkey":"","columns":4,"buttons":[
+                {"id":"pw","label":"비번버튼","action":{"type":"text","text":"x","secret":true}},
+                {"id":"f","label":"폴더","action":{"type":"folder","buttons":[
+                    {"id":"m","label":"로그인버튼","action":{"type":"multi","steps":[{"type":"text","text":"y","secret":true}]}},
+                    {"id":"l","label":"길게버튼","action":{"type":"keys","keys":"a"},"longAction":{"type":"text","text":"z","secret":true}},
+                    {"id":"ok","label":"보통버튼","action":{"type":"text","text":"hello"}}]}}]}"#,
+        )
+        .unwrap();
+        let text = deck_json(&cfg, 1, &Default::default()).to_string();
+        assert!(!text.contains("비번버튼") && !text.contains("로그인버튼") && !text.contains("길게버튼"));
+        assert!(text.contains("보통버튼") && text.contains("폴더"));
     }
 
     /// 실제로 서버를 켜고 HTTP 로 확인 (이 PC 안에서만 접속, 방화벽 창 없음)

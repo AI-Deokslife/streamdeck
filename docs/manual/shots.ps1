@@ -13,6 +13,7 @@ $shots = @(
   @{ n = "edit-keys";    v = "edit-keys";   t = "dark";  h = 720 },
   @{ n = "edit-folder";  v = "edit-folder"; t = "dark";  h = 720 },
   @{ n = "edit-multi";   v = "edit-multi";  t = "dark";  h = 720 },
+  @{ n = "edit-secret";  v = "edit-secret"; t = "dark";  h = 720 },
   @{ n = "settings";     v = "settings";    t = "light"; h = 720 },
   @{ n = "settings-2";   v = "settings-2";  t = "light"; h = 720 },
   @{ n = "settings-remote"; v = "settings-remote"; t = "light"; h = 720 },
