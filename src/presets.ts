@@ -283,12 +283,15 @@ export const APP_PRESETS: AppPreset[] = [
     icon: "💬",
     color: "#3c1e1e",
     apps: ["KakaoTalk.exe"],
+    // 출처: 카카오 고객센터 'Windows 버전 단축키가 궁금해요.'
     items: [
-      ["친구", "👤", "ctrl+1"],
-      ["채팅", "💬", "ctrl+2"],
-      ["검색", "🔍", "ctrl+f"],
+      ["친구추가", "🧑‍🤝‍🧑", "ctrl+a"],
+      ["새 채팅", "💬", "ctrl+n"],
+      ["채팅닫기", "🙄", "esc"],
+      ["파일전송", "📲", "ctrl+t"],
       ["잠금", "🔒", "ctrl+l"],
-      ["창 닫기", "✖️", "esc"],
+      ["창 닫기", "❌", "ctrl+shift+w"],
+      ["채팅방서랍", "🗄️", "ctrl+j"],
     ],
   },
   {
