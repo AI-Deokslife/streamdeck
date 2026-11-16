@@ -1,0 +1,15 @@
+{
+  "version": "0.9.13",
+  "notes": "휴대폰 리모컨 연결 암호화",
+  "pub_date": "2026-11-16T15:51:47.103Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYXVNNG9wVUNHMGFMRDJLZ2ZVRllFSFN4NFV1MXprRXBNSnYrdktubVFIbXF1Wk9WZERIUDJoa25yU01PMERhK0MzeFM5cnpvaVlPSkJQYkQrTWI1QkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQ0MzAzCWZpbGU6UXVpY2tEZWNrXzAuOS4xM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC45LjEzCjE4STRLSmdSMndDN2JjZ2VnazEySXRUejhYVzk2bkRlS0V1dUdHZ3BLaGIzaVlzb0Foczc2by9ETkFCNWN2RVNDa2ZIZ2Z0WE0yMndOSDBydlEyckNBPT0K",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/755441459"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYXVNNG9wVUNHMGFMRDJLZ2ZVRllFSFN4NFV1MXprRXBNSnYrdktubVFIbXF1Wk9WZERIUDJoa25yU01PMERhK0MzeFM5cnpvaVlPSkJQYkQrTWI1QkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQ0MzAzCWZpbGU6UXVpY2tEZWNrXzAuOS4xM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC45LjEzCjE4STRLSmdSMndDN2JjZ2VnazEySXRUejhYVzk2bkRlS0V1dUdHZ3BLaGIzaVlzb0Foczc2by9ETkFCNWN2RVNDa2ZIZ2Z0WE0yMndOSDBydlEyckNBPT0K",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/755441459"
+    }
+  }
+}
