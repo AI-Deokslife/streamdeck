@@ -2,9 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // Claude Code 상태 표시줄에서 불릴 때: 사용량만 적어 두고 바로 끝낸다 (창을 띄우지 않음)
+    // v0.9.11 의 Claude 상태 표시줄 연결이 남아 있어도 창을 띄우지 않고 조용히 끝낸다
     if std::env::args().any(|a| a == "--statusline") {
-        std::process::exit(tauri_app_lib::statusline_main());
+        return;
     }
     tauri_app_lib::run()
 }

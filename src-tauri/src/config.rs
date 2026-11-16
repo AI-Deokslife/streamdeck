@@ -52,7 +52,8 @@ pub enum Action {
     Timer { minutes: u32 },
     /// CPU·메모리 사용률 표시
     SysInfo {},
-    /// Claude 사용량 (현재 세션 · 이번 주). 누르면 사용량 페이지를 연다
+    /// v0.9.11 에만 있던 'AI 사용량' 버튼. 읽을 때 claude.ai 사용량 페이지를 여는 웹사이트 버튼으로 바꾼다
+    #[serde(skip_serializing)]
     AiUsage {},
     /// 지금 앞에 있는 창 배치: left / right / maximize / minimize / center / nextMonitor
     Window { mode: String },
@@ -333,6 +334,11 @@ pub fn parse_full(text: &str) -> Result<(Config, usize), String> {
     let mut cfg: Config = serde_json::from_str(text).map_err(|e| format!("QuickDeck 설정 형식이 아니에요: {e}"))?;
     cfg.columns = cfg.columns.clamp(1, 12);
     cfg.opacity = cfg.opacity.clamp(20, 100);
+    crate::secret::walk_actions(&mut cfg.buttons, &mut |a| {
+        if matches!(a, Action::AiUsage {}) {
+            *a = Action::Url { url: "https://claude.ai/settings/usage".into(), browser: String::new() };
+        }
+    });
     let failed = crate::secret::unseal(&mut cfg);
     Ok((cfg, failed))
 }
@@ -471,6 +477,17 @@ mod tests {
         let buttons: Vec<Button> = serde_json::from_str(json).unwrap();
         assert_eq!(find_button(&buttons, "tab").unwrap().1, ["chrome.exe", "msedge.exe", "whale.exe"]);
         assert_eq!(folder_for_app(&buttons, "Whale.exe").as_deref(), Some("web"));
+    }
+
+    #[test]
+    fn ai_usage_button_becomes_website() {
+        let cfg = parse(r##"{"toggleHotkey":"","columns":4,"buttons":[
+            {"id":"ai","label":"","icon":"🤖","action":{"type":"aiUsage"}},
+            {"id":"f","label":"폴더","action":{"type":"folder","buttons":[{"id":"ai2","label":"사용량","action":{"type":"aiUsage"}}]}}]}"##)
+        .unwrap();
+        assert!(matches!(&cfg.buttons[0].action, Action::Url { url, .. } if url.contains("claude.ai")));
+        let text = serde_json::to_string(&cfg).unwrap();
+        assert!(!text.contains("aiUsage"));
     }
 
     #[test]

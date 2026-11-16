@@ -21,7 +21,7 @@ import {
   updateById,
 } from "./tree";
 import { AppFocus, Config, DeckButton, STYLE_THEMES, newButton } from "./types";
-import { WIDGET_TYPES, WidgetState, aiUsageLabel, formatDate, widgetFace } from "./widgets";
+import { WIDGET_TYPES, WidgetState, formatDate, widgetFace } from "./widgets";
 import "./App.css";
 
 /** 아이콘 아래 이름 줄 + 간격 */
@@ -809,12 +809,10 @@ export default function App() {
               }}
             >
               <AppIcon b={b} on={!!toggles[b.id]} face={widgetFace(b, now, widgets)} />
-              {(b.label || b.action.type === "clock" || b.action.type === "aiUsage") && (
+              {(b.label || b.action.type === "clock") && (
                 <span className="tile-label">
                   {b.action.type === "clock"
                     ? formatDate(now)
-                    : b.action.type === "aiUsage" && !b.label
-                    ? aiUsageLabel(widgets, now)
                     : toggles[b.id] && b.action.type === "toggle"
                       ? b.action.altLabel || b.label
                       : b.label}

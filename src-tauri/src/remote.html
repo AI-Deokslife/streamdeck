@@ -601,7 +601,7 @@
   /** 토글이 켜져 있으면 켜진 상태의 이름·아이콘 */
   const shown = (b) => (b.kind === "toggle" && b.on ? { ...b, label: b.altLabel || b.label, icon: b.altIcon || b.icon } : b);
 
-  const WIDGETS = ["clock", "timer", "sysinfo", "aiusage"];
+  const WIDGETS = ["clock", "timer", "sysinfo"];
   function iconHtml(raw) {
     const b = shown(raw);
     if (WIDGETS.includes(b.kind)) {
@@ -648,7 +648,7 @@
       return;
     }
     const tiles = list.map((b) =>
-      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}" data-min="${b.minutes || 0}" data-long="${b.hasLong ? 1 : 0}"${b.label ? ' data-named="1"' : ""}>${iconHtml(b)}<span class="label">${esc(shown(b).label)}</span></button>`);
+      `<button class="tile" data-id="${esc(b.id)}" data-kind="${b.kind}" data-min="${b.minutes || 0}" data-long="${b.hasLong ? 1 : 0}">${iconHtml(b)}<span class="label">${esc(shown(b).label)}</span></button>`);
     renderPages(tiles, cols);
     paintWidgets();
   }
@@ -741,32 +741,6 @@
         const w = widgetState || { cpu: 0, memory: 0 };
         lines = [`CPU ${w.cpu}%`, `RAM ${w.memory}%`];
         prog = w.cpu / 100;
-      } else if (kind === "aiusage") {
-        // Claude 사용량: 현재 세션 · 이번 주 (초기화 시각이 지났으면 0%)
-        const ai = widgetState && widgetState.ai;
-        const live = (w) => (!w ? null : w.resetsAt && w.resetsAt * 1000 <= now.getTime() ? 0 : Math.round(w.pct));
-        if (!ai) {
-          lines = ["Claude", "연결 필요"];
-          prog = 0;
-        } else {
-          const s = live(ai.session), wk = live(ai.week);
-          lines = [`세션 ${s ?? "–"}%`, `주간 ${wk ?? "–"}%`];
-          prog = (s || 0) / 100;
-        }
-        const lab = el.querySelector(".label");
-        if (lab && !el.dataset.named) {
-          let t = "Claude 연결 필요";
-          if (ai) {
-            const ss = ai.session;
-            const ago = (now.getTime() / 1000 - ai.updated) / 60;
-            if (ago >= 60) t = `${Math.floor(ago / 60)}시간 전 기록`;
-            else if (ss && ss.resetsAt * 1000 > now.getTime()) {
-              const d = new Date(ss.resetsAt * 1000), hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-              t = `리셋 ${ss.resetsAt * 1000 - now.getTime() < 72e6 ? hm : "일월화수목금토"[d.getDay()] + " " + hm}`;
-            } else t = "세션 리셋됨";
-          }
-          lab.textContent = t;
-        }
       } else {
         const total = Number(el.dataset.min) * 60000;
         const t = widgetState && widgetState.timers[el.dataset.id];
@@ -782,7 +756,7 @@
     });
   }
   async function pollWidgets() {
-    if (document.hidden || !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"], .tile[data-kind="aiusage"]')) return;
+    if (document.hidden || !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"]')) return;
     try {
       const r = await fetch(`/api/widgets?t=${encodeURIComponent(token)}`, { cache: "no-store" });
       if (r.ok) {
@@ -803,8 +777,6 @@
   async function press(tile, long = false) {
     const id = tile.dataset.id;
     const kind = long ? "button" : tile.dataset.kind;
-    // AI 사용량 버튼: 휴대폰에서 바로 claude.ai 사용량 페이지를 연다
-    if (kind === "aiusage") { window.open("https://claude.ai/settings/usage", "_blank"); return; }
     if (navigator.vibrate) navigator.vibrate(12);
     tile.classList.add("pressed");
     setTimeout(() => tile.classList.remove("pressed"), 150);

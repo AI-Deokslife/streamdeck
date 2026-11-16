@@ -60,7 +60,7 @@ pub fn unprotect(stored: &str) -> Result<String, String> {
 }
 
 /// 버튼 안의 모든 동작(멀티 단계, 번갈아, 길게 누르기, 폴더 안까지)에 f 를 적용
-fn walk_actions(buttons: &mut [Button], f: &mut dyn FnMut(&mut Action)) {
+pub fn walk_actions(buttons: &mut [Button], f: &mut dyn FnMut(&mut Action)) {
     fn act(a: &mut Action, f: &mut dyn FnMut(&mut Action)) {
         match a {
             Action::Multi { steps } => steps.iter_mut().for_each(|s| act(s, f)),

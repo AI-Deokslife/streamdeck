@@ -1,5 +1,4 @@
 mod actions;
-mod aiusage;
 mod apppath;
 mod autohide;
 mod capture;
@@ -230,29 +229,6 @@ fn press_from_remote(app: &AppHandle, id: &str, long: bool) -> Result<(), String
         Action::Folder { .. } => Ok(()),
         _ => execute(app, id, false, false),
     }
-}
-
-/// Claude Code 상태 표시줄에서 실행될 때 (main.rs)
-pub fn statusline_main() -> i32 {
-    aiusage::statusline_main()
-}
-
-/// Claude 사용량 연결 상태와 마지막 숫자
-#[tauri::command]
-fn claude_usage_status() -> aiusage::LinkStatus {
-    aiusage::status()
-}
-
-/// Claude Code 상태 표시줄을 QuickDeck 과 연결 / 끊기
-#[tauri::command]
-fn claude_usage_link(on: bool) -> Result<aiusage::LinkStatus, String> {
-    if on {
-        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-        aiusage::connect(&exe)?;
-    } else {
-        aiusage::disconnect()?;
-    }
-    Ok(aiusage::status())
 }
 
 /// 이 PC에 설치된 웹 브라우저 (exe 이름 목록). 웹사이트 버튼에서 고를 수 있게
@@ -687,8 +663,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             installed_browsers,
-            claude_usage_status,
-            claude_usage_link,
             get_config,
             take_startup_notices,
             save_config,

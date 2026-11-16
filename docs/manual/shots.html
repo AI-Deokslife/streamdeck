@@ -68,7 +68,7 @@
           if (cmd === "get_config") {
             const c = structuredClone(await cfgPromise);
             // ?view=widgets : 위젯·토글·창 배치 버튼 모음
-            if (view.startsWith("widgets") || view.startsWith("ai")) c.buttons = [
+            if (view.startsWith("widgets")) c.buttons = [
               { id: "clk", label: "", icon: "🕒", color: "#1c1c1e", hotkey: "", action: { type: "clock" } },
               { id: "tmr", label: "라면 타이머", icon: "⏱", color: "#ff9f0a", hotkey: "", action: { type: "timer", minutes: 5 } },
               { id: "sys", label: "PC 상태", icon: "📈", color: "#5e5ce6", hotkey: "", action: { type: "sysInfo" } },
@@ -77,13 +77,11 @@
               { id: "wr", label: "오른쪽 절반", icon: "◨", color: "#0a84ff", hotkey: "", action: { type: "window", mode: "right" } },
               { id: "wm", label: "다음 모니터", icon: "🖥️", color: "#40c8e0", hotkey: "", action: { type: "window", mode: "nextMonitor" } },
               { ...k("lp", "볼륨", "🔊", "#bf5af2", "volumeup"), longAction: { type: "keys", keys: "mute", app: "" } },
-              { id: "ai", label: "", icon: "🤖", color: "#d97757", hotkey: "", action: { type: "aiUsage" } },
             ];
             return c;
           }
           // 영상용: 타이머는 실제로 줄어들고, CPU 는 조금씩 움직인다 (사진은 첫 순간이라 그대로)
-          if (cmd === "get_widgets") { const el = Date.now() - T0, s = Math.floor(Date.now() / 1000); return { cpu: 23 + Math.round(8 * Math.sin(el / 900)), memory: 61, timers: { tmr: { remainingMs: Math.max(0, 192000 - el), running: true, done: false } }, ai: { session: { pct: 26, resetsAt: s + 3 * 3600 + 20 * 60 }, week: { pct: 25, resetsAt: s + 4 * 86400 }, updated: s - 120 } }; }
-          if (cmd === "claude_usage_status") return { connected: true, claudeFound: true, usage: { updated: Math.floor(Date.now() / 1000) - 120 } };
+          if (cmd === "get_widgets") { const el = Date.now() - T0; return { cpu: 23 + Math.round(8 * Math.sin(el / 900)), memory: 61, timers: { tmr: { remainingMs: Math.max(0, 192000 - el), running: true, done: false } } }; }
           if (cmd === "get_toggles") return { ...TOGGLES };
           if (cmd === "run_button" && a.id in TOGGLES) { TOGGLES[a.id] = !TOGGLES[a.id]; for (const h of L["toggle-changed"] || []) window["_" + h]({ event: "toggle-changed", payload: { id: a.id, on: TOGGLES[a.id] } }); return null; }
           if (cmd === "take_startup_notices") return [];
@@ -121,7 +119,6 @@
         if (view === "edit-secret") { edit(); await wait(150); tile("업무포털 비번")?.click(); await wait(150); scrollPanelTo(label("비밀 텍스트")); }
         if (view === "settings") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("화면 테마")); }
         if (view === "settings-2") { edit(); await wait(250); openSettings(); await wait(700); scrollPanelTo(label("프로그램 프리셋")); }
-        if (view === "ai-edit") { edit(); await wait(150); tile("초기화")?.click(); await wait(300); scrollPanelTo(label("동작")); }
         if (view === "widgets-edit") { edit(); await wait(150); tile("라면")?.click(); }
         if (view === "clip-all" || view === "clip-one") { const h = L["clip-queue"]?.[0]; if (h) window["_" + h]({ event: "clip-queue", payload: view === "clip-all" ? { mode: "all", index: 0, total: 3 } : { mode: "one", index: 2, total: 3 } }); }
         if (view === "update") { const h = L["update-available"]?.[0]; if (h) window["_" + h]({ event: "update-available", payload: { version: "0.7.9", current: "0.7.8", notes: "", headline: "휴대폰 리모컨 버튼 크기 조절" } }); }
