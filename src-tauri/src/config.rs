@@ -52,6 +52,8 @@ pub enum Action {
     Timer { minutes: u32 },
     /// CPU·메모리 사용률 표시
     SysInfo {},
+    /// Claude 사용량 (현재 세션 · 이번 주). 누르면 사용량 페이지를 연다
+    AiUsage {},
     /// 지금 앞에 있는 창 배치: left / right / maximize / minimize / center / nextMonitor
     Window { mode: String },
     /// 누를 때마다 first / second 를 번갈아 실행 (예: 마이크 끄기 ↔ 켜기).

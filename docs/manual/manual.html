@@ -1045,7 +1045,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
   <div class="goals"><ul>
     <li>QR 코드로 휴대폰 리모컨을 연결하고, 네 가지 탭을 쓸 수 있다.</li>
     <li>토글 버튼과 길게 누르기 동작을 만들 수 있다.</li>
-    <li>시계·타이머·CPU 위젯과 창 배치 버튼을 쓸 수 있다.</li>
+    <li>시계·타이머·CPU·AI 사용량 위젯과 창 배치 버튼을 쓸 수 있다.</li>
   </ul></div>
 
   <h2><span class="sn">01</span>휴대폰 리모컨 연결하기</h2>
@@ -1155,6 +1155,7 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
     <tr><td>🕒 시계</td><td>지금 시각(크게)과 오늘 날짜(이름 자리)</td><td>아무 일도 없음</td></tr>
     <tr><td>⏱ 타이머</td><td>남은 시간과 줄어드는 막대</td><td>시작 / 일시정지. <b>길게 누르면 처음으로</b></td></tr>
     <tr><td>📈 CPU·메모리</td><td>CPU와 메모리 사용률 (1초마다)</td><td>아무 일도 없음</td></tr>
+    <tr><td>🤖 AI 사용량 (Claude)</td><td>Claude의 현재 세션·이번 주 사용률과 세션이 초기화되는 시각</td><td>claude.ai 사용량 페이지 열기</td></tr>
   </table>
   <div class="side">
     <div class="side-text">
@@ -1163,6 +1164,20 @@ td:first-child { font-weight: 700; color: var(--navy); white-space: nowrap; }
       <div class="tip"><span class="box-label">TIP</span><p>25분 타이머로 ‘집중 25분 + 휴식 5분’ 공부법(뽀모도로)을 해 보세요. 창을 닫아 두어도 타이머는 계속 돌아갑니다.</p></div>
     </div>
     <figure><img src="assets/shot-widgets-edit.png" alt="" /><figcaption><b>그림 Ⅶ-8</b>타이머 버튼 편집</figcaption></figure>
+  </div>
+
+  <h3>Claude 사용량 버튼</h3>
+  <div class="side">
+    <div class="side-text">
+      <p>Claude Pro·Max를 쓴다면 claude.ai 설정의 사용량 화면처럼 <b>현재 세션(5시간)</b>과 <b>이번 주</b> 사용률을 버튼으로 바로 볼 수 있습니다. 이름을 비워 두면 이름 자리에 세션이 초기화되는 시각(예: <b>리셋 02:50</b>)이 나옵니다.</p>
+      <div class="steps"><span class="box-label">따라 해 보기 — 사용량 버튼 만들기</span><ol>
+        <li>새 버튼을 만들고 동작을 <b>🤖 AI 사용량 (Claude)</b>으로 고릅니다.</li>
+        <li><b>Claude Code와 연결</b>을 누릅니다. (처음 한 번만)</li>
+        <li>Claude Code에서 아무 질문이나 한 번 하면 버튼에 숫자가 나옵니다.</li>
+      </ol></div>
+      <div class="note"><span class="box-label">알아 두기</span><p>숫자는 Claude Code가 상태 표시줄에 넘겨주는 값이라 <b>Claude Code를 쓰는 동안</b> 새로 바뀝니다. 웹·앱에서 쓴 양도 다음 응답 때 함께 반영됩니다. 오래된 숫자면 이름 자리에 ‘○시간 전 기록’이 나옵니다. 연결하면 Claude Code 설정 파일의 상태 표시줄을 QuickDeck으로 바꾸는데, 원래 쓰던 상태 표시줄은 그대로 이어서 보여 주고 <b>연결 끊기</b>를 누르면 원래대로 돌아갑니다. 무료 초기화 횟수나 모델별 사용량은 넘겨주지 않아 표시되지 않습니다.</p></div>
+    </div>
+    <figure><img src="assets/shot-ai-edit.png" alt="" /><figcaption><b>그림 Ⅶ-9</b>AI 사용량 버튼 (Claude Code와 연결)</figcaption></figure>
   </div>
 
   <h2><span class="sn">06</span>창 배치 버튼</h2>

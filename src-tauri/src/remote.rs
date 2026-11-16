@@ -873,6 +873,7 @@ fn deck_json(cfg: &config::Config, version: u64, toggles: &std::collections::Has
                     config::Action::Clock {} => ("clock", vec![]),
                     config::Action::Timer { .. } => ("timer", vec![]),
                     config::Action::SysInfo {} => ("sysinfo", vec![]),
+                    config::Action::AiUsage {} => ("aiusage", vec![]),
                     _ => ("button", vec![]),
                 };
                 let (alt_label, alt_icon) = match &b.action {

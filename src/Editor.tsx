@@ -83,6 +83,60 @@ function AppPicker({ onPick, label = "실행 중인 프로그램에서 선택" }
 }
 
 /** 키/텍스트를 보낼 프로그램 */
+interface ClaudeLinkStatus {
+  connected: boolean;
+  claudeFound: boolean;
+  usage: { updated: number } | null;
+}
+
+/** Claude 사용량 버튼: Claude Code 와 연결하기 / 끊기 */
+function ClaudeUsageLink() {
+  const [st, setSt] = useState<ClaudeLinkStatus | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    invoke<ClaudeLinkStatus>("claude_usage_status").then(setSt).catch((e) => setErr(String(e)));
+  }, []);
+  async function link(on: boolean) {
+    setErr("");
+    try {
+      setSt(await invoke<ClaudeLinkStatus>("claude_usage_link", { on }));
+    } catch (e) {
+      setErr(String(e));
+    }
+  }
+  const ago = st?.usage ? Math.max(0, Math.round((Date.now() / 1000 - st.usage.updated) / 60)) : null;
+  return (
+    <>
+      <p className="hint">
+        Claude의 <b>현재 세션(5시간)</b>과 <b>이번 주</b> 사용률, 초기화 시각을 버튼에 보여 줘요. 숫자는 Claude Code가
+        넘겨주는 것이라 <b>Claude Code를 쓰는 동안</b> 새로 바뀌어요(웹·앱에서 쓴 양도 다음 응답 때 함께 반영돼요). 버튼을
+        누르면 claude.ai 사용량 페이지가 열려요. 이름을 비워 두면 이름 자리에 세션이 초기화되는 시각(리셋 02:50)이 나와요.
+      </p>
+      <div className="row end">
+        <span className="grow">
+          {st == null
+            ? "확인하는 중…"
+            : st.connected
+              ? `✅ Claude Code와 연결됨${ago == null ? " · 아직 받은 숫자 없음 (Claude Code에서 한 번 질문해 보세요)" : ` · ${ago < 1 ? "방금" : ago < 60 ? `${ago}분 전` : `${Math.floor(ago / 60)}시간 전`} 받음`}`
+              : st.claudeFound
+                ? "연결 안 됨"
+                : "Claude Code 설정 폴더(.claude)를 찾지 못했어요"}
+        </span>
+        {st && (
+          <button type="button" onClick={() => link(!st.connected)}>
+            {st.connected ? "연결 끊기" : "Claude Code와 연결"}
+          </button>
+        )}
+      </div>
+      {err && <p className="hint" style={{ color: "var(--danger, #e5484d)" }}>{err}</p>}
+      <p className="hint">
+        연결하면 Claude Code 설정(.claude\settings.json)의 상태 표시줄을 QuickDeck으로 바꿔요. 원래 쓰던 상태 표시줄이 있으면
+        그대로 이어서 보여 주고, ‘연결 끊기’를 누르면 원래대로 돌아가요. Pro·Max 구독에서만 숫자가 나와요.
+      </p>
+    </>
+  );
+}
+
 /** 이 PC에 설치된 브라우저 목록 (한 번만 물어본다) */
 let browsersCache: Promise<string[]> | null = null;
 function useInstalledBrowsers(): string[] | null {
@@ -361,6 +415,8 @@ function ActionFields({
       return <p className="hint">버튼에 지금 시각이 크게 보이고, 이름 자리에 날짜가 나와요.</p>;
     case "sysInfo":
       return <p className="hint">버튼에 CPU와 메모리 사용률이 1초마다 바뀌어 보여요.</p>;
+    case "aiUsage":
+      return <ClaudeUsageLink />;
     case "timer":
       return (
         <>

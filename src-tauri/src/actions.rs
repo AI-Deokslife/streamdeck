@@ -23,6 +23,7 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_apps: 
         Action::Folder { .. } => Ok(()),
         // 표시만 하는 위젯 (타이머는 lib::execute 가 버튼 id 로 처리)
         Action::Clock {} | Action::SysInfo {} | Action::Timer { .. } => Ok(()),
+        Action::AiUsage {} => open_url(app, "https://claude.ai/settings/usage", ""),
         Action::Window { mode } => winutil::arrange_window(mode),
         // 토글의 켜짐/꺼짐 상태는 lib::execute 가 관리한다. 여기로 오면(테스트 실행 등) 첫 번째 동작
         Action::Toggle { first, .. } => run(app, first, from_hotkey, inherited_apps),

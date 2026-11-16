@@ -154,10 +154,12 @@ pub struct WidgetState {
     pub cpu: u32,
     pub memory: u32,
     pub timers: HashMap<String, TimerView>,
+    /// Claude 사용량 (연결 안 했으면 None)
+    pub ai: Option<crate::aiusage::Usage>,
 }
 
 pub fn snapshot() -> WidgetState {
-    WidgetState { cpu: cpu_percent(), memory: memory_percent(), timers: timer_views() }
+    WidgetState { cpu: cpu_percent(), memory: memory_percent(), timers: timer_views(), ai: crate::aiusage::read() }
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ export type Action =
   | { type: "clock" }
   | { type: "timer"; minutes: number }
   | { type: "sysInfo" }
+  | { type: "aiUsage" }
   | { type: "window"; mode: WindowMode };
 
 export type WindowMode = "left" | "right" | "maximize" | "minimize" | "center" | "nextMonitor";
@@ -27,7 +28,7 @@ export const WINDOW_MODES: { mode: WindowMode; label: string; icon: string }[] =
 export type ActionType = Action["type"];
 
 /** 버튼 하나에 바로 지정할 수 있는 동작 (기다리기는 단독으로 의미가 없음) */
-export const BUTTON_ACTION_TYPES: ActionType[] = ["folder", "launch", "keys", "url", "text", "script", "multi", "toggle", "window", "clock", "timer", "sysInfo"];
+export const BUTTON_ACTION_TYPES: ActionType[] = ["folder", "launch", "keys", "url", "text", "script", "multi", "toggle", "window", "clock", "timer", "sysInfo", "aiUsage"];
 /** 토글의 처음/다시 누를 때, 길게 누르기에 넣을 수 있는 동작 */
 export const PART_ACTION_TYPES: ActionType[] = ["launch", "keys", "url", "text", "script", "multi", "window"];
 /** 멀티 액션의 단계로 넣을 수 있는 동작 */
@@ -116,6 +117,7 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   clock: "시계",
   timer: "타이머",
   sysInfo: "CPU·메모리",
+  aiUsage: "AI 사용량 (Claude)",
 };
 
 export const ACTION_ICONS: Record<ActionType, string> = {
@@ -132,6 +134,7 @@ export const ACTION_ICONS: Record<ActionType, string> = {
   clock: "🕒",
   timer: "⏱",
   sysInfo: "📈",
+  aiUsage: "🤖",
 };
 
 /** 단계 목록에 보여줄 한 줄 요약 */
@@ -164,6 +167,8 @@ export function summarizeAction(a: Action): string {
       return `${a.minutes}분`;
     case "sysInfo":
       return "사용률 표시";
+    case "aiUsage":
+      return "Claude 사용량";
   }
 }
 
@@ -194,6 +199,7 @@ export function emptyAction(type: ActionType): Action {
     case "timer":
       return { type, minutes: 5 };
     case "sysInfo":
+    case "aiUsage":
       return { type };
   }
 }
