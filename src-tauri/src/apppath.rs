@@ -16,6 +16,11 @@ const MAX_DEPTH: usize = 5;
 /// 너무 오래 걸리지 않게 살펴볼 폴더 수 상한
 const MAX_DIRS: usize = 40_000;
 
+/// 빠르게만 찾기 (레지스트리 App Paths·PATH). 설치 폴더 전체를 뒤지지 않는다 — 목록 보여 주기용
+pub fn quick_resolve(exe: &str) -> Option<String> {
+    from_app_paths(exe).or_else(|| from_path_env(exe))
+}
+
 pub fn resolve(exe: &str) -> Option<String> {
     let exe = exe.trim();
     if exe.is_empty() {
@@ -147,5 +152,18 @@ mod manual_resolve {
     fn print_resolved() {
         let exe = std::env::var("RESOLVE_EXE").expect("RESOLVE_EXE");
         println!("{exe} => {:?}", super::resolve(&exe));
+    }
+}
+
+#[cfg(test)]
+mod browser_tests {
+    #[test]
+    fn edge_is_found_quickly() {
+        // Windows 10·11 에는 Edge 가 늘 깔려 있어서, 레지스트리만으로 빨리 찾아져야 한다
+        let t = std::time::Instant::now();
+        let p = super::quick_resolve("msedge.exe").expect("Edge 를 못 찾음");
+        assert!(p.to_lowercase().ends_with("msedge.exe"));
+        assert!(t.elapsed().as_millis() < 500);
+        assert!(super::quick_resolve("no-such-browser-xyz.exe").is_none());
     }
 }

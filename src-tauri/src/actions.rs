@@ -41,10 +41,7 @@ pub fn run(app: &AppHandle, action: &Action, from_hotkey: bool, inherited_apps: 
             Ok(())
         }
         Action::Launch { target, args } => launch(app, target, args),
-        Action::Url { url } => app
-            .opener()
-            .open_url(url, None::<&str>)
-            .map_err(|e| format!("URL 열기 실패: {e}")),
+        Action::Url { url, browser } => open_url(app, url, browser),
         Action::Script { command } => Command::new("powershell.exe")
             .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command])
             .creation_flags(CREATE_NO_WINDOW)
@@ -284,6 +281,26 @@ fn looks_like_program_name(t: &str) -> bool {
 
 /// exe 를 그 프로그램 폴더에서 실행한다 (게임 등은 자기 폴더에서 실행해야 데이터 파일을 찾는다).
 /// 관리자 권한이 필요한 프로그램이면 Windows 권한 확인 창을 거쳐 실행한다.
+/// 웹 주소 열기. browser 가 있으면 그 브라우저로, 없으면 Windows 기본 브라우저로
+fn open_url(app: &AppHandle, url: &str, browser: &str) -> Result<(), String> {
+    let url = url.trim();
+    if url.is_empty() {
+        return Err("열 주소가 비어 있습니다".into());
+    }
+    let browser = browser.trim().trim_matches('"');
+    if browser.is_empty() {
+        return app.opener().open_url(url, None::<&str>).map_err(|e| format!("URL 열기 실패: {e}"));
+    }
+    let path = if std::path::Path::new(browser).exists() {
+        browser.to_string()
+    } else {
+        crate::apppath::resolve(browser).ok_or_else(|| format!("{browser} 를 찾을 수 없어요. 브라우저가 설치되어 있는지 확인해 주세요"))?
+    };
+    // 주소에 공백·따옴표가 있어도 한 덩어리로 넘긴다
+    let arg = format!("\"{}\"", url.replace('"', "%22"));
+    run_exe(app, &path, &arg)
+}
+
 fn run_exe(app: &AppHandle, path: &str, args: &str) -> Result<(), String> {
     let mut cmd = Command::new(path);
     if let Some(dir) = std::path::Path::new(path).parent() {

@@ -2,7 +2,7 @@
 export type Action =
   | { type: "launch"; target: string; args: string }
   | { type: "keys"; keys: string; app: string }
-  | { type: "url"; url: string }
+  | { type: "url"; url: string; browser?: string }
   | { type: "text"; text: string; app: string; typing?: boolean; secret?: boolean }
   | { type: "script"; command: string }
   | { type: "delay"; ms: number }
@@ -88,6 +88,20 @@ export type Theme =
 /** 색·모양이 정해진 스타일 테마 (Windows 밝게/어둡게와 상관없이 고정) */
 export const STYLE_THEMES: Theme[] = ["baemin", "kakao", "toss", "line", "chalk", "contrast", "neon", "diary", "pastel", "pixel"];
 
+/** 웹 브라우저 exe → 보여 줄 이름 */
+export const BROWSERS: { exe: string; name: string }[] = [
+  { exe: "chrome.exe", name: "Chrome" },
+  { exe: "msedge.exe", name: "Edge" },
+  { exe: "whale.exe", name: "네이버 웨일" },
+  { exe: "firefox.exe", name: "Firefox" },
+  { exe: "brave.exe", name: "Brave" },
+  { exe: "opera.exe", name: "Opera" },
+];
+export function browserName(exe: string): string {
+  const hit = BROWSERS.find((b) => b.exe === exe.toLowerCase());
+  return hit ? hit.name : exe.split(/[\\/]/).pop() || exe;
+}
+
 export const ACTION_LABELS: Record<ActionType, string> = {
   launch: "프로그램 / 파일 실행",
   keys: "단축키 보내기",
@@ -128,7 +142,7 @@ export function summarizeAction(a: Action): string {
     case "keys":
       return a.keys || "(키 없음)";
     case "url":
-      return a.url;
+      return a.browser ? `${a.url} (${browserName(a.browser)})` : a.url;
     case "text":
       if (a.secret) return a.text ? "🔒 비밀 텍스트" : "🔒 (내용 없음)";
       return a.text ? `"${a.text.slice(0, 20)}${a.text.length > 20 ? "…" : ""}"` : "(내용 없음)";

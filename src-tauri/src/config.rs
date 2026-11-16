@@ -21,7 +21,12 @@ pub enum Action {
         app: String,
     },
     /// 웹 주소 열기
-    Url { url: String },
+    Url {
+        url: String,
+        /// 열 웹 브라우저 (예: "chrome.exe", "msedge.exe", 또는 exe 전체 경로). 비면 Windows 기본 브라우저
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        browser: String,
+    },
     /// 텍스트 입력 (스니펫)
     Text {
         text: String,
@@ -220,7 +225,7 @@ impl Default for Config {
                 btn("b5", "볼륨 -", "🔉", "#4a5568", "Ctrl+Alt+Minus", Action::Keys { keys: "volumedown".into(), app: String::new() }),
                 btn("b6", "볼륨 +", "🔊", "#4a5568", "Ctrl+Alt+Equal", Action::Keys { keys: "volumeup".into(), app: String::new() }),
                 btn("b7", "음소거", "🔇", "#9b2c2c", "", Action::Keys { keys: "mute".into(), app: String::new() }),
-                btn("b8", "구글", "🌐", "#2c7a7b", "", Action::Url { url: "https://www.google.com".into() }),
+                btn("b8", "구글", "🌐", "#2c7a7b", "", Action::Url { url: "https://www.google.com".into(), browser: String::new() }),
             ],
         }
     }

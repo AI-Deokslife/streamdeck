@@ -217,15 +217,6 @@ fn save_config(app: AppHandle, state: State<AppState>, cfg: Config) -> Result<Ve
 
 /// 휴대폰 리모컨에서 버튼을 눌렀을 때 (PC 의 버튼 클릭과 같은 동작)
 fn press_from_remote(app: &AppHandle, id: &str, long: bool) -> Result<(), String> {
-    // 비밀 텍스트(비밀번호 등)가 든 버튼은 휴대폰에서 누를 수 없다 (리모컨 화면에도 안 보인다)
-    let secret = {
-        let state = app.state::<AppState>();
-        let cfg = state.config.lock().unwrap();
-        config::find_button(&cfg.buttons, id).is_some_and(|(b, _)| secret::button_has_secret(b))
-    };
-    if secret {
-        return Err("비밀 텍스트 버튼은 PC에서만 누를 수 있어요".into());
-    }
     if long {
         return execute(app, id, true, false);
     }
@@ -238,6 +229,20 @@ fn press_from_remote(app: &AppHandle, id: &str, long: bool) -> Result<(), String
         Action::Folder { .. } => Ok(()),
         _ => execute(app, id, false, false),
     }
+}
+
+/// 이 PC에 설치된 웹 브라우저 (exe 이름 목록). 웹사이트 버튼에서 고를 수 있게
+#[tauri::command]
+async fn installed_browsers() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        ["chrome.exe", "msedge.exe", "whale.exe", "firefox.exe", "brave.exe", "opera.exe"]
+            .into_iter()
+            .filter(|exe| apppath::quick_resolve(exe).is_some())
+            .map(String::from)
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 /// 위젯 버튼에 보여줄 값 (CPU·메모리, 타이머 남은 시간)
@@ -657,6 +662,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            installed_browsers,
             get_config,
             take_startup_notices,
             save_config,

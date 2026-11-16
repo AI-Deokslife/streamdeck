@@ -11,6 +11,7 @@ import {
   ACTION_LABELS,
   Action,
   ActionType,
+  BROWSERS,
   BUTTON_ACTION_TYPES,
   Config,
   DeckButton,
@@ -82,6 +83,66 @@ function AppPicker({ onPick, label = "실행 중인 프로그램에서 선택" }
 }
 
 /** 키/텍스트를 보낼 프로그램 */
+/** 이 PC에 설치된 브라우저 목록 (한 번만 물어본다) */
+let browsersCache: Promise<string[]> | null = null;
+function useInstalledBrowsers(): string[] | null {
+  const [list, setList] = useState<string[] | null>(null);
+  useEffect(() => {
+    browsersCache ??= invoke<string[]>("installed_browsers").catch(() => []);
+    let alive = true;
+    browsersCache.then((l) => alive && setList(l));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return list;
+}
+
+/** 웹사이트를 열 브라우저 고르기: 기본 브라우저 / 설치된 브라우저 / 다른 프로그램(직접 입력) */
+function BrowserField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const installed = useInstalledBrowsers();
+  const known = BROWSERS.some((b) => b.exe === value.toLowerCase());
+  const [custom, setCustom] = useState(!!value && !known);
+  const options = BROWSERS.filter((b) => installed?.includes(b.exe) || b.exe === value.toLowerCase());
+  const selectValue = custom ? "__custom" : value.toLowerCase();
+  return (
+    <>
+      <label>
+        열 브라우저
+        <select
+          value={selectValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "__custom") {
+              setCustom(true);
+              if (known) onChange("");
+            } else {
+              setCustom(false);
+              onChange(v);
+            }
+          }}
+        >
+          <option value="">Windows 기본 브라우저</option>
+          {options.map((b) => (
+            <option key={b.exe} value={b.exe}>
+              {b.name}
+              {installed && !installed.includes(b.exe) ? " (설치 안 됨)" : ""}
+            </option>
+          ))}
+          <option value="__custom">다른 브라우저 (직접 입력)…</option>
+        </select>
+      </label>
+      {custom && (
+        <label>
+          브라우저 프로그램
+          <input value={value} placeholder="예: chrome.exe" onChange={(e) => onChange(e.target.value)} />
+        </label>
+      )}
+      <p className="hint">업무포털은 Edge, 유튜브는 Chrome처럼 사이트마다 다른 브라우저로 열 수 있어요.</p>
+    </>
+  );
+}
+
 /** 비밀 텍스트 입력: ●●● 로 가리고, 눈 버튼을 누르는 동안만 보여준다 */
 function SecretTextField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [show, setShow] = useState(false);
@@ -192,10 +253,13 @@ function ActionFields({
       );
     case "url":
       return (
-        <label>
-          주소
-          <input value={a.url} onChange={(e) => set({ url: e.target.value })} />
-        </label>
+        <>
+          <label>
+            주소
+            <input value={a.url} onChange={(e) => set({ url: e.target.value })} />
+          </label>
+          <BrowserField value={a.browser || ""} onChange={(browser) => set({ browser })} />
+        </>
       );
     case "text":
       return (
@@ -215,8 +279,8 @@ function ActionFields({
           {a.secret && (
             <p className="hint">
               🔒 설정 파일·백업·내보내기 파일에는 이 PC의 Windows 계정으로만 풀 수 있게 잠가서 저장해요. 붙여넣을 때도
-              클립보드 기록(Win+V)과 동기화에 남지 않고, 휴대폰 리모컨에는 이 버튼이 보이지 않아요. 다른 PC로 설정을
-              옮기면 비밀 텍스트는 다시 입력해야 해요.
+              클립보드 기록(Win+V)과 동기화에 남지 않아요. 휴대폰 리모컨에서도 누를 수 있지만 내용은 휴대폰으로 보내지
+              않아요. 다른 PC로 설정을 옮기면 비밀 텍스트는 다시 입력해야 해요.
             </p>
           )}
           <label className="check">

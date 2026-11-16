@@ -865,8 +865,6 @@ fn handle(host: &dyn Host, mut req: Request) {
 fn deck_json(cfg: &config::Config, version: u64, toggles: &std::collections::HashMap<String, bool>) -> Value {
     fn strip(list: &[config::Button], toggles: &std::collections::HashMap<String, bool>) -> Vec<Value> {
         list.iter()
-            // 비밀 텍스트(비밀번호 등)가 든 버튼은 휴대폰 리모컨에 보이지 않는다
-            .filter(|b| !crate::secret::button_has_secret(b))
             .map(|b| {
                 let (kind, children) = match &b.action {
                     config::Action::Folder { buttons, .. } => ("folder", strip(buttons, toggles)),
@@ -955,7 +953,7 @@ mod tests {
     }
 
     #[test]
-    fn deck_hides_secret_buttons() {
+    fn deck_shows_secret_buttons_without_text() {
         let cfg: config::Config = serde_json::from_str(
             r#"{"toggleHotkey":"","columns":4,"buttons":[
                 {"id":"pw","label":"비번버튼","action":{"type":"text","text":"x","secret":true}},
@@ -966,8 +964,10 @@ mod tests {
         )
         .unwrap();
         let text = deck_json(&cfg, 1, &Default::default()).to_string();
-        assert!(!text.contains("비번버튼") && !text.contains("로그인버튼") && !text.contains("길게버튼"));
-        assert!(text.contains("보통버튼") && text.contains("폴더"));
+        // 휴대폰에서도 누를 수 있게 버튼은 보이지만, 비밀 텍스트 내용은 휴대폰으로 가지 않는다
+        assert!(text.contains("비번버튼") && text.contains("로그인버튼") && text.contains("길게버튼"));
+        assert!(!text.contains("\"x\"") && !text.contains("\"y\"") && !text.contains("\"z\""));
+        assert!(!text.contains("hello"), "텍스트 내용은 원래도 휴대폰으로 가지 않는다");
     }
 
     /// 실제로 서버를 켜고 HTTP 로 확인 (이 PC 안에서만 접속, 방화벽 창 없음)

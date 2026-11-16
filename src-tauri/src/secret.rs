@@ -117,21 +117,6 @@ pub fn unseal(cfg: &mut Config) -> usize {
     failed
 }
 
-/// 이 동작(안쪽 단계 포함)에 비밀 텍스트가 들어 있나
-pub fn has_secret(a: &Action) -> bool {
-    match a {
-        Action::Text { secret, .. } => *secret,
-        Action::Multi { steps } => steps.iter().any(has_secret),
-        Action::Toggle { first, second, .. } => has_secret(first) || has_secret(second),
-        _ => false,
-    }
-}
-
-/// 버튼(누르기·길게 누르기)에 비밀 텍스트가 들어 있나
-pub fn button_has_secret(b: &Button) -> bool {
-    has_secret(&b.action) || b.long_action.as_ref().is_some_and(has_secret)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,8 +153,6 @@ mod tests {
         let (back, failed) = crate::config::parse_full(&file).unwrap();
         assert_eq!(failed, 0);
         assert_eq!(serde_json::to_string(&back).unwrap(), serde_json::to_string(&cfg).unwrap());
-        assert!(button_has_secret(&back.buttons[0]));
-        assert!(!button_has_secret(&back.buttons[2]));
     }
 
     #[test]
