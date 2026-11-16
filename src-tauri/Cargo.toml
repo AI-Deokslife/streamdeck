@@ -42,6 +42,8 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png"]
 # 클립보드에 파일 묶음 + 그림을 함께 넣기 (arboard 가 이미 쓰는 crate)
 clipboard-win = "5.4"
 tauri-plugin-updater = "2.14.1"
+crypto_secretbox = "0.1"
+sha2 = "0.10"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

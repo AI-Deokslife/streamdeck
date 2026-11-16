@@ -8,6 +8,7 @@ mod icon;
 mod media;
 mod receive;
 mod remote;
+mod remotecrypt;
 mod secret;
 mod widgets;
 mod updates;

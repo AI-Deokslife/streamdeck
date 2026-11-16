@@ -519,10 +519,76 @@
   <div class="scan-btns"><button id="scanCancel">취소</button><button id="scanRaw">원본 그대로</button><button id="scanOk" class="primary">펴서 보내기</button></div>
 </div>
 
+<script src="/nacl.js"></script>
 <script>
 (() => {
   const params = new URLSearchParams(location.search);
-  const token = params.get("t") || "";
+  // ---------- 열쇠와 암호화 ----------
+  // 열쇠는 QR 주소의 # 뒤(#k=...)에만 있어서 네트워크로 나가지 않는다. 휴대폰에 저장해 두고(홈 화면 앱용),
+  // 주고받는 내용은 모두 이 열쇠로 암호화한다 (NaCl secretbox, PC 의 remotecrypt.rs 와 같은 방식)
+  const hashParams = new URLSearchParams(location.hash.slice(1));
+  const keyStore = {
+    get: () => { try { return localStorage.getItem("qd.key") || ""; } catch { return ""; } },
+    set: (v) => { try { localStorage.setItem("qd.key", v); } catch {} },
+  };
+  const token = hashParams.get("k") || params.get("t") || keyStore.get();
+  if (token) keyStore.set(token);
+  // 예전 QR 주소(?t=...)로 열었으면 열쇠를 # 뒤로 옮긴다 (다음부터 주소창·기록에 열쇠가 남지 않게)
+  if (params.get("t")) {
+    params.delete("t");
+    const rest = params.toString();
+    try { history.replaceState(history.state, "", "/" + (rest ? "?" + rest : "") + "#k=" + token); } catch {}
+  }
+  const te = new TextEncoder(), td = new TextDecoder();
+  const KEY = token && window.nacl ? nacl.hash(te.encode("quickdeck-remote-v1:" + token)).slice(0, 32) : null;
+  const b64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = (s) => Uint8Array.from(atob(s.trim()), (c) => c.charCodeAt(0));
+  const nowSec = () => Math.floor(Date.now() / 1000);
+  function seal(obj) {
+    const n = nacl.randomBytes(24);
+    const c = nacl.secretbox(te.encode(JSON.stringify(obj)), n, KEY);
+    const out = new Uint8Array(24 + c.length);
+    out.set(n);
+    out.set(c, 24);
+    return { nonce: n, text: b64(out) };
+  }
+  function unseal(text) {
+    const d = unb64(text);
+    const m = nacl.secretbox.open(d.subarray(24), d.subarray(0, 24), KEY);
+    if (!m) throw new Error("응답을 풀지 못했어요");
+    return JSON.parse(td.decode(m));
+  }
+  /** 암호화해서 PC 에 묻고, 암호화된 답을 풀어 { status, j } 로 돌려준다 */
+  async function xcall(method, inner, body = "", keepalive = false) {
+    const r = await fetch("/api/x", { method: "POST", body: seal({ m: method, p: inner, b: body, ts: nowSec() }).text, cache: "no-store", keepalive });
+    const text = await r.text();
+    if (r.status !== 200) {
+      let j = {};
+      try { j = JSON.parse(text); } catch {}
+      return { status: r.status, j: { ok: false, error: j.error || "PC 와 연결할 수 없어요" } };
+    }
+    const v = unseal(text);
+    return { status: v.s, j: v.j };
+  }
+  /** 파일을 1MB 조각으로 암호화 (조각 i 의 nonce = 머리 nonce 앞 16바이트 + i) */
+  async function sealFile(blob, head) {
+    const h = seal({ ...head, size: blob.size, ts: nowSec() });
+    const parts = [];
+    const CH = 1024 * 1024;
+    for (let off = 0, i = 0; off < blob.size; off += CH, i++) {
+      const chunk = new Uint8Array(await blob.slice(off, off + CH).arrayBuffer());
+      const nonce = new Uint8Array(24);
+      nonce.set(h.nonce.subarray(0, 16));
+      const dv = new DataView(nonce.buffer);
+      dv.setUint32(16, Math.floor(i / 4294967296));
+      dv.setUint32(20, i >>> 0);
+      const c = nacl.secretbox(chunk, nonce, KEY);
+      const len = new Uint8Array(4);
+      new DataView(len.buffer).setUint32(0, c.length);
+      parts.push(len, c);
+    }
+    return { h: h.text, body: new Blob(parts) };
+  }
   const SIZES = {
     s: { cols: 1, max: 80, label: 11.5 },
     m: { cols: 0, max: 92, label: 12.5 },
@@ -541,7 +607,7 @@
   // 홈 화면에 추가했을 때도 열쇠가 들어간 주소로 열리게
   const mf = document.createElement("link");
   mf.rel = "manifest";
-  mf.href = "/manifest.json?t=" + encodeURIComponent(token);
+  mf.href = "/manifest.json";
   document.head.appendChild(mf);
 
   let deck = null;
@@ -758,9 +824,9 @@
   async function pollWidgets() {
     if (document.hidden || !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"]')) return;
     try {
-      const r = await fetch(`/api/widgets?t=${encodeURIComponent(token)}`, { cache: "no-store" });
-      if (r.ok) {
-        widgetState = await r.json();
+      const r = await xcall("GET", "/api/widgets");
+      if (r.status === 200) {
+        widgetState = r.j;
         // 타이머가 막 끝났으면 진동 + 알림 (화면에 안 보이는 타이머도)
         for (const [id, t] of Object.entries(widgetState.timers || {})) {
           if (t.done && !doneSeen[id]) {
@@ -788,8 +854,7 @@
       pushBack();
     }
     try {
-      const r = await fetch(`/api/press?t=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}${long ? "&long=1" : ""}`, { method: "POST" });
-      const j = await r.json();
+      const { j } = await xcall("POST", `/api/press?id=${encodeURIComponent(id)}${long ? "&long=1" : ""}`);
       if (kind === "folder") { if (!j.ok) toast(j.error); return; }
       flash(id, j.ok);
       if (!j.ok) toast(j.error || "실행하지 못했어요", 3500);
@@ -811,8 +876,8 @@
   async function poll() {
     if (document.hidden) return;
     try {
-      const r = await fetch(`/api/deck?t=${encodeURIComponent(token)}&v=${version}`, { cache: "no-store" });
-      const j = await r.json();
+      const r = await xcall("GET", `/api/deck?v=${version}`);
+      const j = r.j;
       if (r.status === 403) {
         grid.innerHTML = `<div class="msg">${esc(j.error)}</div>`;
         setOnline(false);
@@ -840,8 +905,8 @@
     get: (k, d) => { try { const v = localStorage.getItem("qd." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
     set: (k, v) => { try { localStorage.setItem("qd." + k, JSON.stringify(v)); } catch {} },
   };
-  const api = (q, body) => fetch(`/api/control?t=${encodeURIComponent(token)}&${q}`, { method: "POST", body: body ?? "", keepalive: true })
-    .then((r) => r.json()).then((j) => { if (!j.ok) toast(j.error || "실행하지 못했어요"); return j; })
+  const api = (q, body) => xcall("POST", `/api/control?${q}`, body ?? "", true)
+    .then(({ j }) => { if (!j.ok) toast(j.error || "실행하지 못했어요"); return j; })
     .catch(() => { setOnline(false); });
 
   // --- 탭 ---
@@ -1078,7 +1143,7 @@
   }
   async function clipStep(step) {
     try {
-      const j = await (await fetch(`/api/clip?t=${encodeURIComponent(token)}&step=${step}`, { method: "POST" })).json();
+      const { j } = await xcall("POST", `/api/clip?step=${step}`);
       if (!j.ok) return toast(j.error || "바꾸지 못했어요");
       if (navigator.vibrate) navigator.vibrate(10);
       paintClip(j);
@@ -1202,8 +1267,9 @@
       const done = (r, text) => { li.classList.add(r.ok ? "ok" : "err"); st.textContent = text; resolve(r); };
       if (blob.size > MAX_UPLOAD) return done({ ok: false, error: "파일이 너무 커요 (최대 500MB)" }, "너무 커요");
       const xhr = new XMLHttpRequest();
-      const q = `t=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}` + (meta.batch ? `&batch=${meta.batch}&of=${meta.of}` : "");
-      xhr.open("POST", `/api/upload?${q}`);
+      st.textContent = "준비 중…";
+      sealFile(blob, { name, batch: meta.batch || "", of: meta.of || 1 }).then((sealed) => {
+      xhr.open("POST", `/api/xu?h=${encodeURIComponent(sealed.h)}`);
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
         const pct = Math.round((e.loaded / e.total) * 100);
@@ -1213,7 +1279,7 @@
       };
       xhr.onload = () => {
         let j = {};
-        try { j = JSON.parse(xhr.responseText); } catch {}
+        try { j = xhr.status === 200 ? unseal(xhr.responseText).j : JSON.parse(xhr.responseText); } catch {}
         if (j.ok) {
           li.querySelector(".n").textContent = j.name || name;
           done(j, j.clipKind ? "✓ 보냄 · 클립보드" : "✓ 보냄");
@@ -1222,7 +1288,8 @@
         }
       };
       xhr.onerror = () => { setOnline(false); done({ ok: false, error: "PC 와 연결이 끊겼어요. 같은 와이파이(또는 USB)인지 확인해 주세요" }, "실패"); };
-      xhr.send(blob);
+      xhr.send(sealed.body);
+      }).catch(() => done({ ok: false, error: "파일을 준비하지 못했어요 (휴대폰 메모리가 부족할 수 있어요)" }, "실패"));
     });
   }
 
@@ -1505,7 +1572,7 @@
   async function pollMedia() {
     if (document.hidden || !document.getElementById("music").classList.contains("on")) return;
     try {
-      const j = await (await fetch(`/api/media?t=${encodeURIComponent(token)}`, { cache: "no-store" })).json();
+      const { j } = await xcall("GET", "/api/media");
       const n = j.now;
       song.textContent = n ? (n.title || "제목 없음") : "재생 중인 음악이 없어요";
       singer.textContent = n ? (n.artist || n.source || "") : "유튜브·멜론·스포티파이 등에서 음악을 틀어 보세요";
@@ -1613,6 +1680,11 @@
   document.addEventListener("visibilitychange", poll);
   window.addEventListener("resize", render);
 
+  if (!window.nacl) {
+    grid.innerHTML = '<div class="msg">보안 연결 준비에 실패했어요. 페이지를 새로 고쳐 주세요.</div>';
+    setOnline(false);
+    return;
+  }
   if (!token) {
     grid.innerHTML = '<div class="msg">PC 의 QuickDeck 설정에서<br><b>휴대폰 리모컨</b>을 켜고 QR 코드를 찍어 주세요.</div>';
     setOnline(false);

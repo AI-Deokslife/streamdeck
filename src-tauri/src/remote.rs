@@ -1,7 +1,7 @@
 //! 휴대폰 리모컨: 같은 와이파이의 휴대폰 브라우저에서 QuickDeck 버튼을 누를 수 있게 하는 작은 웹 서버.
 //!
 //! - 기본은 꺼짐. 켜면 0.0.0.0:<port> 에서 기다린다 (처음 한 번 Windows 방화벽 허용 창이 뜬다).
-//! - 모든 API 는 비밀 열쇠(token)가 맞아야 동작한다. 열쇠는 QR 코드 주소에 들어 있다.
+//! - 모든 API 는 비밀 열쇠(token)로 암호화해야 동작한다. 열쇠는 QR 주소의 # 뒤에만 있어 네트워크로 나가지 않는다 (remotecrypt.rs).
 //! - Wi-Fi 가 없어도 휴대폰 USB 테더링으로 연결할 수 있다 (USB 쪽 주소로 QR 을 따로 만든다).
 //! - 휴대폰 페이지는 1.5초마다 버튼 목록이 바뀌었는지 확인한다 (PC 에서 고치면 바로 반영).
 use crate::config;
@@ -343,10 +343,10 @@ pub fn status(app: &AppHandle) -> RemoteStatus {
     let state = app.state::<RemoteState>();
     let running = state.server.lock().unwrap().is_some();
     let (lan, usb) = pick_addresses();
-    let url = format!("http://{}:{}/?t={}", lan, s.port, s.token);
+    let url = format!("http://{}:{}/#k={}", lan, s.port, s.token);
     let qr_svg = if running { qr_svg(&url) } else { String::new() };
     // Wi-Fi·유선이 없으면 두 주소가 같다 (화면에서는 USB 쪽만 보여 준다)
-    let usb_url = usb.map(|u| format!("http://{}:{}/?t={}", u, s.port, s.token));
+    let usb_url = usb.map(|u| format!("http://{}:{}/#k={}", u, s.port, s.token));
     let usb_qr_svg = match (&usb_url, running) {
         (Some(u), true) => self::qr_svg(u),
         _ => String::new(),
@@ -732,11 +732,6 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-/// 길이가 같으면 끝까지 비교 (열쇠를 한 글자씩 맞혀 보는 공격을 어렵게)
-fn same_token(a: &str, b: &str) -> bool {
-    a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
-}
-
 fn respond_json(req: Request, status: u16, body: Value) {
     let _ = req.respond(
         Response::from_string(body.to_string())
@@ -746,6 +741,8 @@ fn respond_json(req: Request, status: u16, body: Value) {
     );
 }
 
+const NACL_JS: &str = include_str!("nacl-fast.min.js");
+
 fn handle(host: &dyn Host, mut req: Request) {
     let url = req.url().to_string();
     let path = url.split('?').next().unwrap_or("/").to_string();
@@ -753,7 +750,7 @@ fn handle(host: &dyn Host, mut req: Request) {
     let get = |k: &str| q.iter().find(|(key, _)| key == k).map(|(_, v)| v.as_str());
 
     match (req.method(), path.as_str()) {
-        // 페이지와 아이콘은 열쇠 없이 받을 수 있다 (페이지 안에는 비밀이 없다)
+        // 페이지·암호 라이브러리·아이콘은 열쇠 없이 받을 수 있다 (안에 비밀이 없다)
         (Method::Get, "/") => {
             let _ = req.respond(
                 Response::from_string(PAGE)
@@ -764,15 +761,23 @@ fn handle(host: &dyn Host, mut req: Request) {
             );
             return;
         }
+        (Method::Get, "/nacl.js") => {
+            let _ = req.respond(
+                Response::from_string(NACL_JS)
+                    .with_header(header("Content-Type", "text/javascript; charset=utf-8"))
+                    .with_chunked_threshold(usize::MAX),
+            );
+            return;
+        }
         (Method::Get, "/icon.png") => {
             let _ = req.respond(Response::from_data(ICON).with_header(header("Content-Type", "image/png")));
             return;
         }
         (Method::Get, "/manifest.json") => {
-            let token = get("t").unwrap_or("");
+            // 열쇠는 휴대폰에 저장해 두고 주소에는 넣지 않는다
             let manifest = json!({
                 "name": "QuickDeck 리모컨", "short_name": "QuickDeck",
-                "start_url": format!("/?t={token}"), "display": "standalone",
+                "start_url": "/", "display": "standalone",
                 "background_color": "#000000", "theme_color": "#000000",
                 "icons": [{ "src": "/icon.png", "sizes": "256x256", "type": "image/png" }]
             });
@@ -782,82 +787,127 @@ fn handle(host: &dyn Host, mut req: Request) {
         _ => {}
     }
 
-    // 여기부터는 열쇠 확인
-    let token = host.token();
-    if !get("t").is_some_and(|t| same_token(t, &token)) {
-        respond_json(req, 403, json!({ "ok": false, "error": "열쇠가 맞지 않아요. PC 의 QR 코드를 다시 찍어 주세요" }));
-        return;
-    }
+    let cipher = crate::remotecrypt::cipher(&host.token());
+    let deny = |req: Request, msg: &str| respond_json(req, 403, json!({ "ok": false, "error": msg }));
+    const WRONG_KEY: &str = "열쇠가 맞지 않아요. PC 의 QR 코드를 다시 찍어 주세요";
 
     match (req.method(), path.as_str()) {
+        // 암호화된 요청: 본문 = base64(nonce + 암호문{m, p, b, ts})
+        (Method::Post, "/api/x") => {
+            let mut text = String::new();
+            let _ = req.as_reader().take(4 * 1024 * 1024).read_to_string(&mut text);
+            let Some((nonce, plain)) = crate::remotecrypt::open(&cipher, &text) else {
+                return deny(req, WRONG_KEY);
+            };
+            let Ok(msg) = serde_json::from_slice::<Value>(&plain) else {
+                return deny(req, WRONG_KEY);
+            };
+            let ts = msg.get("ts").and_then(Value::as_u64).unwrap_or(0);
+            if let Err(e) = crate::remotecrypt::check_fresh(nonce, ts) {
+                return deny(req, e);
+            }
+            let method = if msg.get("m").and_then(Value::as_str) == Some("GET") { Method::Get } else { Method::Post };
+            let inner = msg.get("p").and_then(Value::as_str).unwrap_or("").to_string();
+            let body = msg.get("b").and_then(Value::as_str).unwrap_or("").to_string();
+            let (status, value) = route(host, &method, &inner, &mut body.as_bytes());
+            respond_sealed(req, &cipher, status, value);
+        }
+        // 암호화된 파일 보내기: h = 머리(이름·크기 등), 본문 = 암호화된 조각들
+        (Method::Post, "/api/xu") => {
+            let Some((nonce, plain)) = get("h").and_then(|h| crate::remotecrypt::open(&cipher, h)) else {
+                return deny(req, WRONG_KEY);
+            };
+            let Ok(head) = serde_json::from_slice::<Value>(&plain) else {
+                return deny(req, WRONG_KEY);
+            };
+            let ts = head.get("ts").and_then(Value::as_u64).unwrap_or(0);
+            if let Err(e) = crate::remotecrypt::check_fresh(nonce, ts) {
+                return deny(req, e);
+            }
+            let size = head.get("size").and_then(Value::as_u64).unwrap_or(0);
+            if size > crate::receive::MAX_BYTES {
+                let mb = crate::receive::MAX_BYTES / 1024 / 1024;
+                return respond_sealed(req, &cipher, 413, json!({ "ok": false, "error": format!("파일이 너무 커요 (최대 {mb}MB)") }));
+            }
+            let name = head.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+            let batch = head
+                .get("batch")
+                .and_then(Value::as_str)
+                .filter(|b| !b.is_empty() && b.len() <= 40)
+                .map(|b| (b.to_string(), head.get("of").and_then(Value::as_u64).unwrap_or(1) as u32));
+            let result = {
+                let mut reader = crate::remotecrypt::FrameReader::new(req.as_reader(), &cipher, nonce, size);
+                host.receive(&name, batch, &mut reader)
+            };
+            match result {
+                Ok(v) => respond_sealed(req, &cipher, 200, v),
+                Err(e) => respond_sealed(req, &cipher, 200, json!({ "ok": false, "error": e })),
+            }
+        }
+        // 예전 방식(열쇠를 주소에 그대로 싣는 요청)은 더 이상 받지 않는다
+        (_, p) if p.starts_with("/api/") => deny(req, WRONG_KEY),
+        _ => respond_json(req, 404, json!({ "ok": false, "error": "없는 주소예요" })),
+    }
+}
+
+/// 응답을 같은 열쇠로 암호화해서 보낸다: base64(nonce + 암호문{s: 상태, j: 내용})
+fn respond_sealed(req: Request, cipher: &crypto_secretbox::XSalsa20Poly1305, status: u16, body: Value) {
+    let sealed = crate::remotecrypt::seal(cipher, json!({ "s": status, "j": body }).to_string().as_bytes());
+    let _ = req.respond(
+        Response::from_string(sealed)
+            .with_header(header("Content-Type", "text/plain; charset=utf-8"))
+            .with_header(header("Cache-Control", "no-store"))
+            .with_chunked_threshold(usize::MAX),
+    );
+}
+
+/// 암호를 푼 요청 하나를 처리한다 (inner = "/api/deck?v=3" 처럼 경로+조건)
+fn route(host: &dyn Host, method: &Method, inner: &str, body: &mut dyn Read) -> (u16, Value) {
+    let path = inner.split('?').next().unwrap_or("");
+    let q = query(inner);
+    let get = |k: &str| q.iter().find(|(key, _)| key == k).map(|(_, v)| v.as_str());
+    match (method, path) {
         (Method::Get, "/api/deck") => {
             let version = host.version();
             let active = host.active_folder();
             if get("v").and_then(|v| v.parse::<u64>().ok()) == Some(version) {
-                respond_json(req, 200, json!({ "changed": false, "version": version, "activeFolder": active }));
-                return;
+                return (200, json!({ "changed": false, "version": version, "activeFolder": active }));
             }
             let mut deck = host.deck(version);
             deck["activeFolder"] = json!(active);
-            respond_json(req, 200, deck);
+            (200, deck)
         }
         (Method::Post, "/api/press") => {
-            // 본문은 쓰지 않지만 읽어서 비운다
-            let mut _body = String::new();
-            let _ = req.as_reader().take(4096).read_to_string(&mut _body);
-            let Some(id) = get("id").map(str::to_string) else {
-                respond_json(req, 400, json!({ "ok": false, "error": "버튼 id 가 없어요" }));
-                return;
+            let Some(id) = get("id") else {
+                return (400, json!({ "ok": false, "error": "버튼 id 가 없어요" }));
             };
-            match host.press(&id, get("long") == Some("1")) {
-                Ok(()) => respond_json(req, 200, json!({ "ok": true })),
-                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
-            }
-        }
-        (Method::Post, "/api/upload") => {
-            let too_big = req
-                .headers()
-                .iter()
-                .find(|h| h.field.equiv("Content-Length"))
-                .and_then(|h| h.value.as_str().parse::<u64>().ok())
-                .is_some_and(|n| n > crate::receive::MAX_BYTES);
-            if too_big {
-                let mb = crate::receive::MAX_BYTES / 1024 / 1024;
-                respond_json(req, 413, json!({ "ok": false, "error": format!("파일이 너무 커요 (최대 {mb}MB)") }));
-                return;
-            }
-            let name = get("name").unwrap_or("").to_string();
-            let batch = get("batch")
-                .filter(|b| !b.is_empty() && b.len() <= 40)
-                .map(|b| (b.to_string(), get("of").and_then(|n| n.parse().ok()).unwrap_or(1)));
-            match host.receive(&name, batch, req.as_reader()) {
-                Ok(v) => respond_json(req, 200, v),
-                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+            match host.press(id, get("long") == Some("1")) {
+                Ok(()) => (200, json!({ "ok": true })),
+                Err(e) => (200, json!({ "ok": false, "error": e })),
             }
         }
         (Method::Post, "/api/clip") => {
             let step = get("step").and_then(|v| v.parse::<i32>().ok()).unwrap_or(1).clamp(-1, 1);
             match host.clip_step(step) {
-                Ok(v) => respond_json(req, 200, v),
-                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+                Ok(v) => (200, v),
+                Err(e) => (200, json!({ "ok": false, "error": e })),
             }
         }
-        (Method::Get, "/api/media") => respond_json(req, 200, host.media()),
-        (Method::Get, "/api/widgets") => respond_json(req, 200, host.widgets()),
+        (Method::Get, "/api/media") => (200, host.media()),
+        (Method::Get, "/api/widgets") => (200, host.widgets()),
         (Method::Post, "/api/control") => {
-            let mut body = String::new();
-            let _ = req.as_reader().take(20_000).read_to_string(&mut body);
+            let mut text = String::new();
+            let _ = body.take(20_000).read_to_string(&mut text);
             let getter = |k: &str| get(k).map(str::to_string);
-            let Some(c) = parse_control(get("op").unwrap_or(""), &getter, &body) else {
-                respond_json(req, 400, json!({ "ok": false, "error": "알 수 없는 조작이에요" }));
-                return;
+            let Some(c) = parse_control(get("op").unwrap_or(""), &getter, &text) else {
+                return (400, json!({ "ok": false, "error": "알 수 없는 조작이에요" }));
             };
             match host.control(c) {
-                Ok(()) => respond_json(req, 200, json!({ "ok": true })),
-                Err(e) => respond_json(req, 200, json!({ "ok": false, "error": e })),
+                Ok(()) => (200, json!({ "ok": true })),
+                Err(e) => (200, json!({ "ok": false, "error": e })),
             }
         }
-        _ => respond_json(req, 404, json!({ "ok": false, "error": "없는 주소예요" })),
+        _ => (404, json!({ "ok": false, "error": "없는 주소예요" })),
     }
 }
 
@@ -910,13 +960,6 @@ mod tests {
         assert_eq!(a.len(), 32);
         assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
         assert_ne!(a, b);
-    }
-
-    #[test]
-    fn token_comparison() {
-        assert!(same_token("abc123", "abc123"));
-        assert!(!same_token("abc123", "abc124"));
-        assert!(!same_token("abc", "abc123"));
     }
 
     #[test]
@@ -1040,74 +1083,102 @@ mod tests {
             thread::spawn(move || serve(host, server));
         }
 
-        let call = |method: &str, path: &str| -> (u16, String) {
+        let raw = |method: &str, path: &str, body: &[u8], len: usize| -> (u16, String) {
             let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
-            write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
-            let mut out = String::new();
-            s.read_to_string(&mut out).unwrap();
-            let code = out.split_whitespace().nth(1).unwrap().parse().unwrap();
-            let body = out.split("\r\n\r\n").nth(1).unwrap_or("").to_string();
-            (code, body)
-        };
-
-        // 페이지는 열쇠 없이도 받는다
-        let (code, page) = call("GET", "/");
-        assert_eq!(code, 200);
-        assert!(page.contains("QuickDeck 리모컨"));
-        // 열쇠 없거나 틀리면 거절
-        assert_eq!(call("GET", "/api/deck").0, 403);
-        assert_eq!(call("GET", "/api/deck?t=wrongwrongwrongwrongwrongwrong12").0, 403);
-        assert_eq!(call("POST", "/api/press?id=f").0, 403);
-        // 맞는 열쇠면 버튼 목록 (명령 내용은 없음)
-        let (code, body) = call("GET", &format!("/api/deck?t={token}"));
-        assert_eq!(code, 200);
-        assert!(body.contains("\"theme\":\"toss\"") && body.contains("저장"));
-        assert!(!body.contains("alt+s"));
-        let v: Value = serde_json::from_str(&body).unwrap();
-        let ver = v["version"].as_u64().unwrap();
-        // 바뀐 게 없으면 changed:false, 설정이 바뀌면 다시 받음
-        assert!(call("GET", &format!("/api/deck?t={token}&v={ver}")).1.contains("\"changed\":false"));
-        host.version.fetch_add(1, Ordering::SeqCst);
-        assert!(call("GET", &format!("/api/deck?t={token}&v={ver}")).1.contains("\"changed\":true"));
-        // 버튼 누르기: 폴더(연결 프로그램 없음)는 아무 일 없이 성공, 없는 버튼은 오류
-        assert!(call("POST", &format!("/api/press?t={token}&id=f")).1.contains("\"ok\":true"));
-        assert!(call("POST", &format!("/api/press?t={token}&id=nope")).1.contains("\"ok\":false"));
-
-        // 자동 전환: 바뀐 게 없어도 지금 폴더는 알려줌
-        assert!(call("GET", &format!("/api/deck?t={token}&v=999999")).1.contains("\"activeFolder\""));
-        // 트랙패드·키보드 조작 (열쇠 필요)
-        assert_eq!(call("POST", "/api/control?op=move&dx=5&dy=-3").0, 403);
-        assert!(call("POST", &format!("/api/control?t={token}&op=move&dx=5&dy=-3")).1.contains("\"ok\":true"));
-        assert!(call("POST", &format!("/api/control?t={token}&op=click&btn=right")).1.contains("\"ok\":true"));
-        assert!(call("POST", &format!("/api/control?t={token}&op=key&k=ctrl%2Bc")).1.contains("\"ok\":true"));
-        assert_eq!(call("POST", &format!("/api/control?t={token}&op=key&k=%3Cscript%3E")).0, 400, "이상한 키 이름은 거절");
-        assert_eq!(call("POST", &format!("/api/control?t={token}&op=nope")).0, 400);
-
-        // 보내기 탭: 본문 그대로 받고, 너무 크다고 적힌 요청은 바로 거절
-        let upload = |path: &str, body: &str, len: usize| -> (u16, String) {
-            let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
-            write!(s, "POST {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n{body}").unwrap();
-            // 보낼 것은 다 보냈다고 알린다 (본문이 모자란 '너무 큰 파일' 요청에서 서버가 기다리지 않게)
+            write!(s, "{method} {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n").unwrap();
+            s.write_all(body).unwrap();
+            // 보낼 것은 다 보냈다고 알린다 (본문이 모자란 요청에서 서버가 기다리지 않게)
             let _ = s.shutdown(std::net::Shutdown::Write);
             let mut out = String::new();
             let _ = s.read_to_string(&mut out);
             let code = out.split_whitespace().nth(1).unwrap_or("0").parse().unwrap_or(0);
             (code, out.split("\r\n\r\n").nth(1).unwrap_or("").to_string())
         };
-        let (code, body) = upload(&format!("/api/upload?t={token}&name=%EB%A9%94%EB%AA%A8.txt"), "hello", 5);
+        let call = |method: &str, path: &str| raw(method, path, b"", 0);
+        let cipher = crate::remotecrypt::cipher(&token);
+        // 휴대폰처럼 암호화해서 보내고, 암호화된 응답을 풀어서 (상태, JSON 글자) 로 돌려준다
+        let x = |method: &str, inner: &str| -> (u16, String) {
+            let msg = json!({ "m": method, "p": inner, "b": "", "ts": crate::remotecrypt::now_secs() }).to_string();
+            let sealed = crate::remotecrypt::seal(&cipher, msg.as_bytes());
+            let (code, body) = raw("POST", "/api/x", sealed.as_bytes(), sealed.len());
+            assert_eq!(code, 200, "{body}");
+            assert!(!body.trim_start().starts_with('{'), "응답도 암호화돼 있어야 함");
+            let (_, plain) = crate::remotecrypt::open(&cipher, &body).expect("응답을 풀 수 있어야 함");
+            let v: Value = serde_json::from_slice(&plain).unwrap();
+            (v["s"].as_u64().unwrap() as u16, v["j"].to_string())
+        };
+
+        // 페이지와 암호 라이브러리는 열쇠 없이도 받는다
+        let (code, page) = call("GET", "/");
+        assert_eq!(code, 200);
+        assert!(page.contains("QuickDeck 리모컨"));
+        assert!(call("GET", "/nacl.js").1.contains("secretbox"));
+        // 예전 방식(주소에 열쇠)·틀린 열쇠·엿본 요청 다시 보내기는 모두 거절
+        assert_eq!(call("GET", &format!("/api/deck?t={token}")).0, 403);
+        assert_eq!(call("POST", &format!("/api/press?t={token}&id=f")).0, 403);
+        let wrong = crate::remotecrypt::seal(&crate::remotecrypt::cipher("wrong"), br#"{"m":"GET","p":"/api/deck","ts":0}"#);
+        assert_eq!(raw("POST", "/api/x", wrong.as_bytes(), wrong.len()).0, 403);
+        let once = crate::remotecrypt::seal(
+            &cipher,
+            json!({ "m": "POST", "p": "/api/press?id=f", "ts": crate::remotecrypt::now_secs() }).to_string().as_bytes(),
+        );
+        assert_eq!(raw("POST", "/api/x", once.as_bytes(), once.len()).0, 200);
+        assert_eq!(raw("POST", "/api/x", once.as_bytes(), once.len()).0, 403, "같은 요청을 다시 보내면 거절");
+        let old = crate::remotecrypt::seal(&cipher, br#"{"m":"GET","p":"/api/deck","ts":1000}"#);
+        assert_eq!(raw("POST", "/api/x", old.as_bytes(), old.len()).0, 403, "오래된 요청은 거절");
+        // 맞는 열쇠면 버튼 목록 (명령 내용은 없음)
+        let (code, body) = x("GET", "/api/deck");
+        assert_eq!(code, 200);
+        assert!(body.contains("\"theme\":\"toss\"") && body.contains("저장"));
+        assert!(!body.contains("alt+s"));
+        let v: Value = serde_json::from_str(&body).unwrap();
+        let ver = v["version"].as_u64().unwrap();
+        // 바뀐 게 없으면 changed:false, 설정이 바뀌면 다시 받음
+        assert!(x("GET", &format!("/api/deck?v={ver}")).1.contains("\"changed\":false"));
+        host.version.fetch_add(1, Ordering::SeqCst);
+        assert!(x("GET", &format!("/api/deck?v={ver}")).1.contains("\"changed\":true"));
+        // 버튼 누르기: 폴더(연결 프로그램 없음)는 아무 일 없이 성공, 없는 버튼은 오류
+        assert!(x("POST", "/api/press?id=f").1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/press?id=nope").1.contains("\"ok\":false"));
+
+        // 자동 전환: 바뀐 게 없어도 지금 폴더는 알려줌
+        assert!(x("GET", "/api/deck?v=999999").1.contains("\"activeFolder\""));
+        // 트랙패드·키보드 조작
+        assert!(x("POST", "/api/control?op=move&dx=5&dy=-3").1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/control?op=click&btn=right").1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/control?op=key&k=ctrl%2Bc").1.contains("\"ok\":true"));
+        assert_eq!(x("POST", "/api/control?op=key&k=%3Cscript%3E").0, 400, "이상한 키 이름은 거절");
+        assert_eq!(x("POST", "/api/control?op=nope").0, 400);
+
+        // 보내기 탭: 암호화된 조각으로 받는다
+        let upload = |name: &str, data: &[u8], size: u64| -> (u16, String) {
+            let head = json!({ "name": name, "size": size, "ts": crate::remotecrypt::now_secs() }).to_string();
+            let h = crate::remotecrypt::seal(&cipher, head.as_bytes());
+            let (nonce, _) = crate::remotecrypt::open(&cipher, &h).unwrap();
+            let body = crate::remotecrypt::tests::frames(&cipher, nonce, data, 3);
+            let h = h.replace('+', "%2B").replace('/', "%2F").replace('=', "%3D");
+            let (code, out) = raw("POST", &format!("/api/xu?h={h}"), &body, body.len());
+            match crate::remotecrypt::open(&cipher, &out) {
+                Some((_, plain)) => {
+                    let v: Value = serde_json::from_slice(&plain).unwrap();
+                    (v["s"].as_u64().unwrap() as u16, v["j"].to_string())
+                }
+                None => (code, out),
+            }
+        };
+        let (code, body) = upload("메모.txt", b"hello", 5);
         assert_eq!(code, 200);
         assert!(body.contains("\"ok\":true"), "{body}");
         assert!(host.controls.lock().unwrap().iter().any(|c| c == "receive 메모.txt hello"));
-        assert_eq!(upload(&format!("/api/upload?t={token}&name=big.mp4"), "", 600 * 1024 * 1024).0, 413);
-        assert_eq!(upload("/api/upload?t=wrong&name=a.txt", "x", 1).0, 403, "열쇠 없이는 못 올림");
-        let (code, body) = call("POST", &format!("/api/clip?t={token}&step=1"));
+        assert_eq!(upload("big.mp4", b"", 600 * 1024 * 1024).0, 413);
+        assert_eq!(raw("POST", "/api/upload?t=wrong&name=a.txt", b"x", 1).0, 403, "예전 방식으로는 못 올림");
+        let (code, body) = x("POST", "/api/clip?step=1");
         assert_eq!(code, 200);
         assert!(body.contains("\"mode\":\"one\""), "{body}");
-        assert_eq!(call("POST", "/api/clip?t=wrong&step=1").0, 403);
         host.controls.lock().unwrap().retain(|c| !c.starts_with("receive") && !c.starts_with("clip"));
-        assert!(call("POST", &format!("/api/control?t={token}&op=media&cmd=next")).1.contains("\"ok\":true"));
-        assert!(call("POST", &format!("/api/control?t={token}&op=volume&v=150")).1.contains("\"ok\":true"));
-        assert!(call("POST", &format!("/api/control?t={token}&op=mute")).1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/control?op=media&cmd=next").1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/control?op=volume&v=150").1.contains("\"ok\":true"));
+        assert!(x("POST", "/api/control?op=mute").1.contains("\"ok\":true"));
         let got = host.controls.lock().unwrap().clone();
         assert_eq!(
             got,
@@ -1115,11 +1186,11 @@ mod tests {
             "볼륨은 100 을 넘지 않게"
         );
         assert_eq!(call("GET", "/api/media").0, 403);
-        assert!(call("GET", &format!("/api/media?t={token}")).1.contains("테스트 곡"));
+        assert!(x("GET", "/api/media").1.contains("테스트 곡"));
         // 위젯: 열쇠 필요, 타이머는 길게 누르기(처음으로)가 있다고 알려줌
         assert_eq!(call("GET", "/api/widgets").0, 403);
-        assert!(call("GET", &format!("/api/widgets?t={token}")).1.contains("\"cpu\":37"));
-        let deck: Value = serde_json::from_str(&call("GET", &format!("/api/deck?t={token}")).1).unwrap();
+        assert!(x("GET", "/api/widgets").1.contains("\"cpu\":37"));
+        let deck: Value = serde_json::from_str(&x("GET", "/api/deck").1).unwrap();
         let kids = deck["buttons"][0]["children"].as_array().unwrap();
         let kinds: Vec<&str> = kids.iter().map(|b| b["kind"].as_str().unwrap()).collect();
         assert_eq!(kinds, ["button", "clock", "timer", "sysinfo", "button"]);
