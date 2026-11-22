@@ -1,0 +1,15 @@
+{
+  "version": "0.9.18",
+  "notes": "데스크테리어 날씨 줄, 가로 폴더 아이콘 고침",
+  "pub_date": "2026-11-22T17:24:37.758Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYXBaQXdCVHZURDU3ZWFIV250NGlndkxEdnQzdkJoTjVSdHFGOEI1aCszMWpJQmY2VVRaaXQyczNnbDEyNG9ZYjgyNTY3aXVLbW1oQzRUYnAycU5hSEFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MzY4Mjc0CWZpbGU6UXVpY2tEZWNrXzAuOS4xOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC45LjE4CnZWVWtodEtXdTlCQ0dxdHQ3ckk1UlB3dzBUT1NTRnZYVURwY3NZdEZHM2EvRUVHL0NNT2ZuMFdtaTNQWjdwYnhQYUtibnRHZVVkMEtGTTFNMU5ieUFnPT0K",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/779850839"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUa0gxSFd1UDRHYXBaQXdCVHZURDU3ZWFIV250NGlndkxEdnQzdkJoTjVSdHFGOEI1aCszMWpJQmY2VVRaaXQyczNnbDEyNG9ZYjgyNTY3aXVLbW1oQzRUYnAycU5hSEFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MzY4Mjc0CWZpbGU6UXVpY2tEZWNrXzAuOS4xOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC45LjE4CnZWVWtodEtXdTlCQ0dxdHQ3ckk1UlB3dzBUT1NTRnZYVURwY3NZdEZHM2EvRUVHL0NNT2ZuMFdtaTNQWjdwYnhQYUtibnRHZVVkMEtGTTFNMU5ieUFnPT0K",
+      "url": "https://api.github.com/repos/AI-Deokslife/streamdeck/releases/assets/779850839"
+    }
+  }
+}
