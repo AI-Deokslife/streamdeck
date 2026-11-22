@@ -212,6 +212,58 @@
   body.split #keys, body.split #music, body.split #send { max-width: none; }
 
   main.pane.on { display: grid; }
+  /* ---------- 데스크테리어 모드: 가로로 둔 휴대폰 왼쪽에 시계·날씨·PC 상태 ---------- */
+  :root { --desk-w: 36vw; }
+  .deskpanel { display: none; }
+  body.desk { padding-left: var(--desk-w); }
+  body.desk .tabbar { left: var(--desk-w); }
+  body.desk .sheet { left: 50%; right: auto; width: min(560px, 92vw); margin-left: calc(min(560px, 92vw) / -2); }
+  body.desk .deskpanel {
+    display: flex; flex-direction: column; gap: 8px;
+    position: fixed; z-index: 4; left: 0; top: 0; bottom: 0; width: var(--desk-w);
+    padding: calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 8px);
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--bar); color: var(--bar-text);
+    border-right: 1px solid rgba(128, 128, 128, 0.22);
+  }
+  .dk-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .dk-place { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: rgba(128, 128, 128, 0.16); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dk-place::before { content: "●"; color: #30d158; margin-right: 5px; font-size: 10px; }
+  .dk-btns { display: flex; gap: 4px; flex-shrink: 0; }
+  .dk-btns button { border: 0; width: 32px; height: 30px; border-radius: 10px; background: rgba(128, 128, 128, 0.16); color: inherit; font-size: 15px; }
+  .dk-card { border-radius: 16px; padding: 10px 12px; background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+  body.light .dk-card { background: rgba(255, 255, 255, 0.75); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+  .dk-clock { text-align: center; }
+  .dk-time b { font-size: clamp(30px, 8.5vh, 54px); font-weight: 800; letter-spacing: 1px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .dk-time small { font-size: 14px; font-weight: 700; margin-left: 4px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+  .dk-date { font-size: 13px; opacity: 0.85; display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .dk-date em { font-style: normal; font-weight: 700; padding: 1px 8px; border-radius: 8px; background: rgba(10, 132, 255, 0.18); color: var(--accent); }
+  .dk-wx { display: flex; gap: 10px; align-items: center; }
+  .dk-pic { width: 34%; max-width: 110px; aspect-ratio: 1; border-radius: 12px; object-fit: cover; flex-shrink: 0; background: rgba(128, 128, 128, 0.15); }
+  .dk-pic[hidden] { display: none; }
+  .dk-wx-info { flex: 1; min-width: 0; }
+  .dk-wx-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .dk-wx-main b { font-size: clamp(22px, 6vh, 34px); font-weight: 800; }
+  .dk-wx-main span { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .dk-wx-ico { font-size: 22px; }
+  .dk-wx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 4px; font-size: 12px; opacity: 0.85; white-space: nowrap; }
+  .dk-wx-grid i { font-style: normal; font-variant-numeric: tabular-nums; }
+  .dk-pc-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.75; margin-bottom: 4px; }
+  .dk-pc-head span:last-child { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dk-meter { display: flex; align-items: baseline; gap: 6px; font-size: 13px; margin-top: 4px; }
+  .dk-meter b { margin-left: auto; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .dk-meter small { opacity: 0.6; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dk-bar { display: block; height: 6px; border-radius: 3px; background: rgba(128, 128, 128, 0.22); overflow: hidden; margin-top: 3px; }
+  .dk-bar b { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width 0.6s; }
+  .dk-dim { position: fixed; inset: 0; z-index: 5; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .dk-search { display: flex; gap: 8px; margin-top: 8px; }
+  .dk-search input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(128, 128, 128, 0.35); background: transparent; color: inherit; font: inherit; font-size: 15px; }
+  .dk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .dk-chips button, .dk-picbtns button { border: 0; padding: 7px 11px; border-radius: 999px; background: rgba(128, 128, 128, 0.18); color: inherit; font: inherit; font-size: 13px; }
+  .dk-chips button.on { background: var(--accent); color: #fff; }
+  .dk-picbtns { display: flex; gap: 8px; margin-top: 8px; }
+  .srow input[type="range"] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+
 
   /* ---------- 트랙패드 ---------- */
   /* 트랙패드 탭은 머리줄과 아래 탭 사이를 꽉 채운다 (높이는 fitPad() 가 실제 화면을 재서 정한다).
@@ -415,6 +467,17 @@
 </style>
 </head>
 <body>
+<aside class="deskpanel" id="desk" aria-label="데스크테리어">
+  <div class="dk-top"><span class="dk-place" id="dkPlace">서울</span><span class="dk-btns"><button id="dkDimBtn" aria-label="밤 모드">🌙</button><button id="dkSetBtn" aria-label="데스크테리어 설정">⚙︎</button></span></div>
+  <div class="dk-card dk-clock"><div class="dk-time"><b id="dkHM">--:--</b><small id="dkSec">--</small></div><div class="dk-date"><span id="dkDate"></span><em id="dkDay"></em></div></div>
+  <div class="dk-card dk-wx"><img class="dk-pic" id="dkPic" alt="" hidden />
+    <div class="dk-wx-info"><div class="dk-wx-main"><span class="dk-wx-ico" id="dkIco">⛅</span><b id="dkTemp">--°</b><span id="dkSky">날씨 불러오는 중</span></div>
+      <div class="dk-wx-grid"><span>💧 <i id="dkHum">--</i>%</span><span>🌡 체감 <i id="dkFeel">--</i>°</span><span>↕ <i id="dkMM">--</i></span><span>💨 <i id="dkWind">--</i>m/s</span></div></div></div>
+  <div class="dk-card"><div class="dk-pc-head"><span>PC SYSTEM</span><span id="dkPcName"></span></div>
+    <div class="dk-meter"><span>⚡ CPU</span><b id="dkCpu">--%</b></div><i class="dk-bar"><b id="dkCpuBar"></b></i>
+    <div class="dk-meter"><span>🧠 RAM</span><small id="dkRamGb"></small><b id="dkRam">--%</b></div><i class="dk-bar"><b id="dkRamBar"></b></i></div>
+</aside>
+<div class="dk-dim" id="dkDim"></div>
 <header>
   <button class="back" id="back"><b>‹</b><span id="backText">뒤로</span></button>
   <h1 id="title">QuickDeck</h1>
@@ -498,6 +561,16 @@
   <label class="srow" id="fullRow"><span>전체 화면으로 보기<small id="fullNote">주소창 없이 꽉 차게 봐요. 켜 두면 다음에 열 때 화면을 한 번 누르면 전체 화면이 돼요</small></span><input type="checkbox" class="switch" id="optFull" /></label>
   <label class="srow"><span>옆으로 넘기기<small>버튼이 한 화면에 다 안 들어가면 페이지로 나눠서 옆으로 넘겨요. 끄면 아래로 내려 봐요</small></span><input type="checkbox" class="switch" id="optPaging" /></label>
   <label class="srow"><span>화면 켜두기<small>리모컨을 보는 동안 화면이 꺼지지 않게</small></span><input type="checkbox" class="switch" id="optAwake" /></label>
+  <h2 id="deskHead" style="margin-top:18px">데스크테리어</h2>
+  <label class="srow"><span>데스크테리어 모드<small>휴대폰을 가로로 두면 왼쪽에 시계·날씨·PC 상태를 보여 줘요</small></span><input type="checkbox" class="switch" id="optDesk" /></label>
+  <div class="srow col"><span>왼쪽 패널 크기 <b id="optDeskWVal">36%</b></span><input type="range" id="optDeskW" min="26" max="50" value="36" /></div>
+  <div class="srow col"><span>밤 모드 어둡게 <b id="optDeskDimVal">0%</b><small>🌙 버튼으로 바로 켜고 끌 수 있어요</small></span><input type="range" id="optDeskDim" min="0" max="80" value="0" /></div>
+  <div class="srow col"><span>날씨 지역 <b id="optPlaceName"></b><small>아래 도시를 누르거나 시·군·구 이름으로 찾아요. 안 나오면 영어 이름으로도 돼요 (예: Yongin). 날씨는 Open-Meteo(무료)에서 받아요</small></span>
+    <div class="dk-search"><input id="dkQ" placeholder="예: 용인, 수원 영통, 해운대" enterkeyhint="search" /><button class="act" id="dkGo" style="margin:0;width:auto;padding:0 14px">찾기</button></div>
+    <div class="dk-chips" id="dkChips"></div>
+    <div class="dk-search"><input id="dkLabel" placeholder="패널에 보일 이름 (예: 용인 보라동) · 비우면 지역 이름" maxlength="20" /></div></div>
+  <div class="srow col"><span>사진·GIF<small>날씨 칸 왼쪽에 보여 줘요. 이 휴대폰에만 저장돼요</small></span>
+    <div class="dk-picbtns"><button id="dkPick">사진 고르기</button><button id="dkPicDel">지우기</button></div><input type="file" id="dkPicIn" accept="image/*" hidden /></div>
   <div class="srow"><span>이 기기의 시작 화면<small id="startInfo">처음 화면</small></span></div>
   <button class="act" id="setStart">지금 보는 폴더를 시작 화면으로</button>
 </div>
@@ -697,7 +770,8 @@
     if (!deck) return;
     const { list, names } = current();
     const landscape = window.innerWidth > window.innerHeight;
-    const base = landscape ? Math.min((deck.columns || 4) + 2, 8) : Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6);
+    const deskCols = isDesk() ? Math.max(4, Math.min(8, Math.floor((window.innerWidth * (1 - store.get("deskW", 36) / 100)) / 96))) : 0;
+    const base = deskCols ? deskCols : landscape ? Math.min((deck.columns || 4) + 2, 8) : Math.min(deck.columns || 4, window.innerWidth < 420 ? 4 : 6);
     // 버튼 크기(이 휴대폰 설정): 작게 = 한 줄에 하나 더, 크게 = 하나 덜, 아주 크게 = 둘 덜
     const sz = SIZES[buttonSize] || SIZES.m;
     const cols = Math.max(2, Math.min(9, base + sz.cols));
@@ -822,7 +896,7 @@
     });
   }
   async function pollWidgets() {
-    if (document.hidden || !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"]')) return;
+    if (document.hidden || (!isDesk() && !grid.querySelector('.tile[data-kind="clock"], .tile[data-kind="timer"], .tile[data-kind="sysinfo"]'))) return;
     try {
       const r = await xcall("GET", "/api/widgets");
       if (r.status === 200) {
@@ -838,6 +912,7 @@
       }
     } catch {}
     paintWidgets();
+    paintDeskPc();
   }
 
   async function press(tile, long = false) {
@@ -914,13 +989,216 @@
   // ---------- 화면 모양: 패드처럼 넓으면 왼쪽 옆 메뉴, 가로로 넓으면 버튼판 + 오른쪽 탭 나눠 보기 ----------
   const isSplit = () => document.body.classList.contains("split");
   let rightTab = "pad"; // 나눠 보기에서 오른쪽에 띄울 탭
+
+  // ================= 데스크테리어 (가로 화면 왼쪽: 시계·날씨·PC 상태·사진) =================
+  const $ = (id) => document.getElementById(id);
+  const deskWanted = () => store.get("desk", false);
+  const isDesk = () => document.body.classList.contains("desk");
+  const DAYS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  function tickClock() {
+    if (!isDesk()) return;
+    const d = new Date(), p = (n) => String(n).padStart(2, "0");
+    $("dkHM").textContent = `${p(d.getHours())}:${p(d.getMinutes())}`;
+    $("dkSec").textContent = p(d.getSeconds());
+    $("dkDate").textContent = `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+    $("dkDay").textContent = DAYS[d.getDay()];
+  }
+  setInterval(tickClock, 1000);
+
+  // --- 날씨 (Open-Meteo: 가입·열쇠 없이 쓰는 무료 날씨) ---
+  const PLACES = [
+    ["서울", 37.5665, 126.978], ["부산", 35.1796, 129.0756], ["대구", 35.8714, 128.6014], ["인천", 37.4563, 126.7052],
+    ["광주", 35.1595, 126.8526], ["대전", 36.3504, 127.3845], ["울산", 35.5384, 129.3114], ["세종", 36.48, 127.289],
+    ["수원", 37.2636, 127.0286], ["용인", 37.2411, 127.1776], ["청주", 36.6424, 127.489], ["전주", 35.8242, 127.148],
+    ["창원", 35.2281, 128.6811], ["춘천", 37.8813, 127.7298], ["제주", 33.4996, 126.5312],
+    ["성남", 37.42, 127.1265], ["판교", 37.3947, 127.1112], ["고양", 37.6584, 126.832], ["화성", 37.1995, 126.8312],
+    ["동탄", 37.2005, 127.0739], ["안산", 37.3219, 126.8309], ["안양", 37.3943, 126.9568], ["평택", 36.9921, 127.1129],
+    ["김포", 37.6153, 126.7156], ["파주", 37.7599, 126.78], ["의정부", 37.7381, 127.0337], ["남양주", 37.636, 127.2165],
+    ["하남", 37.5393, 127.2149], ["광명", 37.4786, 126.8644], ["시흥", 37.38, 126.803], ["오산", 37.1498, 127.0772],
+    ["천안", 36.8151, 127.1139], ["강릉", 37.7519, 128.8761], ["포항", 36.019, 129.3435],
+  ];
+  const WX = {
+    0: ["☀️", "맑음"], 1: ["🌤", "대체로 맑음"], 2: ["⛅", "구름 조금"], 3: ["☁️", "흐림"], 45: ["🌫", "안개"], 48: ["🌫", "안개"],
+    51: ["🌦", "약한 이슬비"], 53: ["🌦", "이슬비"], 55: ["🌧", "이슬비"], 56: ["🌧", "어는 이슬비"], 57: ["🌧", "어는 이슬비"],
+    61: ["🌧", "약한 비"], 63: ["🌧", "비"], 65: ["🌧", "강한 비"], 66: ["🌧", "어는 비"], 67: ["🌧", "어는 비"],
+    71: ["🌨", "약한 눈"], 73: ["🌨", "눈"], 75: ["❄️", "많은 눈"], 77: ["🌨", "싸락눈"], 80: ["🌦", "소나기"], 81: ["🌧", "소나기"],
+    82: ["⛈", "강한 소나기"], 85: ["🌨", "눈 소나기"], 86: ["🌨", "눈 소나기"], 95: ["⛈", "뇌우"], 96: ["⛈", "우박 뇌우"], 99: ["⛈", "우박 뇌우"],
+  };
+  const place = () => store.get("deskPlace", { name: "서울", lat: 37.5665, lon: 126.978 });
+  // 패널에는 직접 정한 이름(예: "용인 보라동")이 있으면 그것을, 없으면 고른 지역 이름을
+  const placeLabel = () => place().label || place().name;
+  function paintWeather(w) {
+    $("dkPlace").textContent = placeLabel();
+    $("optPlaceName").textContent = placeLabel();
+    if (!w) return;
+    const c = w.current || {}, dly = w.daily || {};
+    const [ico, sky] = WX[c.weather_code] || ["🌡", ""];
+    $("dkIco").textContent = c.is_day === 0 && c.weather_code <= 1 ? "🌙" : ico;
+    $("dkTemp").textContent = `${Math.round(c.temperature_2m)}°`;
+    $("dkSky").textContent = sky;
+    $("dkHum").textContent = Math.round(c.relative_humidity_2m);
+    $("dkFeel").textContent = Math.round(c.apparent_temperature);
+    $("dkWind").textContent = (+c.wind_speed_10m).toFixed(1);
+    if (dly.temperature_2m_min) $("dkMM").textContent = `${Math.round(dly.temperature_2m_min[0])}°/${Math.round(dly.temperature_2m_max[0])}°`;
+  }
+  let wxBusy = false;
+  async function loadWeather(force = false) {
+    if (!isDesk() || wxBusy) return;
+    const pl = place(), cache = store.get("deskWx", null);
+    const fresh = cache && cache.key === `${pl.lat},${pl.lon}` && Date.now() - cache.t < 15 * 60 * 1000;
+    paintWeather(cache && cache.key === `${pl.lat},${pl.lon}` ? cache.data : null);
+    if (fresh && !force) return;
+    wxBusy = true;
+    try {
+      const u = `https://api.open-meteo.com/v1/forecast?latitude=${pl.lat}&longitude=${pl.lon}` +
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day" +
+        "&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1&wind_speed_unit=ms";
+      const data = await (await fetch(u, { cache: "no-store" })).json();
+      if (data && data.current) {
+        store.set("deskWx", { key: `${pl.lat},${pl.lon}`, t: Date.now(), data });
+        paintWeather(data);
+      }
+    } catch {
+      if (!cache) $("dkSky").textContent = "날씨를 못 받았어요 (인터넷 확인)";
+    }
+    wxBusy = false;
+  }
+  setInterval(() => loadWeather(), 60 * 1000);
+  function setPlace(name, lat, lon) {
+    // 다른 지역을 고르면 직접 정한 이름은 지운다 (그 지역 이름이 아닐 수 있으니)
+    store.set("deskPlace", { name, lat: +(+lat).toFixed(4), lon: +(+lon).toFixed(4) });
+    $("dkLabel").value = "";
+    paintChips();
+    loadWeather(true);
+  }
+  function paintChips(list) {
+    const items = list || PLACES.map(([name, lat, lon]) => ({ name, lat, lon }));
+    const cur = place();
+    $("dkChips").innerHTML = items.map((x, i) => `<button data-i="${i}" class="${x.name === cur.name ? "on" : ""}">${esc(x.label || x.name)}</button>`).join("");
+    $("dkChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      const x = items[+b.dataset.i];
+      setPlace(x.name, x.lat, x.lon);
+      if (list) paintChips();
+    }));
+  }
+  async function searchPlace() {
+    const q = $("dkQ").value.trim();
+    if (!q) return paintChips();
+    try {
+      // "수원" 처럼 시 이름만 쓰면 작은 마을이 먼저 나와서 "수원시" 도 같이 찾고, 인구가 많은 곳부터 보여 준다
+      const qs = [q];
+      if (!/[시군구동읍면]$/.test(q)) qs.push(q + "시");
+      const found = await Promise.all(qs.map((n) => fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(n)}&count=10&language=ko&format=json`).then((r) => r.json()).catch(() => ({}))));
+      const seen = new Set();
+      const all = found.flatMap((r) => r.results || []).filter((x) => !seen.has(x.id) && seen.add(x.id));
+      all.sort((a, b) => (b.population || 0) - (a.population || 0) || (a.country_code === "KR" ? -1 : 1));
+      const res = all.slice(0, 8).map((x) => ({ name: x.name, label: [x.name, x.admin2, x.admin1].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" · "), lat: x.latitude, lon: x.longitude }));
+      if (!res.length) { toast("찾지 못했어요. 시·군·구 이름으로 다시 찾아 보세요"); return; }
+      paintChips(res);
+    } catch { toast("검색하려면 휴대폰이 인터넷에 연결돼 있어야 해요"); }
+  }
+  $("dkGo").addEventListener("click", searchPlace);
+  $("dkLabel").value = place().label || "";
+  $("dkLabel").addEventListener("input", () => {
+    const pl = place();
+    const label = $("dkLabel").value.trim();
+    if (label) pl.label = label; else delete pl.label;
+    store.set("deskPlace", pl);
+    $("dkPlace").textContent = placeLabel();
+    $("optPlaceName").textContent = placeLabel();
+  });
+  $("dkQ").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } });
+
+  // --- PC 상태 ---
+  function paintDeskPc() {
+    if (!isDesk()) return;
+    const w = widgetState;
+    $("dkPcName").textContent = w ? (w.pcName || "") : "연결 안 됨";
+    const cpu = w ? w.cpu : 0, ram = w ? w.memory : 0;
+    $("dkCpu").textContent = w ? `${cpu}%` : "--%";
+    $("dkRam").textContent = w ? `${ram}%` : "--%";
+    $("dkRamGb").textContent = w && w.memTotalGb ? `${w.memUsedGb} / ${w.memTotalGb} GB` : "";
+    $("dkCpuBar").style.width = cpu + "%";
+    $("dkRamBar").style.width = ram + "%";
+  }
+
+  // --- 사진·GIF (이 휴대폰의 IndexedDB 에만 저장) ---
+  function picDb() {
+    return new Promise((ok, bad) => {
+      const r = indexedDB.open("qd-desk", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => bad(r.error);
+    });
+  }
+  async function picGet() {
+    try { const db = await picDb(); return await new Promise((ok) => { const q = db.transaction("kv").objectStore("kv").get("pic"); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }); } catch { return null; }
+  }
+  async function picSet(blob) {
+    const db = await picDb();
+    await new Promise((ok, bad) => { const t = db.transaction("kv", "readwrite"); blob ? t.objectStore("kv").put(blob, "pic") : t.objectStore("kv").delete("pic"); t.oncomplete = ok; t.onerror = () => bad(t.error); });
+  }
+  let picUrl = "";
+  async function paintPic() {
+    const blob = await picGet();
+    if (picUrl) URL.revokeObjectURL(picUrl);
+    picUrl = blob ? URL.createObjectURL(blob) : "";
+    $("dkPic").hidden = !blob;
+    if (blob) $("dkPic").src = picUrl;
+  }
+  $("dkPick").addEventListener("click", () => $("dkPicIn").click());
+  $("dkPicIn").addEventListener("change", async () => {
+    const f = $("dkPicIn").files[0];
+    $("dkPicIn").value = "";
+    if (!f) return;
+    if (f.size > 25 * 1024 * 1024) { toast("25MB 보다 작은 사진·GIF를 골라 주세요"); return; }
+    try { await picSet(f); paintPic(); toast("사진을 넣었어요"); } catch { toast("사진을 저장하지 못했어요"); }
+  });
+  $("dkPicDel").addEventListener("click", async () => { try { await picSet(null); } catch {} paintPic(); });
+
+  // --- 설정: 켜기, 패널 크기, 밤 모드 ---
+  const optDesk = $("optDesk"), optDeskW = $("optDeskW"), optDeskDim = $("optDeskDim");
+  optDesk.checked = deskWanted();
+  optDeskW.value = store.get("deskW", 36);
+  optDeskDim.value = store.get("deskDim", 0);
+  function applyDeskLook() {
+    document.documentElement.style.setProperty("--desk-w", optDeskW.value + "vw");
+    $("optDeskWVal").textContent = optDeskW.value + "%";
+    $("optDeskDimVal").textContent = optDeskDim.value + "%";
+    $("dkDim").style.opacity = isDesk() ? optDeskDim.value / 100 : 0;
+    $("dkDimBtn").style.background = +optDeskDim.value ? "var(--accent)" : "";
+  }
+  optDesk.addEventListener("change", () => { store.set("desk", optDesk.checked); applyLayout(); fitPad(); render(); });
+  optDeskW.addEventListener("input", () => { store.set("deskW", +optDeskW.value); applyDeskLook(); });
+  optDeskW.addEventListener("change", () => { fitPad(); render(); });
+  optDeskDim.addEventListener("input", () => { store.set("deskDim", +optDeskDim.value); applyDeskLook(); });
+  $("dkDimBtn").addEventListener("click", () => {
+    const v = +optDeskDim.value ? 0 : store.get("deskDimLast", 50);
+    if (+optDeskDim.value) store.set("deskDimLast", +optDeskDim.value);
+    optDeskDim.value = v;
+    store.set("deskDim", v);
+    applyDeskLook();
+  });
+  $("dkSetBtn").addEventListener("click", () => {
+    openSheet(true);
+    pushBack();
+    setTimeout(() => $("deskHead").scrollIntoView({ block: "start" }), 280);
+  });
+  function onDeskChange(on) {
+    applyDeskLook();
+    if (on) { tickClock(); loadWeather(); paintChips(); paintPic(); pollWidgets(); }
+  }
   function applyLayout() {
     const w = window.innerWidth, h = window.innerHeight;
-    const rail = w >= 768;
-    const split = rail && w >= 960 && w > h * 1.15;
-    const wasSplit = isSplit();
+    // 데스크테리어 모드는 가로로 둘 때만. 켜져 있으면 옆 메뉴·나눠 보기 대신 왼쪽 패널
+    const desk = deskWanted() && w > h;
+    const rail = !desk && w >= 768;
+    const split = !desk && rail && w >= 960 && w > h * 1.15;
+    const wasSplit = isSplit(), wasDesk = isDesk();
     document.body.classList.toggle("rail", rail);
     document.body.classList.toggle("split", split);
+    document.body.classList.toggle("desk", desk);
+    if (desk !== wasDesk) onDeskChange(desk);
     const hdr = document.querySelector("header");
     if (hdr) document.documentElement.style.setProperty("--hdr", hdr.getBoundingClientRect().height + "px");
     if (split !== wasSplit && typeof showTab === "function" && tabs.length) {

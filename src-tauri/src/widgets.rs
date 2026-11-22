@@ -139,13 +139,20 @@ fn cpu_percent() -> u32 {
     pct.min(100)
 }
 
-fn memory_percent() -> u32 {
+/// (사용률 %, 사용 중 GB, 전체 GB)
+fn memory_status() -> (u32, f64, f64) {
     let mut m: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
     m.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
     if unsafe { GlobalMemoryStatusEx(&mut m) } == 0 {
-        return 0;
+        return (0, 0.0, 0.0);
     }
-    m.dwMemoryLoad
+    let gb = |b: u64| (b as f64 / 1024f64.powi(3) * 10.0).round() / 10.0;
+    (m.dwMemoryLoad, gb(m.ullTotalPhys - m.ullAvailPhys), gb(m.ullTotalPhys))
+}
+
+#[cfg(test)]
+fn memory_percent() -> u32 {
+    memory_status().0
 }
 
 #[derive(Serialize)]
@@ -154,10 +161,22 @@ pub struct WidgetState {
     pub cpu: u32,
     pub memory: u32,
     pub timers: HashMap<String, TimerView>,
+    /// 데스크테리어 화면용: 메모리 사용·전체 GB, PC 이름
+    pub mem_used_gb: f64,
+    pub mem_total_gb: f64,
+    pub pc_name: String,
 }
 
 pub fn snapshot() -> WidgetState {
-    WidgetState { cpu: cpu_percent(), memory: memory_percent(), timers: timer_views() }
+    let (memory, mem_used_gb, mem_total_gb) = memory_status();
+    WidgetState {
+        cpu: cpu_percent(),
+        memory,
+        timers: timer_views(),
+        mem_used_gb,
+        mem_total_gb,
+        pc_name: std::env::var("COMPUTERNAME").unwrap_or_default(),
+    }
 }
 
 #[cfg(test)]
