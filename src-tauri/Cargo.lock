@@ -3121,7 +3121,7 @@ dependencies = [
 
 [[package]]
 name = "quickdeck"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "arboard",
  "base64 0.23.1",
