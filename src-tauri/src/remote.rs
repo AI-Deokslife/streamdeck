@@ -742,6 +742,8 @@ fn respond_json(req: Request, status: u16, body: Value) {
 }
 
 const NACL_JS: &str = include_str!("nacl-fast.min.js");
+/// 데스크테리어 날씨 지역 고르기용: 국토교통부 법정동 목록 + 시·군·구 좌표 (공개 자료라 열쇠 없이 준다)
+const REGIONS_JSON: &str = include_str!("regions.json");
 
 fn handle(host: &dyn Host, mut req: Request) {
     let url = req.url().to_string();
@@ -765,6 +767,15 @@ fn handle(host: &dyn Host, mut req: Request) {
             let _ = req.respond(
                 Response::from_string(NACL_JS)
                     .with_header(header("Content-Type", "text/javascript; charset=utf-8"))
+                    .with_chunked_threshold(usize::MAX),
+            );
+            return;
+        }
+        (Method::Get, "/regions.json") => {
+            let _ = req.respond(
+                Response::from_string(REGIONS_JSON)
+                    .with_header(header("Content-Type", "application/json; charset=utf-8"))
+                    .with_header(header("Cache-Control", "max-age=86400"))
                     .with_chunked_threshold(usize::MAX),
             );
             return;
@@ -976,6 +987,26 @@ mod tests {
         assert_eq!(q[1], ("id".into(), "b 1".into()));
         assert_eq!(q[2], ("x".into(), "a b".into()));
         assert!(query("/").is_empty());
+    }
+
+    #[test]
+    fn regions_list_is_complete() {
+        // 데스크테리어 지역 목록: 시·도 → [시·군·구, 위도, 경도, [읍·면·동...]]
+        let v: Value = serde_json::from_str(REGIONS_JSON).unwrap();
+        let sidos = v["s"].as_array().unwrap();
+        assert!(sidos.len() >= 16);
+        let gg = sidos.iter().find(|x| x[0] == "경기도").unwrap();
+        let giheung = gg[1].as_array().unwrap().iter().find(|x| x[0] == "용인시 기흥구").unwrap();
+        let (lat, lon) = (giheung[1].as_f64().unwrap(), giheung[2].as_f64().unwrap());
+        assert!((37.0..37.5).contains(&lat) && (126.9..127.4).contains(&lon), "기흥구 좌표 {lat},{lon}");
+        assert!(giheung[3].as_array().unwrap().iter().any(|d| d == "보라동"));
+        // 모든 시·군·구가 한국 안의 좌표를 가진다
+        for sido in sidos {
+            for sgg in sido[1].as_array().unwrap() {
+                let (la, lo) = (sgg[1].as_f64().unwrap(), sgg[2].as_f64().unwrap());
+                assert!((33.0..38.7).contains(&la) && (124.5..131.0).contains(&lo), "{} {} 좌표가 이상함", sido[0], sgg[0]);
+            }
+        }
     }
 
     #[test]

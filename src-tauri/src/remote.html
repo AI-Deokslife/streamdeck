@@ -270,6 +270,9 @@
   .dk-chips button, .dk-picbtns button { border: 0; padding: 7px 11px; border-radius: 999px; background: rgba(128, 128, 128, 0.18); color: inherit; font: inherit; font-size: 13px; }
   .dk-chips button.on { background: var(--accent); color: #fff; }
   .dk-picbtns { display: flex; gap: 8px; margin-top: 8px; }
+  .dk-sel { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .dk-sel select { min-width: 0; padding: 8px 6px; border-radius: 10px; border: 1px solid rgba(128, 128, 128, 0.35); background: transparent; color: inherit; font: inherit; font-size: 14px; }
+  .dk-sel select option { color: #111; }
   .srow input[type="range"] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
 
 
@@ -574,9 +577,10 @@
   <label class="srow"><span>데스크테리어 모드<small>휴대폰을 가로로 두면 왼쪽에 시계·날씨·PC 상태를 보여 줘요</small></span><input type="checkbox" class="switch" id="optDesk" /></label>
   <div class="srow col"><span>왼쪽 패널 크기 <b id="optDeskWVal">36%</b></span><input type="range" id="optDeskW" min="26" max="50" value="36" /></div>
   <div class="srow col"><span>밤 모드 어둡게 <b id="optDeskDimVal">0%</b><small>🌙 버튼으로 바로 켜고 끌 수 있어요</small></span><input type="range" id="optDeskDim" min="0" max="80" value="0" /></div>
-  <div class="srow col"><span>날씨 지역 <b id="optPlaceName"></b><small>아래 도시를 누르거나 시·군·구 이름으로 찾아요. 안 나오면 영어 이름으로도 돼요 (예: Yongin). 날씨는 Open-Meteo(무료)에서 받아요</small></span>
-    <div class="dk-search"><input id="dkQ" placeholder="예: 용인, 수원 영통, 해운대" enterkeyhint="search" /><button class="act" id="dkGo" style="margin:0;width:auto;padding:0 14px">찾기</button></div>
+  <div class="srow col"><span>날씨 지역 <b id="optPlaceName"></b><small>동 이름으로 찾거나 시·도 → 시·군·구 → 읍·면·동 차례로 골라요 (국토교통부 법정동 목록). 날씨는 Open-Meteo(무료)에서 받아요</small></span>
+    <div class="dk-search"><input id="dkQ" placeholder="동 이름으로 찾기 (예: 보라동, 영통, 해운대)" enterkeyhint="search" autocomplete="off" /></div>
     <div class="dk-chips" id="dkChips"></div>
+    <div class="dk-sel"><select id="dkSido" aria-label="시·도"></select><select id="dkSgg" aria-label="시·군·구"></select><select id="dkEmd" aria-label="읍·면·동"></select></div>
     <div class="dk-search"><input id="dkLabel" placeholder="패널에 보일 이름 (예: 용인 보라동) · 비우면 지역 이름" maxlength="20" /></div></div>
   <div class="srow col"><span>사진·GIF<small>날씨 칸 왼쪽에 보여 줘요. 이 휴대폰에만 저장돼요</small></span>
     <div class="dk-picbtns"><button id="dkPick">사진 고르기</button><button id="dkPicDel">지우기</button></div><input type="file" id="dkPicIn" accept="image/*" hidden /></div>
@@ -1015,17 +1019,6 @@
   setInterval(tickClock, 1000);
 
   // --- 날씨 (Open-Meteo: 가입·열쇠 없이 쓰는 무료 날씨) ---
-  const PLACES = [
-    ["서울", 37.5665, 126.978], ["부산", 35.1796, 129.0756], ["대구", 35.8714, 128.6014], ["인천", 37.4563, 126.7052],
-    ["광주", 35.1595, 126.8526], ["대전", 36.3504, 127.3845], ["울산", 35.5384, 129.3114], ["세종", 36.48, 127.289],
-    ["수원", 37.2636, 127.0286], ["용인", 37.2411, 127.1776], ["청주", 36.6424, 127.489], ["전주", 35.8242, 127.148],
-    ["창원", 35.2281, 128.6811], ["춘천", 37.8813, 127.7298], ["제주", 33.4996, 126.5312],
-    ["성남", 37.42, 127.1265], ["판교", 37.3947, 127.1112], ["고양", 37.6584, 126.832], ["화성", 37.1995, 126.8312],
-    ["동탄", 37.2005, 127.0739], ["안산", 37.3219, 126.8309], ["안양", 37.3943, 126.9568], ["평택", 36.9921, 127.1129],
-    ["김포", 37.6153, 126.7156], ["파주", 37.7599, 126.78], ["의정부", 37.7381, 127.0337], ["남양주", 37.636, 127.2165],
-    ["하남", 37.5393, 127.2149], ["광명", 37.4786, 126.8644], ["시흥", 37.38, 126.803], ["오산", 37.1498, 127.0772],
-    ["천안", 36.8151, 127.1139], ["강릉", 37.7519, 128.8761], ["포항", 36.019, 129.3435],
-  ];
   const WX = {
     0: ["☀️", "맑음"], 1: ["🌤", "대체로 맑음"], 2: ["⛅", "구름 조금"], 3: ["☁️", "흐림"], 45: ["🌫", "안개"], 48: ["🌫", "안개"],
     51: ["🌦", "약한 이슬비"], 53: ["🌦", "이슬비"], 55: ["🌧", "이슬비"], 56: ["🌧", "어는 이슬비"], 57: ["🌧", "어는 이슬비"],
@@ -1073,40 +1066,91 @@
     wxBusy = false;
   }
   setInterval(() => loadWeather(), 60 * 1000);
-  function setPlace(name, lat, lon) {
+  function setPlace(name, lat, lon, path) {
     // 다른 지역을 고르면 직접 정한 이름은 지운다 (그 지역 이름이 아닐 수 있으니)
-    store.set("deskPlace", { name, lat: +(+lat).toFixed(4), lon: +(+lon).toFixed(4) });
+    store.set("deskPlace", { name, lat: +(+lat).toFixed(4), lon: +(+lon).toFixed(4), path: path || null });
     $("dkLabel").value = "";
-    paintChips();
     loadWeather(true);
   }
-  function paintChips(list) {
-    const items = list || PLACES.map(([name, lat, lon]) => ({ name, lat, lon }));
-    const cur = place();
-    $("dkChips").innerHTML = items.map((x, i) => `<button data-i="${i}" class="${x.name === cur.name ? "on" : ""}">${esc(x.label || x.name)}</button>`).join("");
+
+  // --- 지역 목록: 국토교통부 법정동(시·도 / 시·군·구 + 좌표 / 읍·면·동), PC 가 /regions.json 으로 준다 ---
+  let REG = null, FLAT = null;
+  async function regions() {
+    if (!REG) {
+      REG = await (await fetch("/regions.json")).json();
+      FLAT = [];
+      for (const [sido, sggs] of REG.s) {
+        for (const [sgg, lat, lon, dongs] of sggs) {
+          FLAT.push({ sido, sgg, emd: "", lat, lon });
+          for (const emd of dongs) FLAT.push({ sido, sgg, emd, lat, lon });
+        }
+      }
+    }
+    return REG;
+  }
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  function choose(x) {
+    setPlace(x.emd || x.sgg, x.lat, x.lon, { sido: x.sido, sgg: x.sgg, emd: x.emd });
+    fillSelects();
+  }
+  async function fillSelects() {
+    try { await regions(); } catch { $("dkChips").innerHTML = '<small>지역 목록을 불러오지 못했어요</small>'; return; }
+    const path = place().path || {};
+    const sido = REG.s.find((x) => x[0] === path.sido) || null;
+    $("dkSido").innerHTML = opt("", "시·도") + REG.s.map((x) => opt(x[0], x[0])).join("");
+    $("dkSido").value = sido ? sido[0] : "";
+    const sggs = sido ? sido[1] : [];
+    const sgg = sggs.find((x) => x[0] === path.sgg) || null;
+    $("dkSgg").innerHTML = opt("", "시·군·구") + sggs.map((x) => opt(x[0], x[0])).join("");
+    $("dkSgg").value = sgg ? sgg[0] : "";
+    $("dkSgg").disabled = !sido;
+    const dongs = sgg ? sgg[3] : [];
+    $("dkEmd").innerHTML = opt("", sgg ? "(구 전체)" : "읍·면·동") + dongs.map((d) => opt(d, d)).join("");
+    $("dkEmd").value = path.emd && dongs.includes(path.emd) ? path.emd : "";
+    $("dkEmd").disabled = !sgg;
+  }
+  $("dkSido").addEventListener("change", () => {
+    const sido = REG.s.find((x) => x[0] === $("dkSido").value);
+    // 시·도만 고른 상태: 화면만 바꾸고, 날씨 지역은 시·군·구를 고를 때 정한다
+    const pl = place();
+    pl.path = { sido: sido ? sido[0] : "", sgg: "", emd: "" };
+    store.set("deskPlace", pl);
+    fillSelects();
+  });
+  $("dkSgg").addEventListener("change", () => {
+    const sido = REG.s.find((x) => x[0] === $("dkSido").value);
+    const sgg = sido && sido[1].find((x) => x[0] === $("dkSgg").value);
+    if (sgg) choose({ sido: sido[0], sgg: sgg[0], emd: "", lat: sgg[1], lon: sgg[2] });
+  });
+  $("dkEmd").addEventListener("change", () => {
+    const sido = REG.s.find((x) => x[0] === $("dkSido").value);
+    const sgg = sido && sido[1].find((x) => x[0] === $("dkSgg").value);
+    if (sgg) choose({ sido: sido[0], sgg: sgg[0], emd: $("dkEmd").value, lat: sgg[1], lon: sgg[2] });
+  });
+  // 동 이름 검색 (휴대폰 안에서 바로): 이름이 그 글자로 시작하는 동을 먼저
+  async function searchPlace() {
+    const q = $("dkQ").value.replace(/\s+/g, "");
+    if (!q) { $("dkChips").innerHTML = ""; return; }
+    try { await regions(); } catch { return; }
+    const hit = FLAT.filter((x) => (x.emd || x.sgg).replace(/\s+/g, "").includes(q) || (!x.emd && x.sgg.replace(/\s+/g, "").includes(q)));
+    // 순위: 이름이 꼭 맞는 곳(하남 → 하남시) > 그 글자로 시작 > 들어 있음, 같으면 시·군·구를 동보다 먼저
+    const score = (x) => {
+      const n = (x.emd || x.sgg.split(" ").pop()).replace(/\s+/g, "");
+      const base = n.replace(/(시|군|구|동|읍|면|가)$/, "");
+      return (base === q || n === q ? 0 : n.startsWith(q) ? 2 : 4) + (x.emd ? 1 : 0);
+    };
+    hit.sort((a, b) => score(a) - score(b));
+    const list = hit.slice(0, 12);
+    $("dkChips").innerHTML = list.length
+      ? list.map((x, i) => `<button data-i="${i}">${esc(x.emd ? `${x.emd} · ${x.sgg}` : `${x.sgg} · ${x.sido}`)}</button>`).join("")
+      : "<small>찾지 못했어요. 아래에서 차례로 골라 보세요</small>";
     $("dkChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-      const x = items[+b.dataset.i];
-      setPlace(x.name, x.lat, x.lon);
-      if (list) paintChips();
+      choose(list[+b.dataset.i]);
+      $("dkQ").value = "";
+      $("dkChips").innerHTML = "";
     }));
   }
-  async function searchPlace() {
-    const q = $("dkQ").value.trim();
-    if (!q) return paintChips();
-    try {
-      // "수원" 처럼 시 이름만 쓰면 작은 마을이 먼저 나와서 "수원시" 도 같이 찾고, 인구가 많은 곳부터 보여 준다
-      const qs = [q];
-      if (!/[시군구동읍면]$/.test(q)) qs.push(q + "시");
-      const found = await Promise.all(qs.map((n) => fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(n)}&count=10&language=ko&format=json`).then((r) => r.json()).catch(() => ({}))));
-      const seen = new Set();
-      const all = found.flatMap((r) => r.results || []).filter((x) => !seen.has(x.id) && seen.add(x.id));
-      all.sort((a, b) => (b.population || 0) - (a.population || 0) || (a.country_code === "KR" ? -1 : 1));
-      const res = all.slice(0, 8).map((x) => ({ name: x.name, label: [x.name, x.admin2, x.admin1].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" · "), lat: x.latitude, lon: x.longitude }));
-      if (!res.length) { toast("찾지 못했어요. 시·군·구 이름으로 다시 찾아 보세요"); return; }
-      paintChips(res);
-    } catch { toast("검색하려면 휴대폰이 인터넷에 연결돼 있어야 해요"); }
-  }
-  $("dkGo").addEventListener("click", searchPlace);
+  $("dkQ").addEventListener("input", searchPlace);
   $("dkLabel").value = place().label || "";
   $("dkLabel").addEventListener("input", () => {
     const pl = place();
@@ -1116,7 +1160,6 @@
     $("dkPlace").textContent = placeLabel();
     $("optPlaceName").textContent = placeLabel();
   });
-  $("dkQ").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } });
 
   // --- PC 상태 ---
   function paintDeskPc() {
@@ -1189,13 +1232,14 @@
     applyDeskLook();
   });
   $("dkSetBtn").addEventListener("click", () => {
+    fillSelects();
     openSheet(true);
     pushBack();
     setTimeout(() => $("deskHead").scrollIntoView({ block: "start" }), 280);
   });
   function onDeskChange(on) {
     applyDeskLook();
-    if (on) { tickClock(); loadWeather(); paintChips(); paintPic(); pollWidgets(); }
+    if (on) { tickClock(); loadWeather(); paintPic(); pollWidgets(); }
   }
   function applyLayout() {
     const w = window.innerWidth, h = window.innerHeight;
