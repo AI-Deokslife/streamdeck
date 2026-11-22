@@ -228,7 +228,8 @@
     border-right: 1px solid rgba(128, 128, 128, 0.22);
   }
   .dk-card {
-    flex: 1 1 0; min-height: 0; overflow: hidden; position: relative;
+    flex: 1 1 0; min-height: 0; min-width: 0; overflow: hidden; position: relative;
+    container-type: inline-size;
     display: flex; flex-direction: column; justify-content: center;
     border-radius: 16px; padding: 1.4dvh 1.8dvh;
     background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -236,7 +237,7 @@
   body.light .dk-card { background: rgba(255, 255, 255, 0.75); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
   .dk-clock { flex-grow: 0.85; text-align: center; }
   .dk-time { line-height: 1; }
-  .dk-time b { font-size: clamp(24px, 13dvh, 80px); font-weight: 800; letter-spacing: 1px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .dk-time b { font-size: clamp(22px, min(13dvh, 24cqw), 80px); font-weight: 800; letter-spacing: 1px; color: var(--accent); font-variant-numeric: tabular-nums; }
   .dk-time small { font-size: clamp(11px, 3.6dvh, 22px); font-weight: 700; margin-left: 4px; opacity: 0.7; font-variant-numeric: tabular-nums; }
   .dk-date { margin-top: 1dvh; font-size: clamp(11px, 3.4dvh, 20px); opacity: 0.85; display: flex; justify-content: center; align-items: center; gap: 6px; }
   .dk-date em { font-style: normal; font-weight: 700; padding: 1px 8px; border-radius: 8px; background: rgba(10, 132, 255, 0.18); color: var(--accent); }
@@ -247,18 +248,30 @@
   .dk-btns { display: flex; gap: 4px; flex-shrink: 0; }
   .dk-btns button { border: 0; width: clamp(26px, 7dvh, 40px); height: clamp(24px, 6.4dvh, 36px); border-radius: 10px; background: rgba(128, 128, 128, 0.16); color: inherit; font-size: clamp(12px, 3.4dvh, 18px); padding: 0; }
   .dk-wx-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 1.6dvh; align-items: center; }
-  .dk-pic { height: 100%; max-height: 24dvh; aspect-ratio: 1; border-radius: 12px; object-fit: cover; flex-shrink: 0; background: rgba(128, 128, 128, 0.15); }
+  .dk-pic { height: 100%; max-height: 24dvh; max-width: 40cqw; aspect-ratio: 1; border-radius: 12px; object-fit: cover; flex-shrink: 0; background: rgba(128, 128, 128, 0.15); }
   .dk-pic[hidden] { display: none; }
   .dk-wx-info { flex: 1; min-width: 0; }
   .dk-wx-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; line-height: 1.1; }
-  .dk-wx-main b { font-size: clamp(20px, 9dvh, 52px); font-weight: 800; }
-  .dk-wx-main span { font-size: clamp(11px, 3.4dvh, 19px); font-weight: 700; color: var(--accent); }
+  .dk-wx-main b { font-size: clamp(18px, min(9dvh, 15cqw), 52px); font-weight: 800; }
+  .dk-wx-main span { font-size: clamp(10px, min(3.4dvh, 6cqw), 19px); font-weight: 700; color: var(--accent); white-space: nowrap; }
   .dk-wx-ico { font-size: clamp(16px, 5dvh, 28px); }
-  .dk-wx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4dvh 8px; margin-top: 0.8dvh; font-size: clamp(10px, 3.1dvh, 17px); opacity: 0.85; white-space: nowrap; }
+  .dk-wx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4dvh 8px; margin-top: 0.8dvh; font-size: clamp(9px, min(3.1dvh, 5.4cqw), 17px); opacity: 0.85; white-space: nowrap; }
+  .dk-wx-grid span { overflow: hidden; text-overflow: ellipsis; }
   .dk-wx-grid i { font-style: normal; font-variant-numeric: tabular-nums; }
+  /* 패널을 좁히면: 날씨는 두 줄만(습도·체감), 더 좁으면 사진을 숨기고, PC 는 GB 글자를 뺀다 */
+  @container (max-width: 330px) {
+    .dk-wx-grid { grid-template-columns: 1fr; }
+    .dk-wx-grid .w-mm, .dk-wx-grid .w-wind { display: none; }
+    .dk-pic { max-width: 34cqw; }
+  }
+  @container (max-width: 240px) {
+    .dk-pic { display: none; }
+    .dk-wx-grid { grid-template-columns: 1fr 1fr; }
+    .dk-meter small { display: none; }
+  }
   .dk-pc-head { display: flex; justify-content: space-between; gap: 8px; font-size: clamp(9px, 2.8dvh, 15px); font-weight: 700; letter-spacing: 0.5px; opacity: 0.75; }
   .dk-pc-head span:last-child { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dk-meter { display: flex; align-items: baseline; gap: 6px; font-size: clamp(11px, 3.5dvh, 19px); margin-top: 1dvh; }
+  .dk-meter { display: flex; align-items: baseline; gap: 6px; font-size: clamp(10px, min(3.5dvh, 7cqw), 19px); margin-top: 1dvh; white-space: nowrap; }
   .dk-meter b { margin-left: auto; color: var(--accent); font-variant-numeric: tabular-nums; }
   .dk-meter small { opacity: 0.6; font-size: clamp(9px, 2.8dvh, 15px); font-variant-numeric: tabular-nums; }
   .dk-bar { display: block; height: clamp(4px, 1.2dvh, 8px); border-radius: 4px; background: rgba(128, 128, 128, 0.22); overflow: hidden; margin-top: 0.6dvh; }
@@ -484,7 +497,7 @@
     <div class="dk-wx-head"><span class="dk-place" id="dkPlace">서울</span><span class="dk-btns"><button id="dkDimBtn" aria-label="밤 모드">🌙</button><button id="dkSetBtn" aria-label="데스크테리어 설정">⚙︎</button></span></div>
     <div class="dk-wx-body"><img class="dk-pic" id="dkPic" alt="" hidden />
       <div class="dk-wx-info"><div class="dk-wx-main"><span class="dk-wx-ico" id="dkIco">⛅</span><b id="dkTemp">--°</b><span id="dkSky">날씨 불러오는 중</span></div>
-        <div class="dk-wx-grid"><span>💧 <i id="dkHum">--</i>%</span><span>🌡 체감 <i id="dkFeel">--</i>°</span><span>↕ <i id="dkMM">--</i></span><span>💨 <i id="dkWind">--</i>m/s</span></div></div></div></div>
+        <div class="dk-wx-grid"><span class="w-hum">💧 <i id="dkHum">--</i>%</span><span class="w-feel">🌡 체감 <i id="dkFeel">--</i>°</span><span class="w-mm">↕ <i id="dkMM">--</i></span><span class="w-wind">💨 <i id="dkWind">--</i>m/s</span></div></div></div></div>
   <div class="dk-card"><div class="dk-pc-head"><span>PC SYSTEM</span><span id="dkPcName"></span></div>
     <div class="dk-meter"><span>⚡ CPU</span><b id="dkCpu">--%</b></div><i class="dk-bar"><b id="dkCpuBar"></b></i>
     <div class="dk-meter"><span>🧠 RAM</span><small id="dkRamGb"></small><b id="dkRam">--%</b></div><i class="dk-bar"><b id="dkRamBar"></b></i></div>
